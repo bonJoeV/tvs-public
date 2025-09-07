@@ -1,0 +1,9 @@
+Google Apps Script command-line tool (clasp) configuration file
+.clasp.json
+
+Local development settings for Apps Script
+.claspignore
+
+Common OS files
+.DS_Store
+Thumbs.db
