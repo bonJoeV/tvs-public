@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>The Vital Stretch - Grand Opening Entry</title>
+  <!-- Google Fonts for Yeseva One -->
+  <link href="https://fonts.googleapis.com/css2?family=Yeseva+One&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --ink:#03110d;
+      --bg:#f7f7f8;
+      --card:#ffffff;
+      --brand:rgb(1,49,96);
+      --brand-rgb:1,49,96;
+      --muted:#6b7280;
+      --muted-on-dark:rgba(255,255,255,.8);
+      --ok:#059669;
+      --accent:#FBB514; /* subheading + prize border color */
+    }
+
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: 'Futura Com Book','Trebuchet MS',Arial,sans-serif;
+      background: rgb(var(--brand-rgb));
+      color: var(--ink);
+    }
+
+    .wrap{
+      max-width: 980px; /* tuned for iPad landscape */
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    header{
+      display:flex;
+      align-items:center;
+      gap:16px;
+      padding:12px 0 24px;
+    }
+
+    .logo{
+      height:56px; width:auto; display:block; object-fit:contain;
+      filter: drop-shadow(0 0 1px rgba(0,0,0,.2));
+    }
+
+    .title{
+      line-height:1.2;
+      font-size: clamp(22px, 3.2vw, 28px);
+      margin:0;
+      font-family: 'Yeseva One', serif;
+      color:#fff;
+      font-weight: 700;
+      letter-spacing: .2px;
+    }
+    .sub{
+      margin:2px 0 0;
+      color: var(--accent);
+      font-size: 14px;
+      font-family: 'Futura Com Book','Trebuchet MS',Arial,sans-serif;
+    }
+
+    .card{
+      background: var(--card);
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.18);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .prizes h2,
+    .form-shell h2{
+      margin: 0 0 12px;
+      font-size: 18px;
+      color: var(--brand);
+      font-family: 'Futura Com Book','Trebuchet MS',Arial,sans-serif;
+    }
+
+    .prizes p{
+      margin: 0 0 10px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    /* Prize cards grid - three columns */
+    .prize-list{
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .prize-list > li{
+      border: 2px solid var(--accent); /* thicker, gold */
+      border-radius: 12px;
+      padding: 12px;
+      background: #fff;
+    }
+    .prize-list > li > b{
+      display:block;
+      margin-bottom:6px;
+      font-size:15px;      /* title slightly larger */
+      color: var(--brand); /* brand blue */
+    }
+    .prize-items{
+      margin: 0 0 6px 18px;
+      padding: 0;
+      font-size: 14px;     /* one point smaller than body */
+      line-height: 1.4;
+      list-style: disc;
+    }
+    .prize-items li{ margin-bottom:3px; }
+    .prize-value{
+      font-size: 13px;
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    .footnote{
+      margin-top:12px;
+      font-size:12px;
+      color:var(--muted);
+      text-align:center;
+    }
+
+    /* Momence theming via CSS vars */
+    :root {
+      --momenceColorBackground: 251, 251, 251;
+      --momenceColorPrimary: 1, 49, 96;
+      --momenceColorBlack: 3, 17, 13;
+    }
+
+    /* Success overlay */
+    .success-wrap{
+      display:none;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      gap:10px;
+      padding:24px;
+      border:1px solid #e5e7eb;
+      border-radius:16px;
+      background:#f0fdf4;
+    }
+    .success-wrap.active{display:flex}
+    .success-wrap h3{
+      margin:0;
+      font-size:18px;
+      color: var(--ok);
+    }
+    .success-wrap p{
+      margin:4px 0 0;
+      color:#065f46;
+      font-size:14px;
+    }
+    .again-btn{
+      cursor:pointer;
+      border:0;
+      border-radius:12px;
+      padding:10px 14px;
+      font-weight:600;
+      background: var(--brand);
+      color:#fff;
+    }
+
+    /* Form layout tuned for iPad landscape two columns */
+    #momence-plugin-lead-form * { box-sizing: border-box; }
+
+    #momence-plugin-lead-form form{
+      display:grid !important;
+      grid-template-columns: 1fr 1fr !important;
+      gap:14px !important;
+      align-items:start;
+      justify-items:start;
+    }
+
+    /* Make each field fill its column comfortably */
+    #momence-plugin-lead-form form > *{
+      width: 100% !important;
+      max-width: 460px !important;
+    }
+
+    #momence-plugin-lead-form input,
+    #momence-plugin-lead-form select,
+    #momence-plugin-lead-form textarea,
+    #momence-plugin-lead-form [role="textbox"],
+    #momence-plugin-lead-form .momence-input,
+    #momence-plugin-lead-form .momence-select{
+      width:100% !important;
+      max-width: 460px !important;
+      font-size:18px !important;
+      padding:12px 14px !important;
+      border-radius:10px !important;
+      font-family: 'Futura Com Book','Trebuchet MS',Arial,sans-serif !important;
+    }
+
+    /* Center the consent row */
+    #momence-plugin-lead-form [class*="consent"],
+    #momence-plugin-lead-form [class*="Consent"],
+    #momence-plugin-lead-form [class*="checkbox"],
+    #momence-plugin-lead-form [data-accept],
+    #momence-plugin-lead-form [data-collect-consent],
+    #momence-plugin-lead-form [name*="consent"],
+    #momence-plugin-lead-form .momence-consent,
+    #momence-plugin-lead-form .momence-form-consent{
+      grid-column: 1 / -1 !important;
+      justify-self: center !important;
+      text-align: center !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 8px !important;
+    }
+    #momence-plugin-lead-form input[type="checkbox"]{
+      width: 18px !important;
+      height: 18px !important;
+      transform: none !important;
+      margin-right:6px !important;
+    }
+
+    /* Submit button normal sized, centered */
+    #momence-plugin-lead-form button{
+      font-size:16px !important;
+      padding:10px 20px !important;
+      border-radius:8px !important;
+      width: auto !important;
+      max-width:none !important;
+      margin: 12px auto 0 auto !important;
+      display:block !important;
+      justify-self:center !important;
+      font-family: 'Futura Com Book','Trebuchet MS',Arial,sans-serif !important;
+    }
+
+    /* Single column on narrow screens */
+    @media (max-width: 820px){
+      .prize-list{ grid-template-columns: 1fr 1fr; }
+      #momence-plugin-lead-form form{ grid-template-columns: 1fr !important; }
+      #momence-plugin-lead-form button{ margin:12px auto !important; }
+    }
+
+    #momence-plugin-lead-form input:focus,
+    #momence-plugin-lead-form select:focus,
+    #momence-plugin-lead-form button:focus{
+      outline: 3px solid rgba(var(--momenceColorPrimary), .35) !important;
+      outline-offset: 2px !important;
+    }
+
+    .form-shell #momence-plugin-lead-form{ display:grid; place-items:start; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <img class="logo" src="https://www.thevitalstretch.com/images/Logo-R-White.png" alt="The Vital Stretch Logo" />
+      <div>
+        <h1 class="title">Eden Prairie Grand Opening Entry</h1>
+        <p class="sub">Enter to win and opt in to future offers from The Vital Stretch</p>
+      </div>
+    </header>
+
+    <!-- Prizes and drawing info -->
+    <section class="card prizes" aria-labelledby="prizes-title">
+      <h2 id="prizes-title">Prizes and Drawing Details</h2>
+      <p>Winners will be selected and notified by email and phone. One entry per guest per day. No purchase required. Must be 18 or older.</p>
+      <ul class="prize-list">
+        <li>
+          <b>Grand Prize</b>
+          <ul class="prize-items">
+            <li>Therabody SmartGoggles <!-- ($199) --></li>
+            <li>Two 1-hour assisted stretch sessions <!-- ($260) --></li>
+            <li>Two 20-minute infrared sauna sessions <!-- ($50) --></li>
+          </ul>
+          <div class="prize-value">Total value: $509</div>
+        </li>
+        <li>
+          <b>Second Prize</b>
+          <ul class="prize-items">
+            <li>Therabody SmartGoggles <!-- ($199) --></li>
+            <li>One 1-hour assisted stretch session <!-- ($130) --></li>
+            <li>One 20-minute infrared sauna session <!-- ($25) --></li>
+          </ul>
+          <div class="prize-value">Total value: $354</div>
+        </li>
+        <li>
+          <b>Third Prize</b>
+          <ul class="prize-items">
+            <li>Aroma 360 MN Timberwolves NBA Mini Pro Scent Diffuser <!-- ($150) --></li>
+            <li>One 30-minute assisted stretch session <!-- ($65) --></li>
+            <li>One 20-minute infrared sauna session <!-- ($25) --></li>
+          </ul>
+          <div class="prize-value">Total value: $240</div>
+        </li>
+        <li>
+          <b>Fourth Prize</b>
+          <ul class="prize-items">
+            <li>$100 Debit card <!-- ($100) --></li>
+            <li>One 30-minute assisted stretch session <!-- ($65) --></li>
+            <li>One 20-minute infrared sauna session <!-- ($25) --></li>
+          </ul>
+          <div class="prize-value">Total value: $190</div>
+        </li>
+        <li>
+          <b>Fifth Prize</b>
+          <ul class="prize-items">
+            <li>$100 Debit card <!-- ($100) --></li>
+            <li>One 20-minute infrared sauna session <!-- ($25) --></li>
+          </ul>
+          <div class="prize-value">Total value: $125</div>
+        </li>
+        <li>
+          <b>Sixth Prize</b>
+          <ul class="prize-items">
+            <li>$100 Debit card <!-- ($100) --></li>
+          </ul>
+          <div class="prize-value">Total value: $100</div>
+        </li>
+      </ul>
+    </section>
+
+    <!-- Form container -->
+    <section class="card form-shell" aria-labelledby="enter-title">
+      <h2 id="enter-title">Enter the Drawing</h2>
+
+      <!-- Success overlay shown after submit -->
+      <div id="success-wrap" class="success-wrap" role="status" aria-live="polite">
+        <div>
+          <h3 id="thanks-heading">Thanks for entering</h3>
+          <p id="thanks-extra">Look out for emails and texts with new offers and we will reach out soon.</p>
+          <p id="countdown">Refreshing to a blank form in 5 seconds</p>
+          <p><button id="again-btn" class="again-btn" type="button">Enter another guest now</button></p>
+        </div>
+      </div>
+
+      <!-- Momence form mounts here -->
+      <div id="momence-plugin-lead-form"></div>
+      <p class="footnote">
+        By entering, you consent to be contacted about future sessions, promotions, and studio updates. Standard messaging rates may apply.
+      </p>
+    </section>
+  </div>
+
+  <!-- Momence plugin -->
+  <script
+    async
+    type="module"
+    id="momence-plugin-lead-form-src"
+    host_id="49534"
+    fields="firstName,lastName,email,phoneNumber"
+    token="Q0X6kkxjnp"
+    country_code="us"
+    source_id="86979"
+    data_collect_consent="required"
+    data-field-def='{
+      "firstName":{"type":"text","label":"First name","required":true,"placeholder":"First name"},
+      "lastName":{"type":"text","label":"Last name","required":true,"placeholder":"Last name"},
+      "email":{"type":"email","label":"Email","required":true,"placeholder":"name@email.com"},
+      "phoneNumber":{
+        "type":"phone-number",
+        "label":"Phone number",
+        "required":true,
+        "placeholder":"+15551234567",
+        "inputMode":"tel"
+      }
+    }'
+    data-on-success-msg="Thank you! Good luck on your Entry and looking forward to seeing you soon!"
+    src="https://momence.com/plugin/lead-form/lead-form.js">
+  </script>
+
+  <script>
+    (function(){
+      const formHost = document.getElementById('momence-plugin-lead-form');
+      const successWrap = document.getElementById('success-wrap');
+      const countdownEl = document.getElementById('countdown');
+      const thanksHeading = document.getElementById('thanks-heading');
+      const thanksExtra = document.getElementById('thanks-extra');
+      const againBtn = document.getElementById('again-btn');
+
+      let timer = null;
+      let seconds = 10;
+      let successHandled = false;
+
+      function startCountdown(){
+        clearInterval(timer);
+        seconds = 5;
+        countdownEl.textContent = "Refreshing to a blank form in " + seconds + " seconds";
+        timer = setInterval(()=>{
+          seconds -= 1;
+          if(seconds <= 0){
+            clearInterval(timer);
+            tryReloadOrReinit();
+          } else {
+            countdownEl.textContent = "Refreshing to a blank form in " + seconds + " seconds";
+          }
+        }, 1000);
+      }
+
+      function tryReloadOrReinit(){
+        try { location.reload(); } catch(e) {}
+        setTimeout(() => {
+          try { location.replace(location.href); } catch(e) {}
+        }, 1200);
+        setTimeout(() => {
+          if (document.visibilityState === "visible") {
+            reinitForm();
+          }
+        }, 2500);
+      }
+
+      function reinitForm(){
+        successWrap.classList.remove('active');
+        countdownEl.textContent = "Loading a new form...";
+        formHost.innerHTML = "";
+        const oldScript = document.getElementById('momence-plugin-lead-form-src');
+        if (!oldScript) return;
+        const fresh = document.createElement('script');
+        for (const attr of oldScript.attributes) {
+          fresh.setAttribute(attr.name, attr.value);
+        }
+        fresh.removeAttribute('id');
+        document.body.appendChild(fresh);
+        formHost.scrollIntoView({behavior:'smooth', block:'start'});
+      }
+
+      againBtn.addEventListener('click', tryReloadOrReinit);
+
+      /* Success detection with personalized thanks */
+      const SUCCESS_MATCH = /thank\s*you/i;
+
+      const successObserver = new MutationObserver(() => {
+        if (successHandled) return;
+        const txt = (formHost.textContent || "").toLowerCase();
+        if (SUCCESS_MATCH.test(txt)) {
+          successHandled = true;
+
+          // Try to capture first name from the form before it disappears
+          const fn = formHost.querySelector('input[name="firstName"]');
+          const firstName = fn ? fn.value.trim() : "";
+          thanksHeading.textContent = firstName ? `Thanks for entering, ${firstName}!` : "Thanks for entering!";
+          thanksExtra.textContent = "Look out for emails and texts with new offers and we will reach out soon.";
+
+          successWrap.classList.add('active');
+          successWrap.scrollIntoView({behavior:'smooth', block:'start'});
+          startCountdown();
+        }
+      });
+
+      const bootObserver = new MutationObserver(() => {
+        if (formHost.children.length > 0) {
+          successObserver.observe(formHost, { childList: true, subtree: true, characterData: true });
+          bootObserver.disconnect();
+        }
+      });
+      bootObserver.observe(formHost, { childList: true, subtree: true });
+
+      /* Hygiene: turn off autocomplete/save/spellcheck */
+      const hygieneObserver = new MutationObserver(() => {
+        const form = formHost.querySelector('form');
+        if (form && !form.dataset.hardened) {
+          form.dataset.hardened = "true";
+          form.setAttribute('autocomplete','off');
+          form.setAttribute('spellcheck','false');
+          form.querySelectorAll('input,select,textarea').forEach(el => {
+            el.setAttribute('autocomplete','off');
+            el.setAttribute('autocapitalize','off');
+            el.setAttribute('autocorrect','off');
+            el.setAttribute('spellcheck','false');
+            if (el.type !== 'tel') el.removeAttribute('inputmode');
+          });
+        }
+      });
+      hygieneObserver.observe(formHost, { childList: true, subtree: true });
+    })();
+  </script>
+</body>
+</html>
