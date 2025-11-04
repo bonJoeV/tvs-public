@@ -4029,8 +4029,8 @@
                     ${membershipRevenue > 0 ? `
                     <div class="metric-card compact" style="background: linear-gradient(135deg, rgba(156, 39, 176, 0.1), rgba(123, 31, 162, 0.05)); border-left: 4px solid #9c27b0;">
                         <div class="metric-label">💳 Total Memberships</div>
-                        <div class="metric-value">${formatNumber(membershipsData.length)}</div>
-                        <div class="metric-subtext">${formatNumber(membershipsData.filter(m => m.Expired !== 'Yes').length)} active</div>
+                        <div class="metric-value">${formatNumber(membershipsData.filter(m => m.Expired !== 'Yes').length)}</div>
+                        <div class="metric-subtext">${formatNumber(membershipsData.length)} customers</div>
                     </div>
                     <div class="metric-card compact" style="background: linear-gradient(135deg, rgba(40, 167, 69, 0.1), rgba(32, 201, 151, 0.05)); border-left: 4px solid #28a745;">
                         <div class="metric-label">💵 Membership Revenue</div>
@@ -6549,14 +6549,15 @@
                     
                     <!-- Compact Metrics Grid -->
                     <div class="metrics-grid" style="grid-template-columns: repeat(6, 1fr); margin-bottom: 40px;">
+
                         <div class="metric-card compact" style="background: linear-gradient(135deg, rgba(40, 167, 69, 0.1), rgba(32, 201, 151, 0.05)); border-left: 4px solid #28a745;">
-                            <div class="metric-label">🆕 New Sales</div>
-                            <div class="metric-value">${formatNumber(newSalesCount)}</div>
+                            <div class="metric-label">💳 Active Members</div>
+                            <div class="metric-value">${formatNumber(membershipsData.filter(m => m.Expired !== 'Yes').length)}</div>
                             <div class="metric-subtext">${formatCurrency(newSalesRevenue)} revenue<br>Avg: ${formatCurrency(newSalesRevenue/newSalesCount)}</div>
                         </div>
                         
                         <div class="metric-card compact" style="background: linear-gradient(135deg, rgba(0, 123, 255, 0.1), rgba(0, 86, 179, 0.05)); border-left: 4px solid #007bff;">
-                            <div class="metric-label">🔄 Renewals</div>
+                            <div class="metric-label">🔄 Total Renewals</div>
                             <div class="metric-value">${formatNumber(renewalsCount)}</div>
                             <div class="metric-subtext">${formatCurrency(renewalsRevenue)} revenue<br>Avg: ${formatCurrency(renewalsRevenue/renewalsCount)}</div>
                         </div>
