@@ -11,6 +11,7 @@
     <!-- External Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     
     <style>
         /* The Vital Stretch - Dashboard Styles */
@@ -125,28 +126,29 @@
         /* Upload Section */
         .upload-section {
             background: white;
-            padding: 25px;
+            padding: 15px;
             border-radius: 15px;
             box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             border: 2px solid var(--accent);
         }
 
         .upload-section h2 {
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             text-align: center;
+            font-size: 1.3em;
         }
 
         .upload-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-top: 20px;
+            gap: 15px;
+            margin-top: 10px;
         }
 
         .upload-box {
             text-align: center;
-            padding: 20px;
+            padding: 15px;
             background: var(--gray-light);
             border-radius: 10px;
             border: 2px dashed var(--accent);
@@ -525,22 +527,23 @@
         /* Filters */
         .filters {
             background: white;
-            padding: 25px;
+            padding: 15px;
             border-radius: 15px;
             box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             border-top: 4px solid var(--primary);
         }
 
         .filters h2 {
-            margin-bottom: 20px;
+            margin-bottom: 10px;
+            font-size: 1.3em;
         }
 
         .filter-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
+            gap: 12px;
+            margin-bottom: 15px;
         }
 
         .filter-group label {
@@ -586,6 +589,62 @@
         .quick-filter-btn:hover {
             background: var(--primary);
             transform: translateY(-2px);
+        }
+
+        .refresh-filter-btn {
+            padding: 8px 16px;
+            background: var(--highlight);
+            color: var(--primary);
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(251, 181, 20, 0.3);
+            margin-top: 10px;
+        }
+
+        .refresh-filter-btn:hover {
+            background: var(--primary);
+            color: var(--highlight);
+            transform: translateY(-2px);
+        }
+
+        .refresh-filter-btn:active {
+            transform: translateY(0);
+        }
+
+        /* Footer */
+        .dashboard-footer {
+            background: var(--primary);
+            color: white;
+            text-align: center;
+            padding: 15px 30px;
+            margin-top: 40px;
+            border-top: 3px solid var(--highlight);
+        }
+
+        .footer-content {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            font-size: 14px;
+        }
+
+        .footer-version {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .footer-credits {
+            color: var(--highlight);
+        }
+
+        .footer-separator {
+            color: var(--accent);
         }
 
         /* Tabs */
@@ -1535,18 +1594,19 @@
         <!-- Upload Section -->
         <div class="upload-section">
             <div class="collapsible-header" onclick="toggleCollapse('uploadContent', 'uploadIcon')">
-                <h2>📂 Upload Your Data</h2>
+                <h2>📂 Upload/Set Your Franchise Data</h2>
                 <span class="collapse-icon" id="uploadIcon">▼</span>
             </div>
             <div class="collapsible-content" id="uploadContent">
-                <p style="text-align: center; margin: 15px 0; color: #666;">Upload CSV exports from Momence to start analyzing</p>
+                <p style="text-align: center; margin: 15px 0; color: #666;">Upload your Momence exports to start analyzing</p>
                 
                 <div class="upload-grid" style="grid-template-columns: 1fr 1fr 1fr;">
                     <div class="upload-box">
-                        <h3>📅 Appointments & Payroll</h3>
-                        <input type="file" id="appointmentsFile" accept=".csv" style="display: none;">
-                        <label for="appointmentsFile" class="upload-btn">Choose File</label>
-                        <div class="upload-status" id="appointmentsStatus"></div>
+                        <h3>📦 Payroll Zip Package</h3>
+                        <p style="font-size: 12px; color: #666; margin: 5px 0;">All employee payroll files in one zip</p>
+                        <input type="file" id="payrollZipFile" accept=".zip" style="display: none;">
+                        <label for="payrollZipFile" class="upload-btn">Choose Zip File</label>
+                        <div class="upload-status" id="payrollZipStatus"></div>
                     </div>
                     
                     <div class="upload-box">
@@ -1561,6 +1621,56 @@
                         <input type="file" id="leadsFile" accept=".csv" style="display: none;">
                         <label for="leadsFile" class="upload-btn">Choose File</label>
                         <div class="upload-status" id="leadsStatus"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Configuration Section -->
+        <div class="upload-section" id="configSection" style="display: none;">
+            <div class="collapsible-header" onclick="toggleCollapse('configContent', 'configIcon')">
+                <h2>⚙️ Franchise Configuration</h2>
+                <span class="collapse-icon collapsed" id="configIcon">▼</span>
+            </div>
+            <div class="collapsible-content collapsed" id="configContent">
+                <p style="text-align: center; margin: 15px 0; color: #666;">Configure your franchise-specific settings</p>
+                
+                <div style="max-width: 600px; margin: 0 auto; padding: 20px; background: var(--gray-light); border-radius: 10px;">
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; font-weight: 600; color: var(--primary); margin-bottom: 8px;">
+                            💵 Base Hourly Rate for Non-Appointment Work
+                        </label>
+                        <p style="font-size: 13px; color: #666; margin-bottom: 10px;">
+                            Set the hourly rate paid for administrative, cleaning, and other non-appointment work
+                        </p>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <span style="font-size: 20px; font-weight: bold; color: var(--primary);">$</span>
+                            <input type="number" 
+                                id="baseRateInput" 
+                                value="13" 
+                                min="0" 
+                                step="0.50" 
+                                style="flex: 1; padding: 12px; border: 2px solid var(--accent); border-radius: 8px; font-size: 16px; font-weight: 600;"
+                            >
+                            <span style="font-size: 14px; color: #666;">per hour</span>
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 20px;">
+                        <button onclick="setBaseRate()" class="upload-btn" style="min-width: 200px;">
+                            💾 Save Configuration
+                        </button>
+                        <div id="baseRateStatus" style="margin-top: 12px; min-height: 20px; font-weight: 600;"></div>
+                    </div>
+                    
+                    <div style="margin-top: 20px; padding: 15px; background: white; border-radius: 8px; border-left: 4px solid var(--accent);">
+                        <p style="font-size: 13px; color: #666; margin: 0;">
+                            <strong>Current Setting:</strong> 
+                            <span style="color: var(--primary); font-size: 16px; font-weight: bold;" id="currentBaseRate">$13.00/hour</span>
+                        </p>
+                        <p style="font-size: 12px; color: #999; margin: 8px 0 0 0;">
+                            This rate is used to calculate labor costs for non-appointment hours (cleaning, admin, training, etc.) to provide accurate profitability metrics.
+                        </p>
                     </div>
                 </div>
             </div>
@@ -1628,19 +1738,22 @@
                     <button class="quick-filter-btn" onclick="setQuickFilter('lastMonth')">Last Month</button>
                     <button class="quick-filter-btn" onclick="setQuickFilter('reset')">Reset All</button>
                 </div>
+                <div style="text-align: center;">
+                    <button class="refresh-filter-btn" onclick="refreshData()">🔄 Refresh Data</button>
+                </div>
             </div>
         </div>
         
         <!-- Main Tabs -->
         <div class="tabs" id="mainTabs" style="display: none;">
             <div class="tab active" onclick="switchTab('overview')">📊 Overview</div>
-            <div class="tab" onclick="switchTab('memberships')">💳 Memberships</div>
-            <div class="tab" onclick="switchTab('journey')">🚀 Journey</div>
-            <div class="tab" onclick="switchTab('retention')">🔄 Retention</div>
-            <div class="tab" onclick="switchTab('schedule')">⏰ Schedule</div>
-            <div class="tab" onclick="switchTab('customers')">👥 Customers</div>
-            <div class="tab" onclick="switchTab('practitioners')">⚕️ VSP</div>
             <div class="tab" onclick="switchTab('timeline')">📈 Timeline</div>
+            <div class="tab" onclick="switchTab('practitioners')">⚕️ VSP</div>
+            <div class="tab" onclick="switchTab('customers')">👥 Customers</div>
+            <div class="tab" onclick="switchTab('retention')">🔄 Retention</div>
+            <div class="tab" onclick="switchTab('journey')">🚀 Journey</div>
+            <div class="tab" onclick="switchTab('memberships')">💳 Memberships</div>
+            <div class="tab" onclick="switchTab('schedule')">⏰ Schedule</div>
             <div class="tab" onclick="switchTab('insights')">💡 Insights</div>
         </div>
         
@@ -1800,7 +1913,7 @@
             // Get detailed info for each customer
             const customersWithDetails = customersInRange.map(c => {
                 const customerEmail = c['E-mail'];
-                const customerAppointments = filteredAppointments.filter(a => a['Customer E-mail'] === customerEmail);
+                const customerAppointments = filteredAppointments.filter(a => a['Customer Email'] === customerEmail);
                 
                 // Get latest appointment date
                 let latestDate = null;
@@ -1911,7 +2024,7 @@
         function showVisitFrequencyDetails(range, count) {
             const clientVisits = {};
             filteredAppointments.forEach(row => {
-                const email = row['Customer E-mail'];
+                const email = row['Customer Email'];
                 if (email) {
                     clientVisits[email] = (clientVisits[email] || 0) + 1;
                 }
@@ -1928,7 +2041,7 @@
                 else if (range === '11+ visits' && visits > 10) inRange = true;
                 
                 if (inRange) {
-                    const appointments = filteredAppointments.filter(a => a['Customer E-mail'] === email);
+                    const appointments = filteredAppointments.filter(a => a['Customer Email'] === email);
                     const revenue = appointments.reduce((sum, a) => sum + (parseFloat(a.Revenue) || 0), 0);
                     const customerName = appointments[0]?.['Customer Name'] || 'Unknown';
                     const lastVisitDate = appointments[appointments.length - 1]?.['Appointment Date'] || 'N/A';
@@ -2021,7 +2134,7 @@
             
             const revenue = appointments.reduce((sum, a) => sum + (parseFloat(a.Revenue) || 0), 0);
             const payout = appointments.reduce((sum, a) => sum + (parseFloat(a['Total Payout']) || 0), 0);
-            const uniqueClients = new Set(appointments.map(a => a['Customer E-mail'])).size;
+            const uniqueClients = new Set(appointments.map(a => a['Customer Email'])).size;
             
             // Service breakdown
             const services = {};
@@ -2095,7 +2208,7 @@
             const appointments = filteredAppointments.filter(row => row.Appointment === serviceName);
             
             const revenue = appointments.reduce((sum, a) => sum + (parseFloat(a.Revenue) || 0), 0);
-            const uniqueClients = new Set(appointments.map(a => a['Customer E-mail'])).size;
+            const uniqueClients = new Set(appointments.map(a => a['Customer Email'])).size;
             const avgRevenue = appointments.length > 0 ? revenue / appointments.length : 0;
             
             // Practitioner breakdown
@@ -2173,7 +2286,7 @@
             });
             
             const revenue = dayAppointments.reduce((sum, a) => sum + (parseFloat(a.Revenue) || 0), 0);
-            const uniqueClients = new Set(dayAppointments.map(a => a['Customer E-mail'])).size;
+            const uniqueClients = new Set(dayAppointments.map(a => a['Customer Email'])).size;
             
             // Hour breakdown
             const hourBreakdown = {};
@@ -2254,11 +2367,103 @@
             showModal(`${dayName} Performance`, content);
         }
         
+        // Show specific hour details with individual appointment information
+        function showHourDetails(dayName, hour) {
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const dayIndex = days.indexOf(dayName);
+            
+            // Filter appointments for this specific day of week and hour
+            const hourAppointments = filteredAppointments.filter(row => {
+                const date = parseDate(row['Appointment Date']);
+                if (!date) return false;
+                return date.getDay() === dayIndex && date.getHours() === hour;
+            });
+            
+            if (hourAppointments.length === 0) {
+                showModal(`${dayName} ${hour}:00`, `<p>No appointments found for this time slot.</p>`);
+                return;
+            }
+            
+            const revenue = hourAppointments.reduce((sum, a) => sum + (parseFloat(a.Revenue) || 0), 0);
+            const uniqueClients = new Set(hourAppointments.map(a => a['Customer Email'])).size;
+            
+            // Create detailed appointment list
+            const appointmentRows = hourAppointments.map(appt => {
+                const date = parseDate(appt['Appointment Date']);
+                const dateStr = date ? date.toLocaleDateString() : 'N/A';
+                const customerName = appt['Customer Name'] || 'Unknown';
+                const revenue = parseFloat(appt.Revenue) || 0;
+                const service = appt['Appointment'] || 'Unknown';
+                const practitioner = `${appt['Practitioner First Name'] || ''} ${appt['Practitioner Last Name'] || ''}`.trim() || 'Unknown';
+                
+                return `
+                    <tr>
+                        <td>${dateStr}</td>
+                        <td>${customerName}</td>
+                        <td>${formatCurrency(revenue)}</td>
+                        <td style="font-size: 0.85em;">${service.substring(0, 30)}${service.length > 30 ? '...' : ''}</td>
+                        <td>${practitioner}</td>
+                    </tr>
+                `;
+            }).join('');
+            
+            // Prepare CSV data
+            const csvData = hourAppointments.map(appt => {
+                const date = parseDate(appt['Appointment Date']);
+                return {
+                    'Date': date ? date.toLocaleDateString() : 'N/A',
+                    'Customer Name': appt['Customer Name'] || 'Unknown',
+                    'Customer Email': appt['Customer Email'] || 'N/A',
+                    'Revenue': parseFloat(appt.Revenue) || 0,
+                    'Service': appt['Appointment'] || 'Unknown',
+                    'Practitioner': `${appt['Practitioner First Name'] || ''} ${appt['Practitioner Last Name'] || ''}`.trim() || 'Unknown',
+                    'Duration (h)': appt['Time (h)'] || 'N/A'
+                };
+            });
+            
+            const ampm = hour >= 12 ? 'PM' : 'AM';
+            const displayHour = hour > 12 ? hour - 12 : (hour === 0 ? 12 : hour);
+            
+            const content = `
+                <div class="modal-highlight">
+                    <strong>Time Slot:</strong> ${dayName}s at ${displayHour}:00 ${ampm}<br>
+                    <strong>Total Appointments:</strong> ${hourAppointments.length}<br>
+                    <strong>Unique Clients:</strong> ${uniqueClients}<br>
+                    <strong>Total Revenue:</strong> ${formatCurrency(revenue)}<br>
+                    <strong>Avg Revenue per Appointment:</strong> ${formatCurrency(revenue / hourAppointments.length)}
+                </div>
+                
+                <div class="modal-section">
+                    <h4>All Appointments at This Time</h4>
+                    <p style="font-size: 12px; color: #999; margin: -10px 0 10px 0; font-style: italic;">↓ Showing all ${dayName} appointments at ${displayHour}:00 ${ampm}</p>
+                    <table class="modal-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Customer</th>
+                                <th>Revenue</th>
+                                <th>Service</th>
+                                <th>VSP</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${appointmentRows}
+                        </tbody>
+                    </table>
+                    <button class="csv-export-btn" onclick='exportToCSV(${JSON.stringify(csvData)}, "${dayName.toLowerCase()}-${hour}00-appointments.csv")'>
+                        Export to CSV
+                    </button>
+                </div>
+            `;
+            
+            showModal(`${dayName} ${displayHour}:00 ${ampm} - Appointments`, content);
+        }
+        
         // Show retention segment details
         function showRetentionDetails(segment, count) {
             const clientVisits = {};
             filteredAppointments.forEach(row => {
-                const email = row['Customer E-mail'];
+                const email = row['Customer Email'];
                 if (email) {
                     clientVisits[email] = (clientVisits[email] || 0) + 1;
                 }
@@ -2271,7 +2476,7 @@
                 
                 if ((segment === 'One-Time Visitors' && isOneTime) || 
                     (segment === 'Returning Clients' && isReturning)) {
-                    const appointments = filteredAppointments.filter(a => a['Customer E-mail'] === email);
+                    const appointments = filteredAppointments.filter(a => a['Customer Email'] === email);
                     const revenue = appointments.reduce((sum, a) => sum + (parseFloat(a.Revenue) || 0), 0);
                     const customerName = appointments[0]?.['Customer Name'] || 'Unknown';
                     const firstVisit = appointments[0]?.['Appointment Date'] || 'N/A';
@@ -2371,8 +2576,65 @@
                 monthlyRevenue: 30000,
                 monthlyAppointments: 300,
                 avgRevenuePerAppt: 100  // 30000/300
-            }
+            },
+            baseHourlyRate: 13.00  // Base rate for non-appointment work
         };
+        
+        // Base Rate Management Functions
+        function setBaseRate() {
+            const input = document.getElementById('baseRateInput');
+            const newRate = parseFloat(input.value);
+            
+            if (isNaN(newRate) || newRate < 0) {
+                showBaseRateStatus('❌ Please enter a valid positive number', 'error');
+                return;
+            }
+            
+            // Update config
+            CONFIG.baseHourlyRate = newRate;
+            
+            // Save to localStorage
+            localStorage.setItem('vitalStretchBaseRate', newRate.toString());
+            
+            // Update display
+            document.getElementById('currentBaseRate').textContent = formatCurrency(newRate) + '/hour';
+            
+            // Show success message
+            showBaseRateStatus('✅ Base rate updated successfully!', 'success');
+            
+            // Re-render tabs if data is loaded
+            if (appointmentsData.length > 0) {
+                renderAllTabs();
+            }
+        }
+        
+        function showBaseRateStatus(message, type) {
+            const statusEl = document.getElementById('baseRateStatus');
+            statusEl.textContent = message;
+            statusEl.style.color = type === 'success' ? 'var(--success)' : 'var(--danger)';
+            
+            // Clear message after 3 seconds
+            setTimeout(() => {
+                statusEl.textContent = '';
+            }, 3000);
+        }
+        
+        function loadBaseRateFromStorage() {
+            const savedRate = localStorage.getItem('vitalStretchBaseRate');
+            if (savedRate) {
+                const rate = parseFloat(savedRate);
+                if (!isNaN(rate) && rate >= 0) {
+                    CONFIG.baseHourlyRate = rate;
+                    document.getElementById('baseRateInput').value = rate.toFixed(2);
+                    document.getElementById('currentBaseRate').textContent = formatCurrency(rate) + '/hour';
+                }
+            }
+        }
+        
+        // Load saved base rate on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            loadBaseRateFromStorage();
+        });
         
         // Utility Functions
         function formatNumber(num) {
@@ -2455,32 +2717,6 @@
         }
         
         // File Upload Handlers
-        document.getElementById('appointmentsFile').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            
-            document.getElementById('appointmentsStatus').innerHTML = '<span class="spinner"></span> Loading...';
-            
-            Papa.parse(file, {
-                header: true,
-                skipEmptyLines: true,
-                complete: function(results) {
-                    appointmentsData = results.data;
-                    filteredAppointments = [...appointmentsData];
-                    
-                    document.getElementById('appointmentsStatus').innerHTML = 
-                        `<span style="color: var(--success);">✅ ${formatNumber(appointmentsData.length)} appointments loaded</span>`;
-                    
-                    initializeDashboard();
-                },
-                error: function(error) {
-                    document.getElementById('appointmentsStatus').innerHTML = 
-                        '<span style="color: var(--danger);">❌ Error loading file</span>';
-                    console.error('Parse error:', error);
-                }
-            });
-        });
-        
         document.getElementById('leadsFile').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -2537,10 +2773,192 @@
             });
         });
         
+        // Zip File Handler for Payroll Data
+        document.getElementById('payrollZipFile').addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            document.getElementById('payrollZipStatus').innerHTML = '<span class="spinner"></span> Processing zip file...';
+            
+            try {
+                const zip = await JSZip.loadAsync(file);
+                let allAppointments = [];
+                let allTimeTracking = [];
+                let allCommissions = [];
+                let employeeStats = {};
+                
+                // Process all files in the zip
+                for (const [filename, zipEntry] of Object.entries(zip.files)) {
+                    if (zipEntry.dir) continue;
+                    
+                    const content = await zipEntry.async('text');
+                    
+                    // Extract employee name from filename
+                    const nameParts = filename.match(/momence-payroll-(?:appointments|time)-(.+?)(?:-aggregate)?\.csv/);
+                    if (!nameParts) continue;
+                    
+                    const employeeName = nameParts[1].replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    
+                    // Parse appointments files (not aggregate)
+                    if (filename.includes('appointments') && !filename.includes('aggregate')) {
+                        Papa.parse(content, {
+                            header: true,
+                            skipEmptyLines: true,
+                            complete: function(results) {
+                                // Add employee name and practitioner info to each row
+                                results.data.forEach(row => {
+                                    const names = employeeName.split(' ');
+                                    row['Practitioner First Name'] = names[0];
+                                    row['Practitioner Last Name'] = names.slice(1).join(' ');
+                                    row['Employee Name'] = employeeName;
+                                    
+                                    // Convert Time booked (h) to Time (h) for consistency
+                                    if (row['Time booked (h)']) {
+                                        row['Time (h)'] = row['Time booked (h)'];
+                                    }
+                                });
+                                allAppointments = allAppointments.concat(results.data);
+                            }
+                        });
+                    }
+                    
+                    // Parse time tracking files
+                    if (filename.includes('time') && !filename.includes('aggregate')) {
+                        Papa.parse(content, {
+                            header: true,
+                            skipEmptyLines: true,
+                            complete: function(results) {
+                                results.data.forEach(row => {
+                                    row['Employee Name'] = employeeName;
+                                    // Store for cleaning later
+                                    if (!employeeStats[employeeName]) {
+                                        employeeStats[employeeName] = { durations: [] };
+                                    }
+                                    const duration = parseFloat(row['Duration (h)']);
+                                    if (!isNaN(duration)) {
+                                        employeeStats[employeeName].durations.push(duration);
+                                    }
+                                });
+                                allTimeTracking = allTimeTracking.concat(results.data);
+                            }
+                        });
+                    }
+                    
+                    // Parse commission files
+                    if (filename.includes('commissions') && !filename.includes('aggregate')) {
+                        Papa.parse(content, {
+                            header: true,
+                            skipEmptyLines: true,
+                            complete: function(results) {
+                                results.data.forEach(row => {
+                                    row['Employee Name'] = employeeName;
+                                    // Clean product names - remove special characters
+                                    if (row['Item name']) {
+                                        row['Item name'] = row['Item name']
+                                            .replace(/[®™©Â®]/g, '')           // Remove special characters
+                                            .replace(/[\u0080-\u00FF]/g, '')  // Remove extended ASCII
+                                            .replace(/\s+/g, ' ')              // Normalize whitespace
+                                            .trim();
+                                    }
+                                    // Only include Membership and Product commissions
+                                    const itemType = (row['Item type'] || '').toLowerCase();
+                                    if (itemType === 'membership' || itemType === 'product') {
+                                        allCommissions = allCommissions || [];
+                                        allCommissions.push(row);
+                                    }
+                                });
+                            }
+                        });
+                    }
+                }
+                
+                // Wait a bit for all parsing to complete
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // Clean Duration (h) data - replace values > 12 with employee average
+                Object.keys(employeeStats).forEach(employeeName => {
+                    const durations = employeeStats[employeeName].durations.filter(d => d > 0 && d <= 12);
+                    const avgDuration = durations.length > 0 
+                        ? durations.reduce((sum, d) => sum + d, 0) / durations.length 
+                        : 8; // Default to 8 hours if no valid data
+                    employeeStats[employeeName].avgDuration = avgDuration;
+                });
+                
+                // Apply cleaning to time tracking data
+                allTimeTracking = allTimeTracking.map(row => {
+                    const duration = parseFloat(row['Duration (h)']);
+                    if (!isNaN(duration) && duration > 12) {
+                        const employeeName = row['Employee Name'];
+                        const avgDuration = employeeStats[employeeName]?.avgDuration || 8;
+                        row['Duration (h)'] = avgDuration.toFixed(2);
+                        row['Original Duration (h)'] = duration.toFixed(2); // Keep original for reference
+                        row['Duration Corrected'] = 'Yes';
+                    }
+                    return row;
+                });
+                
+                // Calculate utilization for each employee
+                const employeeUtilization = {};
+                Object.keys(employeeStats).forEach(employeeName => {
+                    const employeeAppts = allAppointments.filter(a => a['Employee Name'] === employeeName);
+                    const employeeTime = allTimeTracking.filter(t => t['Employee Name'] === employeeName);
+                    
+                    const totalApptHours = employeeAppts.reduce((sum, a) => {
+                        const hours = parseFloat(a['Time (h)'] || a['Time booked (h)'] || 0);
+                        return sum + hours;
+                    }, 0);
+                    
+                    const totalClockedHours = employeeTime.reduce((sum, t) => {
+                        const hours = parseFloat(t['Duration (h)'] || 0);
+                        return sum + hours;
+                    }, 0);
+                    
+                    const utilization = totalClockedHours > 0 
+                        ? (totalApptHours / totalClockedHours * 100) 
+                        : 0;
+                    
+                    employeeUtilization[employeeName] = {
+                        totalApptHours: totalApptHours,
+                        totalClockedHours: totalClockedHours,
+                        utilization: utilization,
+                        appointmentCount: employeeAppts.length,
+                        shiftCount: employeeTime.length
+                    };
+                });
+                
+                // Store utilization data globally
+                window.employeeUtilization = employeeUtilization;
+                window.timeTrackingData = allTimeTracking;
+                window.commissionsData = allCommissions;
+                window.filteredCommissions = [...allCommissions];
+                
+                // Set appointments data
+                appointmentsData = allAppointments;
+                filteredAppointments = [...appointmentsData];
+                
+                const totalAppts = allAppointments.length;
+                const totalEmployees = Object.keys(employeeStats).length;
+                const avgUtilization = Object.values(employeeUtilization)
+                    .reduce((sum, e) => sum + e.utilization, 0) / totalEmployees;
+                
+                document.getElementById('payrollZipStatus').innerHTML = 
+                    `<span style="color: var(--success);">✅ ${formatNumber(totalAppts)} appointments from ${totalEmployees} employees<br>
+                    Avg Utilization: ${avgUtilization.toFixed(1)}%</span>`;
+                
+                initializeDashboard();
+                
+            } catch (error) {
+                document.getElementById('payrollZipStatus').innerHTML = 
+                    '<span style="color: var(--danger);">❌ Error processing zip file</span>';
+                console.error('Zip processing error:', error);
+            }
+        });
+        
         // Initialize Dashboard
         function initializeDashboard() {
             if (appointmentsData.length === 0) return;
             
+            document.getElementById('configSection').style.display = 'block';
             document.getElementById('filtersSection').style.display = 'block';
             document.getElementById('mainTabs').style.display = 'flex';
             
@@ -2638,6 +3056,77 @@
             }
         }
         
+        // Recalculate Utilization Based on Filtered Data
+        function recalculateUtilization() {
+            if (!window.timeTrackingData || window.timeTrackingData.length === 0) {
+                return; // No time tracking data available
+            }
+            
+            const month = document.getElementById('monthFilter').value;
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            // Filter time tracking data by the same date range as appointments
+            const filteredTimeTracking = window.timeTrackingData.filter(row => {
+                const clockedIn = row['Clocked in'] ? new Date(row['Clocked in']) : null;
+                if (!clockedIn) return false;
+                
+                // Month filter
+                if (month !== 'all') {
+                    const rowMonth = `${clockedIn.getFullYear()}-${String(clockedIn.getMonth() + 1).padStart(2, '0')}`;
+                    if (rowMonth !== month) return false;
+                }
+                
+                // Date range filters
+                if (startDate && clockedIn < new Date(startDate)) return false;
+                if (endDate && clockedIn > new Date(endDate)) return false;
+                
+                return true;
+            });
+            
+            // Recalculate utilization for each employee based on filtered data
+            const employeeUtilization = {};
+            
+            // Get unique employee names from filtered appointments
+            const employeeNames = new Set();
+            filteredAppointments.forEach(a => {
+                if (a['Employee Name']) {
+                    employeeNames.add(a['Employee Name']);
+                }
+            });
+            
+            // Calculate utilization for each employee
+            employeeNames.forEach(employeeName => {
+                const employeeAppts = filteredAppointments.filter(a => a['Employee Name'] === employeeName);
+                const employeeTime = filteredTimeTracking.filter(t => t['Employee Name'] === employeeName);
+                
+                const totalApptHours = employeeAppts.reduce((sum, a) => {
+                    const hours = parseFloat(a['Time (h)'] || a['Time booked (h)'] || 0);
+                    return sum + hours;
+                }, 0);
+                
+                const totalClockedHours = employeeTime.reduce((sum, t) => {
+                    const hours = parseFloat(t['Duration (h)'] || 0);
+                    return sum + hours;
+                }, 0);
+                
+                const utilization = totalClockedHours > 0 
+                    ? (totalApptHours / totalClockedHours * 100) 
+                    : 0;
+                
+                employeeUtilization[employeeName] = {
+                    totalApptHours: totalApptHours,
+                    totalClockedHours: totalClockedHours,
+                    utilization: utilization,
+                    appointmentCount: employeeAppts.length,
+                    shiftCount: employeeTime.length
+                };
+            });
+            
+            // Update the global employeeUtilization object
+            window.employeeUtilization = employeeUtilization;
+        }
+        
         // Apply Filters
         function applyFilters() {
             const month = document.getElementById('monthFilter').value;
@@ -2712,8 +3201,36 @@
                 return true;
             });
             
+            // Filter commissions by date range
+            if (window.commissionsData && window.commissionsData.length > 0) {
+                window.filteredCommissions = window.commissionsData.filter(row => {
+                    const commDate = row['Date'] ? new Date(row['Date']) : null;
+                    if (!commDate) return false;
+                    
+                    // Month filter
+                    if (month !== 'all') {
+                        const rowMonth = `${commDate.getFullYear()}-${String(commDate.getMonth() + 1).padStart(2, '0')}`;
+                        if (rowMonth !== month) return false;
+                    }
+                    
+                    // Date range filters
+                    if (startDate && commDate < new Date(startDate)) return false;
+                    if (endDate && commDate > new Date(endDate)) return false;
+                    
+                    return true;
+                });
+            }
+            
+            // Recalculate utilization based on filtered data
+            recalculateUtilization();
+            
             displayActiveFilters();
             renderAllTabs();
+        }
+        
+        // Refresh data with current filters
+        function refreshData() {
+            applyFilters();
         }
         
         // Quick Filters
@@ -2779,6 +3296,7 @@
         // Tab Switching
         // Tab state tracking
         let renderedTabs = new Set();
+        let currentActiveTab = 'overview';
         
         function switchTab(tabName) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -2786,12 +3304,18 @@
             
             event.target.classList.add('active');
             document.getElementById(tabName).classList.add('active');
+            currentActiveTab = tabName;
             
             // Lazy render: only render tab if not already rendered or if data has changed
             if (!renderedTabs.has(tabName)) {
                 renderTab(tabName);
                 renderedTabs.add(tabName);
             }
+        }
+        
+        // Get currently active tab
+        function getCurrentActiveTab() {
+            return currentActiveTab;
         }
         
         // Render specific tab
@@ -2814,6 +3338,13 @@
             renderedTabs.clear(); // Clear cache when data changes
             renderOverviewTab(); // Always render overview
             renderedTabs.add('overview');
+            
+            // Also re-render the currently active tab if it's not overview
+            const activeTab = getCurrentActiveTab();
+            if (activeTab !== 'overview') {
+                renderTab(activeTab);
+                renderedTabs.add(activeTab);
+            }
             // Other tabs will render lazily when clicked
         }
         
@@ -2867,7 +3398,45 @@
             const totalPayout = data.reduce((sum, row) => sum + parseFloat(row['Total Payout'] || 0), 0);
             const totalHours = data.reduce((sum, row) => sum + parseFloat(row['Time (h)'] || 0), 0);
             const avgRevenue = data.length > 0 ? apptRevenue / data.length : 0;
-            const profit = totalRevenue - totalPayout;
+            
+            // Calculate total labor costs including non-appointment work
+            let totalLaborCost = totalPayout;
+            let nonApptHours = 0;
+            let nonApptLaborCost = 0;
+            
+            if (window.timeTrackingData && window.timeTrackingData.length > 0) {
+                const filteredTimeTracking = window.timeTrackingData.filter(row => {
+                    if (!row['Employee Name']) return false;
+                    const clockedDate = parseDate(row['Clock in date']);
+                    if (!clockedDate) return false;
+                    
+                    // Apply same filters as appointments
+                    const monthFilter = document.getElementById('monthFilter').value;
+                    const startDate = document.getElementById('startDate').value;
+                    const endDate = document.getElementById('endDate').value;
+                    const practitionerFilter = document.getElementById('practitionerFilter').value;
+                    
+                    const monthKey = `${clockedDate.getFullYear()}-${String(clockedDate.getMonth() + 1).padStart(2, '0')}`;
+                    if (monthFilter !== 'all' && monthKey !== monthFilter) return false;
+                    if (startDate && clockedDate < new Date(startDate)) return false;
+                    if (endDate && clockedDate > new Date(endDate + 'T23:59:59')) return false;
+                    if (practitionerFilter !== 'all' && row['Employee Name'] !== practitionerFilter) return false;
+                    
+                    return true;
+                });
+                
+                const totalClockedHours = filteredTimeTracking.reduce((sum, t) => {
+                    const hours = parseFloat(t['Duration (h)'] || 0);
+                    return sum + hours;
+                }, 0);
+                
+                // Non-appointment hours = clocked hours - appointment hours
+                nonApptHours = Math.max(0, totalClockedHours - totalHours);
+                nonApptLaborCost = nonApptHours * CONFIG.baseHourlyRate;
+                totalLaborCost = totalPayout + nonApptLaborCost;
+            }
+            
+            const profit = totalRevenue - totalLaborCost;
             const profitMargin = totalRevenue > 0 ? (profit / totalRevenue * 100) : 0;
             
             // Count intro sessions and late cancellations
@@ -2878,7 +3447,7 @@
             
             // Unique clients
             const uniqueClients = new Set(
-                data.map(row => (row['Customer E-mail'] || '').toLowerCase().trim())
+                data.map(row => (row['Customer Email'] || '').toLowerCase().trim())
                     .filter(email => email)
             ).size;
             
@@ -2888,10 +3457,21 @@
             // Average ticket size
             const avgTicketSize = data.length > 0 ? totalRevenue / data.length : 0;
             
+            // Calculate utilization if data available
+            let avgUtilization = null;
+            if (window.employeeUtilization) {
+                const utilizationValues = Object.values(window.employeeUtilization)
+                    .map(e => e.utilization)
+                    .filter(u => u > 0);
+                if (utilizationValues.length > 0) {
+                    avgUtilization = utilizationValues.reduce((sum, u) => sum + u, 0) / utilizationValues.length;
+                }
+            }
+            
             // Client visit frequency
             const clientVisits = {};
             data.forEach(row => {
-                const email = row['Customer E-mail'];
+                const email = row['Customer Email'];
                 if (email) {
                     clientVisits[email] = (clientVisits[email] || 0) + 1;
                 }
@@ -2953,14 +3533,6 @@
                         ${comparisonData ? `<div class="comparison-details">vs ${formatCurrency(comparisonData.revenue)} last period</div>` : ''}
                     </div>
                     <div class="metric-card compact">
-                        <div class="metric-label">Net Profit</div>
-                        <div class="metric-value">
-                            ${formatCurrency(profit)}
-                            ${comparisonData ? getComparisonIndicator(profit, comparisonData.profit, 'currency') : ''}
-                        </div>
-                        <div class="metric-subtext">${profitMargin.toFixed(1)}% margin</div>
-                    </div>
-                    <div class="metric-card compact">
                         <div class="metric-label">Appointments</div>
                         <div class="metric-value">
                             ${formatNumber(data.length)}
@@ -2968,16 +3540,6 @@
                         </div>
                         <div class="metric-subtext">Total bookings</div>
                         ${comparisonData ? `<div class="comparison-details">vs ${formatNumber(comparisonData.appointments)} last period</div>` : ''}
-                    </div>
-                    <div class="metric-card compact">
-                        <div class="metric-label">Avg Ticket Size</div>
-                        <div class="metric-value">${formatCurrency(avgTicketSize)}</div>
-                        <div class="metric-subtext">Per appointment</div>
-                    </div>
-                    <div class="metric-card compact">
-                        <div class="metric-label">Revenue/Hour</div>
-                        <div class="metric-value">${formatCurrency(revenuePerHour)}</div>
-                        <div class="metric-subtext">${formatNumber(totalHours)} total hours</div>
                     </div>
                     <div class="metric-card compact">
                         <div class="metric-label">Unique Clients</div>
@@ -2988,10 +3550,32 @@
                         <div class="metric-subtext">${formatNumber(newClients)} new, ${formatNumber(returningClients)} returning</div>
                         ${comparisonData ? `<div class="comparison-details">vs ${formatNumber(comparisonData.clients)} last period</div>` : ''}
                     </div>
+                    ${avgUtilization !== null ? `
+                    <div class="metric-card compact success">
+                        <div class="metric-label">Utilization</div>
+                        <div class="metric-value">${avgUtilization.toFixed(1)}%</div>
+                        <div class="metric-subtext">Table time efficiency</div>
+                    </div>
+                    ` : ''}
+                    <div class="metric-card compact">
+                        <div class="metric-label">Revenue/Hour</div>
+                        <div class="metric-value">${formatCurrency(revenuePerHour)}</div>
+                        <div class="metric-subtext">${formatNumber(totalHours)} total hours</div>
+                    </div>
+                    <div class="metric-card compact">
+                        <div class="metric-label">Avg Ticket Size</div>
+                        <div class="metric-value">${formatCurrency(avgTicketSize)}</div>
+                        <div class="metric-subtext">Per appointment</div>
+                    </div>
                     <div class="metric-card compact">
                         <div class="metric-label">Client Frequency</div>
                         <div class="metric-value">${avgVisitsPerClient.toFixed(1)}</div>
                         <div class="metric-subtext">Avg visits per client</div>
+                    </div>
+                    <div class="metric-card compact">
+                        <div class="metric-label">Revenue per VSP</div>
+                        <div class="metric-value">${formatCurrency(revenuePerPractitioner)}</div>
+                        <div class="metric-subtext">${formatNumber(uniquePractitioners)} VSPs</div>
                     </div>
                     <div class="metric-card compact">
                         <div class="metric-label">Busiest Day</div>
@@ -3002,11 +3586,6 @@
                         <div class="metric-label">Top Paid Service</div>
                         <div class="metric-value" style="font-size: 1.2em;">${topService ? topService[0].substring(0, 25) : 'N/A'}</div>
                         <div class="metric-subtext">${topService ? formatNumber(topService[1]) + ' appointments' : ''}</div>
-                    </div>
-                    <div class="metric-card compact">
-                        <div class="metric-label">Revenue per VSP</div>
-                        <div class="metric-value">${formatCurrency(revenuePerPractitioner)}</div>
-                        <div class="metric-subtext">${formatNumber(uniquePractitioners)} VSPs</div>
                     </div>
                     ${membershipRevenue > 0 ? `
                     <div class="metric-card compact" style="background: linear-gradient(135deg, rgba(156, 39, 176, 0.1), rgba(123, 31, 162, 0.05)); border-left: 4px solid #9c27b0;">
@@ -3038,6 +3617,55 @@
                         <div class="metric-label">📊 Retention Rate</div>
                         <div class="metric-value">${((membershipsData.filter(m => m.Expired !== 'Yes').length / membershipsData.length) * 100).toFixed(1)}%</div>
                         <div class="metric-subtext">${formatNumber(membershipsData.filter(m => m.Expired !== 'Yes').length)} active of ${formatNumber(membershipsData.length)} total</div>
+                    </div>
+                    ` : ''}
+                </div>
+                
+                <div class="table-container" style="background: linear-gradient(135deg, rgba(251, 181, 20, 0.05), rgba(251, 181, 20, 0.02)); border-left: 5px solid var(--highlight);">
+                    <h2>💰 Financial Performance</h2>
+                    <div class="metrics-grid" style="grid-template-columns: repeat(4, 1fr);">
+                        <div class="metric-card ${profit > 0 ? 'success' : 'danger'}">
+                            <div class="metric-label">Net Profit</div>
+                            <div class="metric-value">
+                                ${formatCurrency(profit)}
+                                ${comparisonData ? getComparisonIndicator(profit, comparisonData.profit, 'currency') : ''}
+                            </div>
+                            <div class="metric-subtext">${profitMargin.toFixed(1)}% margin</div>
+                            ${comparisonData ? `<div class="comparison-details">vs ${formatCurrency(comparisonData.profit)} last period</div>` : ''}
+                        </div>
+                        <div class="metric-card warning">
+                            <div class="metric-label">Total Labor Cost</div>
+                            <div class="metric-value">${formatCurrency(totalLaborCost)}</div>
+                            <div class="metric-subtext">${((totalLaborCost / totalRevenue) * 100).toFixed(1)}% of revenue</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">Appointment Payouts</div>
+                            <div class="metric-value">${formatCurrency(totalPayout)}</div>
+                            <div class="metric-subtext">${formatNumber(totalHours)} appt hours</div>
+                        </div>
+                        ${nonApptHours > 0 ? `
+                        <div class="metric-card">
+                            <div class="metric-label">Non-Appt Labor</div>
+                            <div class="metric-value">${formatCurrency(nonApptLaborCost)}</div>
+                            <div class="metric-subtext">${formatNumber(nonApptHours)} hrs @ ${formatCurrency(CONFIG.baseHourlyRate)}/hr</div>
+                        </div>
+                        ` : ''}
+                    </div>
+                    ${nonApptHours > 0 ? `
+                    <div class="alert info" style="margin-top: 15px;">
+                        <h4>💡 Labor Cost Breakdown</h4>
+                        <p style="margin: 8px 0;">
+                            <strong>Appointment-Based Labor:</strong> ${formatCurrency(totalPayout)} 
+                            (${formatNumber(totalHours)} hours at commission rates)<br>
+                            <strong>Non-Appointment Labor:</strong> ${formatCurrency(nonApptLaborCost)} 
+                            (${formatNumber(nonApptHours)} hours at base rate of ${formatCurrency(CONFIG.baseHourlyRate)}/hr)<br>
+                            <strong>Total Labor Cost:</strong> ${formatCurrency(totalLaborCost)} 
+                            (${((totalLaborCost / totalRevenue) * 100).toFixed(1)}% of revenue)
+                        </p>
+                        <p style="margin-top: 10px; font-size: 12px; color: #666;">
+                            Non-appointment hours include cleaning, admin work, training, and other clocked time without appointments. 
+                            Adjust the base hourly rate in <strong>⚙️ Franchise Configuration</strong> for accurate profitability tracking.
+                        </p>
                     </div>
                     ` : ''}
                 </div>
@@ -3115,7 +3743,7 @@
             const clientRevenue = {};
             
             data.forEach(row => {
-                const email = (row['Customer E-mail'] || '').toLowerCase().trim();
+                const email = (row['Customer Email'] || '').toLowerCase().trim();
                 if (!email) return;
                 
                 const date = parseDate(row['Appointment Date']);
@@ -3181,7 +3809,7 @@
             // Find client names from data
             const clientNames = {};
             data.forEach(row => {
-                const email = (row['Customer E-mail'] || '').toLowerCase().trim();
+                const email = (row['Customer Email'] || '').toLowerCase().trim();
                 if (email && !clientNames[email]) {
                     clientNames[email] = row['Customer Name'] || email;
                 }
@@ -3511,6 +4139,13 @@
                     </div>
                 </div>
                 
+                <div class="table-container" style="position: relative;">
+                    <div class="interactive-badge" title="Click any day to see detailed breakdown" style="position: absolute; top: 15px; right: 15px; display: flex;"></div>
+                    <h2>🔥 Appointment Heatmap</h2>
+                    <p style="margin-bottom: 15px; color: #666;">Busiest appointment times by day and hour (Monday-Saturday). Click any day to see detailed breakdown.</p>
+                    <div id="heatmapContainer"></div>
+                </div>
+                
                 <div class="alert ${overallUtilization >= 80 ? 'success' : overallUtilization >= 60 ? 'warning' : 'info'}">
                     <h4>⏰ Schedule Optimization Insights</h4>
                     <p>
@@ -3560,13 +4195,6 @@
                             `).join('')}
                         </tbody>
                     </table>
-                </div>
-                
-                <div class="table-container" style="position: relative;">
-                    <div class="interactive-badge" title="Click any day to see detailed breakdown" style="position: absolute; top: 15px; right: 15px; display: flex;"></div>
-                    <h2>🔥 Appointment Heatmap</h2>
-                    <p style="margin-bottom: 15px; color: #666;">Busiest appointment times by day and hour (Monday-Saturday). Click any day to see detailed breakdown.</p>
-                    <div id="heatmapContainer"></div>
                 </div>
             `;
             
@@ -3628,7 +4256,7 @@
             
             // Add appointment visit data
             filteredAppointments.forEach(appt => {
-                const email = appt['Customer E-mail'];
+                const email = appt['Customer Email'];
                 const apptDate = new Date(appt['Appointment Date']);
                 
                 if (email && customerMap[email]) {
@@ -4176,7 +4804,7 @@
                 
                 practitionerStats[name].revenue += parseFloat(row.Revenue || 0);
                 practitionerStats[name].appointments++;
-                practitionerStats[name].clients.add(row['Customer E-mail']);
+                practitionerStats[name].clients.add((row['Customer Email'] || '').toLowerCase().trim());
                 practitionerStats[name].hours += parseFloat(row['Time (h)'] || 0);
                 practitionerStats[name].payout += parseFloat(row['Total Payout'] || 0);
                 if (row['Late cancellations'] && row['Late cancellations'].toLowerCase() === 'yes') {
@@ -4194,14 +4822,48 @@
                 const profit = stats.revenue - stats.payout;
                 const profitMargin = stats.revenue > 0 ? (profit / stats.revenue) * 100 : 0;
                 
+                // Get utilization data if available from zip file
+                const employeeName = name.toLowerCase().replace(/\s+/g, ' ');
+                let utilization = null;
+                let clockedHours = 0;
+                let shiftCount = 0;
+                
+                if (window.employeeUtilization) {
+                    for (const [empName, empData] of Object.entries(window.employeeUtilization)) {
+                        if (empName.toLowerCase().replace(/\s+/g, ' ') === employeeName) {
+                            utilization = empData.utilization;
+                            clockedHours = empData.totalClockedHours;
+                            shiftCount = empData.shiftCount;
+                            break;
+                        }
+                    }
+                }
+                
+                // Get commission data if available (Membership & Product only)
+                let commissions = 0;
+                let commissionCount = 0;
+                if (window.filteredCommissions && window.filteredCommissions.length > 0) {
+                    const employeeCommissions = window.filteredCommissions.filter(c => {
+                        const commEmpName = (c['Employee Name'] || '').toLowerCase().replace(/\s+/g, ' ');
+                        return commEmpName === employeeName;
+                    });
+                    
+                    commissions = employeeCommissions.reduce((sum, c) => {
+                        return sum + (parseFloat(c['Commissions earned']) || 0);
+                    }, 0);
+                    commissionCount = employeeCommissions.length;
+                }
+                
                 // Calculate overall score (weighted)
                 const revenueScore = stats.revenue / 100; // $100 = 1 point
                 const efficiencyScore = revenuePerHour * 2; // $1/hr = 2 points
                 const clientScore = clientCount * 5; // 1 client = 5 points
                 const consistencyScore = stats.appointments * 2; // 1 appt = 2 points
                 const qualityScore = (100 - lateCancelRate) * 0.5; // Low cancellations = high score
+                const utilizationScore = utilization !== null ? utilization * 0.5 : 0; // 1% utilization = 0.5 points
+                const commissionScore = commissions / 10; // $10 commission = 1 point
                 
-                const totalScore = revenueScore + efficiencyScore + clientScore + consistencyScore + qualityScore;
+                const totalScore = revenueScore + efficiencyScore + clientScore + consistencyScore + qualityScore + utilizationScore + commissionScore;
                 
                 return {
                     name,
@@ -4216,7 +4878,12 @@
                     profitMargin,
                     services: stats.services.size,
                     score: totalScore,
-                    payout: stats.payout
+                    payout: stats.payout,
+                    utilization,
+                    clockedHours,
+                    shiftCount,
+                    commissions,
+                    commissionCount
                 };
             });
             
@@ -4240,7 +4907,7 @@
                     <p>Comprehensive performance metrics and rankings based on revenue, efficiency, client satisfaction, and consistency.</p>
                 </div>
                 
-                <div class="metrics-grid" style="grid-template-columns: repeat(4, 1fr);">
+                <div class="metrics-grid" style="grid-template-columns: repeat(${practitioners.some(p => p.utilization !== null) ? (practitioners.some(p => p.commissions > 0) ? '6' : '5') : (practitioners.some(p => p.commissions > 0) ? '5' : '4')}, 1fr);">
                     <div class="metric-card">
                         <div class="metric-label">Top Performer</div>
                         <div class="metric-value" style="font-size: 1.5em;">${practitioners[0]?.name || 'N/A'}</div>
@@ -4261,6 +4928,20 @@
                         <div class="metric-value">${Math.max(...practitioners.map(p => p.clients))}</div>
                         <div class="metric-subtext">${practitioners.sort((a,b) => b.clients - a.clients)[0]?.name || 'N/A'}</div>
                     </div>
+                    ${practitioners.some(p => p.utilization !== null) ? `
+                    <div class="metric-card success">
+                        <div class="metric-label">Avg Utilization</div>
+                        <div class="metric-value">${(practitioners.filter(p => p.utilization !== null).reduce((sum, p) => sum + p.utilization, 0) / practitioners.filter(p => p.utilization !== null).length).toFixed(1)}%</div>
+                        <div class="metric-subtext">Table time efficiency</div>
+                    </div>
+                    ` : ''}
+                    ${practitioners.some(p => p.commissions > 0) ? `
+                    <div class="metric-card" style="background: linear-gradient(135deg, rgba(40, 167, 69, 0.1), rgba(32, 201, 151, 0.05)); border-left: 4px solid #28a745;">
+                        <div class="metric-label">Total Commissions</div>
+                        <div class="metric-value">${formatCurrency(practitioners.reduce((sum, p) => sum + p.commissions, 0))}</div>
+                        <div class="metric-subtext">Memberships & Products</div>
+                    </div>
+                    ` : ''}
                 </div>
                 
                 <div class="charts-grid">
@@ -4311,6 +4992,16 @@
                                         <div class="leaderboard-stat">
                                             <strong>${formatCurrency(p.revenuePerHour)}/hr</strong> Efficiency
                                         </div>
+                                        ${p.utilization !== null ? `
+                                        <div class="leaderboard-stat">
+                                            <strong>${p.utilization.toFixed(1)}%</strong> Utilization
+                                        </div>
+                                        ` : ''}
+                                        ${p.commissions > 0 ? `
+                                        <div class="leaderboard-stat">
+                                            <strong>${formatCurrency(p.commissions)}</strong> Commissions
+                                        </div>
+                                        ` : ''}
                                         <div class="leaderboard-stat">
                                             <strong>${p.profitMargin.toFixed(0)}%</strong> Margin
                                         </div>
@@ -4343,6 +5034,8 @@
                                 <th>$/Hour</th>
                                 <th>$/Appt</th>
                                 <th>Clients</th>
+                                ${practitioners.some(p => p.utilization !== null) ? '<th>Utilization</th>' : ''}
+                                ${practitioners.some(p => p.commissions > 0) ? '<th>Commissions</th>' : ''}
                                 <th>Profit %</th>
                             </tr>
                         </thead>
@@ -4357,6 +5050,8 @@
                                     <td>${formatCurrency(p.revenuePerHour)}</td>
                                     <td>${formatCurrency(p.revenuePerAppt)}</td>
                                     <td>${formatNumber(p.clients)}</td>
+                                    ${p.utilization !== null ? `<td>${p.utilization.toFixed(1)}%</td>` : (practitioners.some(pr => pr.utilization !== null) ? '<td>-</td>' : '')}
+                                    ${p.commissions > 0 ? `<td>${formatCurrency(p.commissions)}</td>` : (practitioners.some(pr => pr.commissions > 0) ? '<td>-</td>' : '')}
                                     <td>${p.profitMargin.toFixed(1)}%</td>
                                 </tr>
                             `).join('')}
@@ -4401,18 +5096,21 @@
                         payout: 0,
                         profit: 0,
                         newClients: new Set(),
-                        returningClients: new Set()
+                        returningClients: new Set(),
+                        apptHours: 0,  // For utilization calculation
+                        clockedHours: 0  // For utilization calculation
                     };
                     clientsByDate[date] = new Set();
                 }
                 
                 const revenue = parseFloat(row.Revenue || 0);
                 const payout = parseFloat(row['Total Payout'] || 0);
-                const email = (row['Customer E-mail'] || '').toLowerCase().trim();
+                const email = (row['Customer Email'] || '').toLowerCase().trim();
                 
                 dailyData[date].revenue += revenue;
                 dailyData[date].appointments++;
                 dailyData[date].hours += parseFloat(row['Time (h)'] || 0);
+                dailyData[date].apptHours += parseFloat(row['Time (h)'] || 0);  // Track appointment hours
                 dailyData[date].payout += payout;
                 dailyData[date].profit += (revenue - payout);
                 
@@ -4422,7 +5120,7 @@
                     // Check if this client had appointments before this date
                     const priorAppointments = data.filter(r => {
                         const rDate = parseDate(r['Appointment Date']).toLocaleDateString();
-                        const rEmail = (r['Customer E-mail'] || '').toLowerCase().trim();
+                        const rEmail = (r['Customer Email'] || '').toLowerCase().trim();
                         return rEmail === email && new Date(rDate) < new Date(date);
                     });
                     
@@ -4433,6 +5131,28 @@
                     }
                 }
             });
+            
+            // Add clocked hours to daily data if time tracking is available
+            if (window.timeTrackingData && window.timeTrackingData.length > 0) {
+                window.timeTrackingData.forEach(row => {
+                    const clockedIn = row['Clocked in'] ? new Date(row['Clocked in']) : null;
+                    if (clockedIn) {
+                        const date = clockedIn.toLocaleDateString();
+                        if (dailyData[date]) {
+                            dailyData[date].clockedHours += parseFloat(row['Duration (h)'] || 0);
+                        }
+                    }
+                });
+                
+                // Calculate utilization for each day
+                Object.keys(dailyData).forEach(date => {
+                    if (dailyData[date].clockedHours > 0) {
+                        dailyData[date].utilization = (dailyData[date].apptHours / dailyData[date].clockedHours) * 100;
+                    } else {
+                        dailyData[date].utilization = null;
+                    }
+                });
+            }
             
             const dates = Object.keys(dailyData).sort((a, b) => new Date(a) - new Date(b));
             const avgDailyRevenue = dates.length > 0 
@@ -4445,6 +5165,12 @@
                 ? Object.values(dailyData).reduce((sum, d) => sum + d.profit, 0) / dates.length
                 : 0;
             
+            // Calculate average daily utilization
+            const daysWithUtilization = Object.values(dailyData).filter(d => d.utilization !== null && d.utilization !== undefined);
+            const avgDailyUtilization = daysWithUtilization.length > 0
+                ? daysWithUtilization.reduce((sum, d) => sum + d.utilization, 0) / daysWithUtilization.length
+                : null;
+            
             const bestDay = dates.reduce((best, date) => {
                 return dailyData[date].revenue > (dailyData[best]?.revenue || 0) ? date : best;
             }, dates[0]);
@@ -4452,7 +5178,7 @@
             const totalRevenue = Object.values(dailyData).reduce((sum, d) => sum + d.revenue, 0);
             
             let html = `
-                <div class="metrics-grid" style="grid-template-columns: repeat(4, 1fr);">
+                <div class="metrics-grid" style="grid-template-columns: repeat(${avgDailyUtilization !== null ? '5' : '4'}, 1fr);">
                     <div class="metric-card">
                         <div class="metric-label">Avg Daily Revenue</div>
                         <div class="metric-value">${formatCurrency(avgDailyRevenue)}</div>
@@ -4468,6 +5194,13 @@
                         <div class="metric-value">${formatCurrency(avgDailyProfit)}</div>
                         <div class="metric-subtext">After payouts</div>
                     </div>
+                    ${avgDailyUtilization !== null ? `
+                    <div class="metric-card success">
+                        <div class="metric-label">Avg Daily Utilization</div>
+                        <div class="metric-value">${avgDailyUtilization.toFixed(1)}%</div>
+                        <div class="metric-subtext">Table time efficiency</div>
+                    </div>
+                    ` : ''}
                     <div class="metric-card">
                         <div class="metric-label">Best Day</div>
                         <div class="metric-value">${formatCurrency(dailyData[bestDay]?.revenue || 0)}</div>
@@ -4484,16 +5217,25 @@
                     </div>
                     
                     <div class="chart-container full-width">
-                        <h3>Cumulative Revenue Over Time</h3>
-                        <div class="chart-wrapper">
-                            <canvas id="cumulativeRevenueChart"></canvas>
-                        </div>
-                    </div>
-                    
-                    <div class="chart-container full-width">
                         <h3>Daily Appointments</h3>
                         <div class="chart-wrapper">
                             <canvas id="dailyAppointmentsChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    ${avgDailyUtilization !== null ? `
+                    <div class="chart-container full-width">
+                        <h3>Daily Utilization Trend</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="dailyUtilizationChart"></canvas>
+                        </div>
+                    </div>
+                    ` : ''}
+                    
+                    <div class="chart-container full-width">
+                        <h3>Cumulative Revenue Over Time</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="cumulativeRevenueChart"></canvas>
                         </div>
                     </div>
                     
@@ -4512,16 +5254,16 @@
                     </div>
                     
                     <div class="chart-container full-width">
-                        <h3>Daily Hours Worked</h3>
+                        <h3>New vs Returning Clients Per Day</h3>
                         <div class="chart-wrapper">
-                            <canvas id="dailyHoursChart"></canvas>
+                            <canvas id="dailyClientTypeChart"></canvas>
                         </div>
                     </div>
                     
                     <div class="chart-container full-width">
-                        <h3>New vs Returning Clients Per Day</h3>
+                        <h3>Daily Hours Worked</h3>
                         <div class="chart-wrapper">
-                            <canvas id="dailyClientTypeChart"></canvas>
+                            <canvas id="dailyHoursChart"></canvas>
                         </div>
                     </div>
                     
@@ -4533,7 +5275,7 @@
                     </div>
                     
                     <div class="chart-container full-width">
-                        <h3>Average Membership Sale Value Over Time</h3>
+                        <h3>Weekly Average Membership Sale Value</h3>
                         <div class="chart-wrapper">
                             <canvas id="membershipAvgValueChart"></canvas>
                         </div>
@@ -4557,13 +5299,52 @@
             // Calculate various insights
             const totalRevenue = data.reduce((sum, row) => sum + parseFloat(row.Revenue || 0), 0);
             const totalPayout = data.reduce((sum, row) => sum + parseFloat(row['Total Payout'] || 0), 0);
-            const profit = totalRevenue - totalPayout;
+            const totalHours = data.reduce((sum, row) => sum + parseFloat(row['Time (h)'] || 0), 0);
+            
+            // Calculate total labor costs including non-appointment work
+            let totalLaborCost = totalPayout;
+            let nonApptHours = 0;
+            let nonApptLaborCost = 0;
+            
+            if (window.timeTrackingData && window.timeTrackingData.length > 0) {
+                const filteredTimeTracking = window.timeTrackingData.filter(row => {
+                    if (!row['Employee Name']) return false;
+                    const clockedDate = parseDate(row['Clock in date']);
+                    if (!clockedDate) return false;
+                    
+                    // Apply same filters as appointments
+                    const monthFilter = document.getElementById('monthFilter').value;
+                    const startDate = document.getElementById('startDate').value;
+                    const endDate = document.getElementById('endDate').value;
+                    const practitionerFilter = document.getElementById('practitionerFilter').value;
+                    
+                    const monthKey = `${clockedDate.getFullYear()}-${String(clockedDate.getMonth() + 1).padStart(2, '0')}`;
+                    if (monthFilter !== 'all' && monthKey !== monthFilter) return false;
+                    if (startDate && clockedDate < new Date(startDate)) return false;
+                    if (endDate && clockedDate > new Date(endDate + 'T23:59:59')) return false;
+                    if (practitionerFilter !== 'all' && row['Employee Name'] !== practitionerFilter) return false;
+                    
+                    return true;
+                });
+                
+                const totalClockedHours = filteredTimeTracking.reduce((sum, t) => {
+                    const hours = parseFloat(t['Duration (h)'] || 0);
+                    return sum + hours;
+                }, 0);
+                
+                // Non-appointment hours = clocked hours - appointment hours
+                nonApptHours = Math.max(0, totalClockedHours - totalHours);
+                nonApptLaborCost = nonApptHours * CONFIG.baseHourlyRate;
+                totalLaborCost = totalPayout + nonApptLaborCost;
+            }
+            
+            const profit = totalRevenue - totalLaborCost;
             const profitMargin = totalRevenue > 0 ? (profit / totalRevenue * 100) : 0;
             
             // Client retention
             const clientVisits = {};
             data.forEach(row => {
-                const email = (row['Customer E-mail'] || '').toLowerCase().trim();
+                const email = (row['Customer Email'] || '').toLowerCase().trim();
                 if (email) {
                     clientVisits[email] = (clientVisits[email] || 0) + 1;
                 }
@@ -4597,24 +5378,18 @@
                 <div class="table-container">
                     <h2>🎯 Goal Tracking - ${currentPeriod}</h2>
                     <p style="margin-bottom: 20px; color: #666;">Monthly goals: ${formatCurrency(revenueGoal)} revenue | ${formatNumber(appointmentsGoal)} appointments</p>
-                    <div style="margin-top: 20px;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: 600;">
-                            <span>Monthly Revenue Goal</span>
-                            <span>${formatCurrency(totalRevenue)} / ${formatCurrency(revenueGoal)}</span>
-                        </div>
-                        <div class="progress-bar">
-                            <div class="progress-fill ${revenueProgress >= 100 ? 'success' : revenueProgress >= 70 ? '' : 'warning'}" style="width: ${Math.min(revenueProgress, 100)}%">
-                                ${revenueProgress.toFixed(0)}%
+                    
+                    <div class="charts-grid" style="grid-template-columns: 1fr 1fr;">
+                        <div class="chart-container">
+                            <h3>📊 Monthly Revenue vs Goal</h3>
+                            <div class="chart-wrapper" style="height: 300px;">
+                                <canvas id="monthlyRevenueGoalChart"></canvas>
                             </div>
                         </div>
-                        
-                        <div style="display: flex; justify-content: space-between; margin: 20px 0 10px 0; font-weight: 600;">
-                            <span>Monthly Appointments Goal</span>
-                            <span>${formatNumber(data.length)} / ${formatNumber(appointmentsGoal)}</span>
-                        </div>
-                        <div class="progress-bar">
-                            <div class="progress-fill ${appointmentsProgress >= 100 ? 'success' : appointmentsProgress >= 70 ? '' : 'warning'}" style="width: ${Math.min(appointmentsProgress, 100)}%">
-                                ${appointmentsProgress.toFixed(0)}%
+                        <div class="chart-container">
+                            <h3>📊 Monthly Appointments vs Goal</h3>
+                            <div class="chart-wrapper" style="height: 300px;">
+                                <canvas id="monthlyAppointmentsGoalChart"></canvas>
                             </div>
                         </div>
                     </div>
@@ -4715,6 +5490,155 @@
             `;
             
             document.getElementById('insights').innerHTML = html;
+            
+            // Render monthly goal charts
+            renderMonthlyGoalCharts(data, revenueGoal, appointmentsGoal);
+        }
+        
+        // Render monthly goal charts
+        function renderMonthlyGoalCharts(appointmentsData, revenueGoal, appointmentsGoal) {
+            // Group data by month
+            const monthlyData = {};
+            
+            appointmentsData.forEach(row => {
+                const date = parseDate(row['Appointment Date']);
+                if (date) {
+                    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                    if (!monthlyData[monthKey]) {
+                        monthlyData[monthKey] = {
+                            revenue: 0,
+                            appointments: 0
+                        };
+                    }
+                    monthlyData[monthKey].revenue += parseFloat(row.Revenue) || 0;
+                    monthlyData[monthKey].appointments++;
+                }
+            });
+            
+            const sortedMonths = Object.keys(monthlyData).sort();
+            const monthLabels = sortedMonths.map(month => {
+                const [year, mon] = month.split('-');
+                const date = new Date(year, mon - 1);
+                return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+            });
+            
+            // Revenue Goal Chart
+            const revenueCanvas = document.getElementById('monthlyRevenueGoalChart');
+            if (revenueCanvas) {
+                destroyChart('monthlyRevenueGoal');
+                const ctx = revenueCanvas.getContext('2d');
+                
+                allCharts.monthlyRevenueGoal = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: monthLabels,
+                        datasets: [
+                            {
+                                label: 'Actual Revenue',
+                                data: sortedMonths.map(m => monthlyData[m].revenue),
+                                backgroundColor: '#71BED2',
+                                borderColor: '#5aa8bf',
+                                borderWidth: 2
+                            },
+                            {
+                                label: 'Goal',
+                                data: sortedMonths.map(() => revenueGoal),
+                                backgroundColor: 'rgba(251, 181, 20, 0.3)',
+                                borderColor: '#FBB514',
+                                borderWidth: 2,
+                                borderDash: [5, 5],
+                                type: 'line',
+                                fill: false
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top'
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.dataset.label + ': ' + formatCurrency(context.parsed.y);
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return formatCurrency(value);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Appointments Goal Chart
+            const appointmentsCanvas = document.getElementById('monthlyAppointmentsGoalChart');
+            if (appointmentsCanvas) {
+                destroyChart('monthlyAppointmentsGoal');
+                const ctx = appointmentsCanvas.getContext('2d');
+                
+                allCharts.monthlyAppointmentsGoal = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: monthLabels,
+                        datasets: [
+                            {
+                                label: 'Actual Appointments',
+                                data: sortedMonths.map(m => monthlyData[m].appointments),
+                                backgroundColor: '#013160',
+                                borderColor: '#001a3a',
+                                borderWidth: 2
+                            },
+                            {
+                                label: 'Goal',
+                                data: sortedMonths.map(() => appointmentsGoal),
+                                backgroundColor: 'rgba(251, 181, 20, 0.3)',
+                                borderColor: '#FBB514',
+                                borderWidth: 2,
+                                borderDash: [5, 5],
+                                type: 'line',
+                                fill: false
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top'
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.dataset.label + ': ' + formatNumber(context.parsed.y);
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    stepSize: 10
+                                }
+                            }
+                        }
+                    }
+                });
+            }
         }
         
         // PERIOD COMPARISON FUNCTIONS
@@ -4807,7 +5731,7 @@
             comparisonData = {
                 revenue: compData.reduce((sum, row) => sum + parseFloat(row.Revenue || 0), 0),
                 appointments: compData.length,
-                clients: new Set(compData.map(r => r['Customer E-mail']).filter(e => e)).size,
+                clients: new Set(compData.map(r => r['Customer Email']).filter(e => e)).size,
                 profit: compData.reduce((sum, row) => sum + parseFloat(row.Revenue || 0) - parseFloat(row['Total Payout'] || 0), 0),
                 period: `${compStart.toLocaleDateString()} - ${compEnd.toLocaleDateString()}`
             };
@@ -6174,7 +7098,7 @@
             // Repeat customers (2+ visits)
             const clientVisits = {};
             data.forEach(row => {
-                const email = (row['Customer E-mail'] || '').toLowerCase().trim();
+                const email = (row['Customer Email'] || '').toLowerCase().trim();
                 if (email) {
                     clientVisits[email] = (clientVisits[email] || 0) + 1;
                 }
@@ -6367,7 +7291,7 @@
             
             const clientVisits = {};
             data.forEach(row => {
-                const email = (row['Customer E-mail'] || '').toLowerCase().trim();
+                const email = (row['Customer Email'] || '').toLowerCase().trim();
                 if (email) {
                     clientVisits[email] = (clientVisits[email] || 0) + 1;
                 }
@@ -6407,7 +7331,7 @@
             const avgDaysBetween = 30; // Simplified
             const atRiskCount = Object.entries(clientVisits).filter(([email, visits]) => {
                 if (visits <= 1) return false;
-                const lastVisit = data.filter(r => r['Customer E-mail']?.toLowerCase().trim() === email)
+                const lastVisit = data.filter(r => r['Customer Email']?.toLowerCase().trim() === email)
                     .map(r => parseDate(r['Appointment Date']))
                     .sort((a, b) => b - a)[0];
                 if (!lastVisit) return false;
@@ -6586,6 +7510,26 @@
         }
         
         // CHART RENDERING FUNCTIONS
+        // Helper function to calculate trendline using linear regression
+        function calculateTrendline(data) {
+            const n = data.length;
+            if (n === 0) return [];
+            
+            let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+            
+            data.forEach((y, x) => {
+                sumX += x;
+                sumY += y;
+                sumXY += x * y;
+                sumX2 += x * x;
+            });
+            
+            const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+            const intercept = (sumY - slope * sumX) / n;
+            
+            return data.map((_, x) => slope * x + intercept);
+        }
+        
         function destroyChart(chartId) {
             if (allCharts[chartId]) {
                 allCharts[chartId].destroy();
@@ -6825,20 +7769,20 @@
             html += '</tr></thead><tbody>';
             
             days.forEach(day => {
-                html += `<tr><td>${day}</td>`;
+                html += `<tr><td onclick="showDayOfWeekDetails('${day}')" style="cursor: pointer;">${day}</td>`;
                 for (let hour = 6; hour <= 21; hour++) {
                     const count = heatmapData[day][hour];
                     const intensity = maxValue > 0 ? Math.ceil((count / maxValue) * 7) : 0;
                     html += `<td class="heatmap-cell heatmap-${intensity}" 
                         title="${day} ${hour}:00 - ${count} appointments" 
-                        onclick="showDayOfWeekDetails('${day}')" 
+                        onclick="showHourDetails('${day}', ${hour})" 
                         style="cursor: pointer;">${count}</td>`;
                 }
                 html += '</tr>';
             });
             
             html += '</tbody></table>';
-            html += '<p style="margin-top: 15px; color: #666; font-size: 14px;"><strong>Tip:</strong> Darker colors indicate busier times. Use this to optimize scheduling and staffing.</p>';
+            html += '<p style="margin-top: 15px; color: #666; font-size: 14px;"><strong>Tip:</strong> Click on a <strong>day name</strong> to see hourly breakdown. Click on an <strong>hour cell</strong> to see specific appointments.</p>';
             
             container.innerHTML = html;
         }
@@ -7094,19 +8038,37 @@
                 destroyChart('dailyRevenue');
                 
                 const ctx = revenueCanvas.getContext('2d');
+                const revenueData = dates.map(date => dailyData[date].revenue);
+                const trendlineData = calculateTrendline(revenueData);
+                
                 allCharts.dailyRevenue = new Chart(ctx, {
                     type: 'line',
                     data: {
                         labels: dates,
-                        datasets: [{
-                            label: 'Daily Revenue',
-                            data: dates.map(date => dailyData[date].revenue),
-                            borderColor: '#71BED2',
-                            backgroundColor: 'rgba(113, 190, 210, 0.1)',
-                            borderWidth: 3,
-                            fill: true,
-                            tension: 0.4
-                        }]
+                        datasets: [
+                            {
+                                label: 'Daily Revenue',
+                                data: revenueData,
+                                borderColor: '#71BED2',
+                                backgroundColor: 'rgba(113, 190, 210, 0.1)',
+                                borderWidth: 3,
+                                fill: true,
+                                tension: 0.4,
+                                order: 1
+                            },
+                            {
+                                label: 'Trend',
+                                data: trendlineData,
+                                borderColor: 'rgba(113, 190, 210, 0.7)',
+                                backgroundColor: 'transparent',
+                                borderWidth: 3,
+                                borderDash: [5, 5],
+                                fill: false,
+                                tension: 0,
+                                pointRadius: 0,
+                                order: 2
+                            }
+                        ]
                     },
                     options: {
                         responsive: true,
@@ -7137,20 +8099,37 @@
                     return cumulative;
                 });
                 
+                const cumulativeTrendline = calculateTrendline(cumulativeData);
+                
                 const ctx = cumulativeCanvas.getContext('2d');
                 allCharts.cumulativeRevenue = new Chart(ctx, {
                     type: 'line',
                     data: {
                         labels: dates,
-                        datasets: [{
-                            label: 'Cumulative Revenue',
-                            data: cumulativeData,
-                            borderColor: '#28a745',
-                            backgroundColor: 'rgba(40, 167, 69, 0.1)',
-                            borderWidth: 3,
-                            fill: true,
-                            tension: 0.4
-                        }]
+                        datasets: [
+                            {
+                                label: 'Cumulative Revenue',
+                                data: cumulativeData,
+                                borderColor: '#28a745',
+                                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                                borderWidth: 3,
+                                fill: true,
+                                tension: 0.4,
+                                order: 1
+                            },
+                            {
+                                label: 'Trend',
+                                data: cumulativeTrendline,
+                                borderColor: 'rgba(40, 167, 69, 0.7)',
+                                backgroundColor: 'transparent',
+                                borderWidth: 3,
+                                borderDash: [5, 5],
+                                fill: false,
+                                tension: 0,
+                                pointRadius: 0,
+                                order: 2
+                            }
+                        ]
                     },
                     options: {
                         responsive: true,
@@ -7176,19 +8155,37 @@
                 destroyChart('dailyAppointments');
                 
                 const ctx = apptsCanvas.getContext('2d');
+                const apptsData = dates.map(date => dailyData[date].appointments);
+                const apptsTrendline = calculateTrendline(apptsData);
+                
                 allCharts.dailyAppointments = new Chart(ctx, {
                     type: 'line',
                     data: {
                         labels: dates,
-                        datasets: [{
-                            label: 'Daily Appointments',
-                            data: dates.map(date => dailyData[date].appointments),
-                            borderColor: '#013160',
-                            backgroundColor: 'rgba(1, 49, 96, 0.1)',
-                            borderWidth: 3,
-                            fill: true,
-                            tension: 0.4
-                        }]
+                        datasets: [
+                            {
+                                label: 'Daily Appointments',
+                                data: apptsData,
+                                borderColor: '#013160',
+                                backgroundColor: 'rgba(1, 49, 96, 0.1)',
+                                borderWidth: 3,
+                                fill: true,
+                                tension: 0.4,
+                                order: 1
+                            },
+                            {
+                                label: 'Trend',
+                                data: apptsTrendline,
+                                borderColor: 'rgba(1, 49, 96, 0.7)',
+                                backgroundColor: 'transparent',
+                                borderWidth: 3,
+                                borderDash: [5, 5],
+                                fill: false,
+                                tension: 0,
+                                pointRadius: 0,
+                                order: 2
+                            }
+                        ]
                     },
                     options: {
                         responsive: true,
@@ -7210,19 +8207,37 @@
                 destroyChart('dailyProfit');
                 
                 const ctx = profitCanvas.getContext('2d');
+                const profitData = dates.map(date => dailyData[date].profit);
+                const profitTrendline = calculateTrendline(profitData);
+                
                 allCharts.dailyProfit = new Chart(ctx, {
                     type: 'line',
                     data: {
                         labels: dates,
-                        datasets: [{
-                            label: 'Daily Profit',
-                            data: dates.map(date => dailyData[date].profit),
-                            borderColor: '#FBB514',
-                            backgroundColor: 'rgba(251, 181, 20, 0.1)',
-                            borderWidth: 3,
-                            fill: true,
-                            tension: 0.4
-                        }]
+                        datasets: [
+                            {
+                                label: 'Daily Profit',
+                                data: profitData,
+                                borderColor: '#FBB514',
+                                backgroundColor: 'rgba(251, 181, 20, 0.1)',
+                                borderWidth: 3,
+                                fill: true,
+                                tension: 0.4,
+                                order: 1
+                            },
+                            {
+                                label: 'Trend',
+                                data: profitTrendline,
+                                borderColor: 'rgba(251, 181, 20, 0.7)',
+                                backgroundColor: 'transparent',
+                                borderWidth: 3,
+                                borderDash: [5, 5],
+                                fill: false,
+                                tension: 0,
+                                pointRadius: 0,
+                                order: 2
+                            }
+                        ]
                     },
                     options: {
                         responsive: true,
@@ -7248,23 +8263,41 @@
                 destroyChart('dailyRevenuePerAppt');
                 
                 const ctx = revenuePerApptCanvas.getContext('2d');
+                const revenuePerApptData = dates.map(date => {
+                    return dailyData[date].appointments > 0 
+                        ? dailyData[date].revenue / dailyData[date].appointments 
+                        : 0;
+                });
+                const revenuePerApptTrendline = calculateTrendline(revenuePerApptData);
+                
                 allCharts.dailyRevenuePerAppt = new Chart(ctx, {
                     type: 'line',
                     data: {
                         labels: dates,
-                        datasets: [{
-                            label: 'Revenue per Appointment',
-                            data: dates.map(date => {
-                                return dailyData[date].appointments > 0 
-                                    ? dailyData[date].revenue / dailyData[date].appointments 
-                                    : 0;
-                            }),
-                            borderColor: '#9c27b0',
-                            backgroundColor: 'rgba(156, 39, 176, 0.1)',
-                            borderWidth: 3,
-                            fill: true,
-                            tension: 0.4
-                        }]
+                        datasets: [
+                            {
+                                label: 'Revenue per Appointment',
+                                data: revenuePerApptData,
+                                borderColor: '#9c27b0',
+                                backgroundColor: 'rgba(156, 39, 176, 0.1)',
+                                borderWidth: 3,
+                                fill: true,
+                                tension: 0.4,
+                                order: 1
+                            },
+                            {
+                                label: 'Trend',
+                                data: revenuePerApptTrendline,
+                                borderColor: 'rgba(156, 39, 176, 0.7)',
+                                backgroundColor: 'transparent',
+                                borderWidth: 3,
+                                borderDash: [5, 5],
+                                fill: false,
+                                tension: 0,
+                                pointRadius: 0,
+                                order: 2
+                            }
+                        ]
                     },
                     options: {
                         responsive: true,
@@ -7290,19 +8323,37 @@
                 destroyChart('dailyHours');
                 
                 const ctx = hoursCanvas.getContext('2d');
+                const hoursData = dates.map(date => dailyData[date].hours);
+                const hoursTrendline = calculateTrendline(hoursData);
+                
                 allCharts.dailyHours = new Chart(ctx, {
                     type: 'line',
                     data: {
                         labels: dates,
-                        datasets: [{
-                            label: 'Daily Hours',
-                            data: dates.map(date => dailyData[date].hours),
-                            borderColor: '#ff6384',
-                            backgroundColor: 'rgba(255, 99, 132, 0.1)',
-                            borderWidth: 3,
-                            fill: true,
-                            tension: 0.4
-                        }]
+                        datasets: [
+                            {
+                                label: 'Daily Hours',
+                                data: hoursData,
+                                borderColor: '#ff6384',
+                                backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                                borderWidth: 3,
+                                fill: true,
+                                tension: 0.4,
+                                order: 1
+                            },
+                            {
+                                label: 'Trend',
+                                data: hoursTrendline,
+                                borderColor: 'rgba(255, 99, 132, 0.7)',
+                                backgroundColor: 'transparent',
+                                borderWidth: 3,
+                                borderDash: [5, 5],
+                                fill: false,
+                                tension: 0,
+                                pointRadius: 0,
+                                order: 2
+                            }
+                        ]
                     },
                     options: {
                         responsive: true,
@@ -7314,6 +8365,64 @@
                                 ticks: {
                                     callback: function(value) {
                                         return value.toFixed(1) + ' hrs';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Daily utilization chart
+            const utilizationCanvas = document.getElementById('dailyUtilizationChart');
+            if (utilizationCanvas) {
+                destroyChart('dailyUtilization');
+                
+                const ctx = utilizationCanvas.getContext('2d');
+                const utilizationData = dates.map(date => dailyData[date].utilization);
+                const utilizationTrendline = calculateTrendline(utilizationData.map(v => v || 0));
+                
+                allCharts.dailyUtilization = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: dates,
+                        datasets: [
+                            {
+                                label: 'Daily Utilization %',
+                                data: utilizationData,
+                                borderColor: '#28a745',
+                                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                                borderWidth: 3,
+                                fill: true,
+                                tension: 0.4,
+                                spanGaps: true,
+                                order: 1
+                            },
+                            {
+                                label: 'Trend',
+                                data: utilizationTrendline,
+                                borderColor: 'rgba(40, 167, 69, 0.7)',
+                                backgroundColor: 'transparent',
+                                borderWidth: 3,
+                                borderDash: [5, 5],
+                                fill: false,
+                                tension: 0,
+                                pointRadius: 0,
+                                order: 2
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 100,
+                                ticks: {
+                                    callback: function(value) {
+                                        return value.toFixed(0) + '%';
                                     }
                                 }
                             }
@@ -7471,43 +8580,41 @@
                 destroyChart('membershipAvgValue');
                 const ctx = avgValueCanvas.getContext('2d');
                 
-                // Group by month to calculate averages
-                const monthlyRevenue = {};
+                // Group by week to calculate averages
+                const weeklyRevenue = {};
                 filteredMemberships.forEach(m => {
                     const boughtDate = m['Bought Date/Time (GMT)'] ? new Date(m['Bought Date/Time (GMT)']) : null;
                     if (boughtDate) {
-                        const monthKey = `${boughtDate.getFullYear()}-${String(boughtDate.getMonth() + 1).padStart(2, '0')}`;
-                        if (!monthlyRevenue[monthKey]) {
-                            monthlyRevenue[monthKey] = [];
+                        const year = boughtDate.getFullYear();
+                        const week = Math.ceil((boughtDate - new Date(year, 0, 1)) / (7 * 24 * 60 * 60 * 1000));
+                        const weekKey = `${year}-W${String(week).padStart(2, '0')}`;
+                        if (!weeklyRevenue[weekKey]) {
+                            weeklyRevenue[weekKey] = [];
                         }
-                        monthlyRevenue[monthKey].push(parseFloat(m['Paid Amount']) || 0);
+                        weeklyRevenue[weekKey].push(parseFloat(m['Paid Amount']) || 0);
                     }
                 });
                 
-                const sortedMonths = Object.keys(monthlyRevenue).sort();
+                const sortedWeeks = Object.keys(weeklyRevenue).sort();
                 
-                // Calculate average value per month
-                const monthlyAvg = {};
-                sortedMonths.forEach(month => {
-                    const values = monthlyRevenue[month];
+                // Calculate average value per week
+                const weeklyAvg = {};
+                sortedWeeks.forEach(week => {
+                    const values = weeklyRevenue[week];
                     if (values.length > 0) {
-                        monthlyAvg[month] = values.reduce((sum, v) => sum + v, 0) / values.length;
+                        weeklyAvg[week] = values.reduce((sum, v) => sum + v, 0) / values.length;
                     } else {
-                        monthlyAvg[month] = 0;
+                        weeklyAvg[week] = 0;
                     }
                 });
                 
                 allCharts.membershipAvgValue = new Chart(ctx, {
                     type: 'line',
                     data: {
-                        labels: sortedMonths.map(m => {
-                            const [year, month] = m.split('-');
-                            const date = new Date(year, month - 1);
-                            return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-                        }),
+                        labels: sortedWeeks,
                         datasets: [{
-                            label: 'Average Sale Value',
-                            data: sortedMonths.map(m => monthlyAvg[m]),
+                            label: 'Average Membership Sale Value (Weekly Average)',
+                            data: sortedWeeks.map(w => weeklyAvg[w]),
                             borderColor: '#ff6384',
                             backgroundColor: 'rgba(255, 99, 132, 0.1)',
                             borderWidth: 2,
@@ -7518,7 +8625,31 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
+                        plugins: { 
+                            legend: { 
+                                display: true,
+                                position: 'top',
+                                labels: {
+                                    font: {
+                                        size: 12,
+                                        weight: 'bold'
+                                    }
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Note: Values represent weekly averages',
+                                font: {
+                                    size: 10,
+                                    style: 'italic'
+                                },
+                                color: '#666',
+                                padding: {
+                                    top: 5,
+                                    bottom: 10
+                                }
+                            }
+                        },
                         scales: {
                             y: {
                                 beginAtZero: true,
@@ -7534,5 +8665,14 @@
             }
         }
     </script>
+    
+    <!-- Footer -->
+    <div class="dashboard-footer">
+        <div class="footer-content">
+            <span class="footer-version">v2.20251103.05</span>
+            <span class="footer-separator">|</span>
+            <span class="footer-credits">Made by bonJoeV with ❤️</span>
+        </div>
+    </div>
 </body>
 </html>
