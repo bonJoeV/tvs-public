@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>The Vital Stretch - Analytics Dashboard [v5-FIELD-FIX]</title>
+    <title>The Vital Stretch - Analytics Dashboard</title>
     
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Yeseva+One&display=swap" rel="stylesheet">
@@ -2057,6 +2057,84 @@
                     </div>
                 </div>
                 
+                <!-- Salaried Employees Section -->
+                <div style="margin-top: 30px; padding: 25px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px; border: 2px solid var(--accent);">
+                    <h4 style="color: var(--primary); margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 24px;">👔</span> Salaried Employees
+                    </h4>
+                    <p style="font-size: 13px; color: #666; margin-bottom: 20px;">
+                        Track up to 3 salaried employees. Enter their annual salary and start date for accurate labor cost calculations.
+                    </p>
+                    
+                    <div style="display: grid; gap: 20px;">
+                        <!-- Employee 1 -->
+                        <div style="background: white; padding: 20px; border-radius: 10px; border-left: 4px solid var(--primary);">
+                            <h5 style="color: var(--primary); margin-bottom: 15px;">Employee 1</h5>
+                            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 15px;">
+                                <div>
+                                    <label style="display: block; font-weight: 600; color: #555; margin-bottom: 5px; font-size: 13px;">Name</label>
+                                    <input type="text" id="salaryEmp1Name" placeholder="Employee name" 
+                                        style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;">
+                                </div>
+                                <div>
+                                    <label style="display: block; font-weight: 600; color: #555; margin-bottom: 5px; font-size: 13px;">Annual Salary</label>
+                                    <input type="number" id="salaryEmp1Salary" placeholder="0" min="0" step="1000" 
+                                        style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;">
+                                </div>
+                                <div>
+                                    <label style="display: block; font-weight: 600; color: #555; margin-bottom: 5px; font-size: 13px;">Start Date</label>
+                                    <input type="date" id="salaryEmp1StartDate" 
+                                        style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Employee 2 -->
+                        <div style="background: white; padding: 20px; border-radius: 10px; border-left: 4px solid var(--accent);">
+                            <h5 style="color: var(--primary); margin-bottom: 15px;">Employee 2</h5>
+                            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 15px;">
+                                <div>
+                                    <label style="display: block; font-weight: 600; color: #555; margin-bottom: 5px; font-size: 13px;">Name</label>
+                                    <input type="text" id="salaryEmp2Name" placeholder="Employee name" 
+                                        style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;">
+                                </div>
+                                <div>
+                                    <label style="display: block; font-weight: 600; color: #555; margin-bottom: 5px; font-size: 13px;">Annual Salary</label>
+                                    <input type="number" id="salaryEmp2Salary" placeholder="0" min="0" step="1000" 
+                                        style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;">
+                                </div>
+                                <div>
+                                    <label style="display: block; font-weight: 600; color: #555; margin-bottom: 5px; font-size: 13px;">Start Date</label>
+                                    <input type="date" id="salaryEmp2StartDate" 
+                                        style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Employee 3 -->
+                        <div style="background: white; padding: 20px; border-radius: 10px; border-left: 4px solid var(--highlight);">
+                            <h5 style="color: var(--primary); margin-bottom: 15px;">Employee 3</h5>
+                            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 15px;">
+                                <div>
+                                    <label style="display: block; font-weight: 600; color: #555; margin-bottom: 5px; font-size: 13px;">Name</label>
+                                    <input type="text" id="salaryEmp3Name" placeholder="Employee name" 
+                                        style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;">
+                                </div>
+                                <div>
+                                    <label style="display: block; font-weight: 600; color: #555; margin-bottom: 5px; font-size: 13px;">Annual Salary</label>
+                                    <input type="number" id="salaryEmp3Salary" placeholder="0" min="0" step="1000" 
+                                        style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;">
+                                </div>
+                                <div>
+                                    <label style="display: block; font-weight: 600; color: #555; margin-bottom: 5px; font-size: 13px;">Start Date</label>
+                                    <input type="date" id="salaryEmp3StartDate" 
+                                        style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <div style="text-align: center; margin-top: 20px;">
                     <button onclick="saveFranchiseSettings()" class="upload-btn" style="min-width: 250px; font-size: 16px;">
                         💾 Save Settings
@@ -2898,7 +2976,12 @@
             baseHourlyRate: 13.00,
             franchiseFeePercent: 7.0,
             brandFundPercent: 1.5,
-            ccFeesPercent: 2.9
+            ccFeesPercent: 2.9,
+            salariedEmployees: [
+                { name: '', annualSalary: 0, startDate: '' },
+                { name: '', annualSalary: 0, startDate: '' },
+                { name: '', annualSalary: 0, startDate: '' }
+            ]
         };
         
         // Franchise Settings Management
@@ -2911,14 +2994,44 @@
                 monthlyPaidApptGoal: parseInt(document.getElementById('monthlyPaidApptGoal').value),
                 monthlyIntroApptGoal: parseInt(document.getElementById('monthlyIntroApptGoal').value),
                 monthlyRevenueGoal: parseFloat(document.getElementById('monthlyRevenueGoal').value),
-                baseHourlyRate: parseFloat(document.getElementById('baseRateInput').value)
+                baseHourlyRate: parseFloat(document.getElementById('baseRateInput').value),
+                salariedEmployees: [
+                    {
+                        name: document.getElementById('salaryEmp1Name').value.trim(),
+                        annualSalary: parseFloat(document.getElementById('salaryEmp1Salary').value) || 0,
+                        startDate: document.getElementById('salaryEmp1StartDate').value
+                    },
+                    {
+                        name: document.getElementById('salaryEmp2Name').value.trim(),
+                        annualSalary: parseFloat(document.getElementById('salaryEmp2Salary').value) || 0,
+                        startDate: document.getElementById('salaryEmp2StartDate').value
+                    },
+                    {
+                        name: document.getElementById('salaryEmp3Name').value.trim(),
+                        annualSalary: parseFloat(document.getElementById('salaryEmp3Salary').value) || 0,
+                        startDate: document.getElementById('salaryEmp3StartDate').value
+                    }
+                ]
             };
             
-            // Validate (skip timezone as it's a string, allow 0 or positive numbers)
+            // Validate (skip timezone and salariedEmployees as they need special handling)
             for (const [key, value] of Object.entries(settings)) {
-                if (key === 'timezone') continue; // Skip timezone validation
+                if (key === 'timezone' || key === 'salariedEmployees') continue;
                 if (isNaN(value) || value < 0) {
                     showFranchiseSettingsStatus('❌ Please enter valid numbers (0 or greater) for all fields', 'error');
+                    return;
+                }
+            }
+            
+            // Validate salaried employees
+            for (let i = 0; i < settings.salariedEmployees.length; i++) {
+                const emp = settings.salariedEmployees[i];
+                if (emp.name && emp.annualSalary <= 0) {
+                    showFranchiseSettingsStatus(`❌ Employee ${i + 1}: Please enter a valid salary`, 'error');
+                    return;
+                }
+                if (emp.annualSalary > 0 && !emp.startDate) {
+                    showFranchiseSettingsStatus(`❌ Employee ${i + 1}: Please enter a start date`, 'error');
                     return;
                 }
             }
@@ -2932,6 +3045,7 @@
             CONFIG.goals.monthlyIntroAppointments = settings.monthlyIntroApptGoal;
             CONFIG.goals.monthlyRevenue = settings.monthlyRevenueGoal;
             CONFIG.baseHourlyRate = settings.baseHourlyRate;
+            CONFIG.salariedEmployees = settings.salariedEmployees;
             
             // Save to localStorage
             localStorage.setItem('vitalStretchFranchiseSettings', JSON.stringify(settings));
@@ -2970,6 +3084,11 @@
                     CONFIG.goals.monthlyIntroAppointments = settings.monthlyIntroApptGoal || 50;
                     CONFIG.goals.monthlyRevenue = settings.monthlyRevenueGoal || 20000;
                     CONFIG.baseHourlyRate = settings.baseHourlyRate || 13.00;
+                    CONFIG.salariedEmployees = settings.salariedEmployees || [
+                        { name: '', annualSalary: 0, startDate: '' },
+                        { name: '', annualSalary: 0, startDate: '' },
+                        { name: '', annualSalary: 0, startDate: '' }
+                    ];
                     
                     // Update form fields
                     document.getElementById('timezoneSelect').value = CONFIG.timezone;
@@ -2980,6 +3099,14 @@
                     document.getElementById('monthlyIntroApptGoal').value = CONFIG.goals.monthlyIntroAppointments;
                     document.getElementById('monthlyRevenueGoal').value = CONFIG.goals.monthlyRevenue;
                     document.getElementById('baseRateInput').value = CONFIG.baseHourlyRate;
+                    
+                    // Update salaried employee fields
+                    for (let i = 0; i < 3; i++) {
+                        const emp = CONFIG.salariedEmployees[i];
+                        document.getElementById(`salaryEmp${i + 1}Name`).value = emp.name || '';
+                        document.getElementById(`salaryEmp${i + 1}Salary`).value = emp.annualSalary || '';
+                        document.getElementById(`salaryEmp${i + 1}StartDate`).value = emp.startDate || '';
+                    }
                 } catch (e) {
                     console.error('Error loading settings:', e);
                 }
@@ -3035,6 +3162,50 @@
             const lastInitial = parts[parts.length - 1].charAt(0).toUpperCase();
             
             return `${firstName} ${lastInitial}.`;
+        }
+        
+        // Calculate prorated salary costs for a given period
+        function calculateSalaryCosts(startDate, endDate) {
+            let totalSalaryCost = 0;
+            const salaryDetails = [];
+            
+            if (!CONFIG.salariedEmployees) return { total: 0, details: [] };
+            
+            CONFIG.salariedEmployees.forEach((emp, index) => {
+                if (!emp.name || emp.annualSalary <= 0 || !emp.startDate) return;
+                
+                const empStartDate = new Date(emp.startDate);
+                const periodStart = new Date(startDate);
+                const periodEnd = new Date(endDate);
+                
+                // Check if employee worked during this period
+                if (empStartDate > periodEnd) return; // Started after period
+                
+                // Determine actual work start date (later of employee start or period start)
+                const workStart = empStartDate > periodStart ? empStartDate : periodStart;
+                
+                // Calculate days worked in the period
+                const daysInPeriod = Math.ceil((periodEnd - periodStart) / (1000 * 60 * 60 * 24));
+                const daysWorked = Math.ceil((periodEnd - workStart) / (1000 * 60 * 60 * 24)) + 1; // +1 to include start day
+                
+                // Calculate prorated cost
+                const dailyRate = emp.annualSalary / 365;
+                const proratedCost = dailyRate * Math.min(daysWorked, daysInPeriod);
+                
+                totalSalaryCost += proratedCost;
+                salaryDetails.push({
+                    name: emp.name,
+                    annualSalary: emp.annualSalary,
+                    startDate: emp.startDate,
+                    daysWorked: Math.min(daysWorked, daysInPeriod),
+                    proratedCost: proratedCost
+                });
+            });
+            
+            return {
+                total: totalSalaryCost,
+                details: salaryDetails
+            };
         }
         
         // Memoized date parsing for performance
@@ -4126,6 +4297,16 @@
                 totalLaborCost = totalPayout + nonApptLaborCost;
             }
             
+            // Calculate salary costs for the filtered period
+            let salaryCosts = { total: 0, details: [] };
+            if (data.length > 0) {
+                const dates = data.map(row => parseDate(row['Appointment Date']));
+                const minDate = new Date(Math.min(...dates));
+                const maxDate = new Date(Math.max(...dates));
+                salaryCosts = calculateSalaryCosts(minDate, maxDate);
+                totalLaborCost += salaryCosts.total;
+            }
+            
             const profit = totalRevenue - totalLaborCost;
             const profitMargin = totalRevenue > 0 ? (profit / totalRevenue * 100) : 0;
             
@@ -4343,21 +4524,33 @@
                             <div class="metric-subtext">${formatNumber(nonApptHours)} hrs @ ${formatCurrency(CONFIG.baseHourlyRate)}/hr</div>
                         </div>
                         ` : ''}
+                        ${salaryCosts.total > 0 ? `
+                        <div class="metric-card">
+                            <div class="metric-label">Salaried Employees</div>
+                            <div class="metric-value">${formatCurrency(salaryCosts.total)}</div>
+                            <div class="metric-subtext">${salaryCosts.details.length} employee(s)</div>
+                        </div>
+                        ` : ''}
                     </div>
-                    ${nonApptHours > 0 ? `
+                    ${(nonApptHours > 0 || salaryCosts.total > 0) ? `
                     <div class="alert info" style="margin-top: 15px;">
                         <h4>💡 Labor Cost Breakdown</h4>
                         <p style="margin: 8px 0;">
                             <strong>Appointment-Based Labor:</strong> ${formatCurrency(totalPayout)} 
                             (${formatNumber(totalHours)} hours at commission rates)<br>
-                            <strong>Non-Appointment Labor:</strong> ${formatCurrency(nonApptLaborCost)} 
-                            (${formatNumber(nonApptHours)} hours at base rate of ${formatCurrency(CONFIG.baseHourlyRate)}/hr)<br>
+                            ${nonApptHours > 0 ? `<strong>Non-Appointment Labor:</strong> ${formatCurrency(nonApptLaborCost)} 
+                            (${formatNumber(nonApptHours)} hours at base rate of ${formatCurrency(CONFIG.baseHourlyRate)}/hr)<br>` : ''}
+                            ${salaryCosts.total > 0 ? `<strong>Salaried Employees:</strong> ${formatCurrency(salaryCosts.total)}<br>
+                            ${salaryCosts.details.map(emp => 
+                                `&nbsp;&nbsp;• ${emp.name}: ${formatCurrency(emp.proratedCost)} (${emp.daysWorked} days @ ${formatCurrency(emp.annualSalary)}/year)`
+                            ).join('<br>')}<br>` : ''}
                             <strong>Total Labor Cost:</strong> ${formatCurrency(totalLaborCost)} 
                             (${((totalLaborCost / totalRevenue) * 100).toFixed(1)}% of revenue)
                         </p>
                         <p style="margin-top: 10px; font-size: 12px; color: #666;">
-                            Non-appointment hours include cleaning, admin work, training, and other clocked time without appointments. 
-                            Adjust the base hourly rate in <strong>⚙️ Franchise Configuration</strong> for accurate profitability tracking.
+                            ${nonApptHours > 0 ? 'Non-appointment hours include cleaning, admin work, training, and other clocked time without appointments. ' : ''}
+                            ${salaryCosts.total > 0 ? 'Salaried employee costs are prorated based on their start dates. ' : ''}
+                            Adjust settings in <strong>⚙️ Franchise Configuration</strong> for accurate profitability tracking.
                         </p>
                     </div>
                     ` : ''}
@@ -6166,6 +6359,16 @@
                 nonApptHours = Math.max(0, totalClockedHours - totalHours);
                 nonApptLaborCost = nonApptHours * CONFIG.baseHourlyRate;
                 totalLaborCost = totalPayout + nonApptLaborCost;
+            }
+            
+            // Calculate salary costs for the filtered period
+            let salaryCosts = { total: 0, details: [] };
+            if (data.length > 0) {
+                const dates = data.map(row => parseDate(row['Appointment Date']));
+                const minDate = new Date(Math.min(...dates));
+                const maxDate = new Date(Math.max(...dates));
+                salaryCosts = calculateSalaryCosts(minDate, maxDate);
+                totalLaborCost += salaryCosts.total;
             }
             
             const profit = totalRevenue - totalLaborCost;
@@ -13215,7 +13418,7 @@
     <!-- Footer -->
     <div class="dashboard-footer">
         <div class="footer-content">
-            <span class="footer-version">v2.20251105.5</span>
+            <span class="footer-version">v6.20251105.09</span>
             <span class="footer-separator">|</span>
             <span class="footer-credits">Made by bonJoeV with ❤️</span>
         </div>
