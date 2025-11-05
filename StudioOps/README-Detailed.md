@@ -1,1306 +1,1329 @@
-# The Vital Stretch Analytics Dashboard - Complete Documentation
+# The Vital Stretch Analytics Dashboard - Detailed Documentation
 
-## Version Information
-**Current Version:** v2.20251104.07  
-**Last Updated:** November 4, 2025  
-**Created by:** bonJoeV with ❤️  
-**Dashboard Type:** Single-page HTML application (no server required)
+**Version:** v2.20251105.5 | **Updated:** November 5, 2025
 
 ---
 
 ## Table of Contents
-1. [Overview](#overview)
-2. [Recent Updates](#recent-updates)
-3. [Prerequisites & Momence Setup](#prerequisites--momence-setup)
-4. [Data Export Instructions](#data-export-instructions)
-5. [Installation & Setup](#installation--setup)
-6. [Dashboard Structure & Features](#dashboard-structure--features)
-7. [All Dashboard Tabs Explained](#all-dashboard-tabs-explained)
-8. [Filtering & Comparison Tools](#filtering--comparison-tools)
-9. [Settings & Configuration](#settings--configuration)
-10. [Advanced Client Segmentation](#advanced-client-segmentation)
-11. [Calculation Methodologies](#calculation-methodologies)
-12. [Data Requirements & CSV Structures](#data-requirements--csv-structures)
-13. [Troubleshooting Guide](#troubleshooting-guide)
-14. [Best Practices](#best-practices)
-15. [Privacy & Compliance](#privacy--compliance)
-16. [Version History](#version-history)
-17. [Technical Specifications](#technical-specifications)
+
+1. [System Architecture](#system-architecture)
+2. [Data Files Explained](#data-files-explained)
+3. [Dashboard Tabs Deep Dive](#dashboard-tabs-deep-dive)
+4. [Advanced Features](#advanced-features)
+5. [Filtering & Data Processing](#filtering--data-processing)
+6. [Calculations & Formulas](#calculations--formulas)
+7. [Troubleshooting Guide](#troubleshooting-guide)
+8. [Performance Optimization](#performance-optimization)
+9. [Browser Compatibility](#browser-compatibility)
+10. [Version History](#version-history)
 
 ---
 
-## Overview
+## System Architecture
 
-The Vital Stretch Analytics Dashboard is a comprehensive, interactive business intelligence tool designed specifically for The Vital Stretch franchise operations. This single-page HTML application runs entirely in your browser with no server or internet connection required after initial download.
+### Technology Stack
+- **Frontend:** Pure HTML5, CSS3, vanilla JavaScript
+- **Charts:** Chart.js v4.4.0
+- **CSV Parsing:** PapaParse v5.4.1
+- **ZIP Processing:** JSZip v3.10.1
+- **No Backend:** All processing happens client-side
 
-### Key Features
-- 📊 **8 Interactive Analytical Tabs** - Overview, Timeline, VSP Performance, Customers, Retention, Journey, Memberships, Cancellations
-- 💰 **Complete Financial Tracking** - Revenue, labor costs, profitability, MRR, churn analysis
-- 👥 **Advanced Client Segmentation** - 5 strategic segments with downloadable contact lists
-- 📈 **Goal Tracking** - Monthly revenue, paid appointments, and intro appointments monitoring
-- 🔄 **Dynamic Filtering** - Date ranges, locations, practitioners, with period comparisons
-- 💼 **Franchise Configuration** - Customizable goals, fees, timezone, and hourly rates
-- 📥 **CSV Exports** - Download any segment, report, or filtered data
-- 🎨 **Brand Consistent** - The Vital Stretch colors (Primary: #013160, Accent: #71BED2, Highlight: #FBB514)
+### How It Works
+1. User uploads CSV/ZIP files
+2. Dashboard parses files using PapaParse
+3. Data is stored in browser memory
+4. Filters are applied dynamically
+5. Charts render using Chart.js
+6. Settings saved to localStorage
 
-### What Makes This Dashboard Unique
-- **Zero Server Requirements** - All processing happens in your browser
-- **Complete Privacy** - Your data never leaves your computer
-- **No Login Required** - Open the HTML file and start analyzing
-- **Works Offline** - No internet needed after initial file download
-- **Automatic ZIP Processing** - Upload payroll ZIP files directly without extraction
-- **Real-Time Calculations** - All metrics update instantly as you filter
-- **Persistent Settings** - Your preferences save to browser local storage
+### Data Flow
+```
+User uploads file
+    ↓
+File validation
+    ↓
+CSV parsing / ZIP extraction
+    ↓
+Data transformation
+    ↓
+Store in memory (global variables)
+    ↓
+Apply filters
+    ↓
+Calculate metrics
+    ↓
+Render UI
+    ↓
+Update charts
+```
 
----
-
-## Recent Updates
-
-### v2.20251104.07 (Current Version) - Critical Fixes
-**Release Date:** November 4, 2025
-
-#### 🔴 Major Fixes:
-
-**1. Fixed Lost Value for Cancellations (Monthly Recurring Revenue)**
-- **Problem:** Cancellation values were incorrect or showing $0
-- **Root Cause:** Matching by Membership ID which doesn't exist in cancellations CSV
-- **Solution:** Now matches by Customer Email across all cancellation reports
-- **How it works:**
-  - Finds all memberships for each cancelled customer by email
-  - Uses the most recent membership purchase
-  - Takes "Paid Amount" as monthly value (e.g., $107.50/month for "1 Hour/Month")
-  - Accurately calculates monthly recurring revenue lost
-- **Impact:** Total Lost Revenue now shows accurate MRR impact across all reports
-- **Updated in:** Main cancellations calculation + all 4 modal functions
-
-**2. Fixed Monthly Appointments vs Goal (Paid Appointments Only)**
-- **Problem:** Chart counted ALL appointments including intro offers
-- **Root Cause:** Logic incremented appointments counter for every appointment
-- **Solution:** Now counts paid and intro appointments separately
-- **Result:**
-  - Paid appointments: 300/month goal (non-intro only)
-  - Intro appointments: 50/month goal (tracked separately)
-  - No double counting
-- **Chart renamed:** "Monthly Paid Appointments vs Goal"
-- **Impact:** Accurate tracking of paid vs intro performance
-
-### v2.20251104.06 - Default Goals & Data Fixes
-**Release Date:** November 4, 2025
-
-**Updates:**
-- **Changed default monthly revenue goal:** $50,000 → $20,000 (more realistic for typical franchisees)
-- **Changed default intro appointments goal:** 36 → 50
-- **Fixed Churn Rate by Location:** Created customer location mapping from cancellations data
-- **Made "Compare To" font smaller:** 1pt reduction for better visual hierarchy
-- **Enhanced customer name extraction:** Better handling of various CSV field formats
-
-### v2.20251103.05 - Franchise Configuration
-**Release Date:** November 3, 2025
-
-**Major Features:**
-- Added ⚙️ Franchise Configuration section with persistent settings
-- User-configurable base hourly rate for non-appointment work (default: $13.00)
-- Comprehensive labor cost tracking (appointment + non-appointment hours)
-- New Financial Performance section in Overview tab
-- Improved trendline visibility (70% opacity, 3px width) for colorblind accessibility
-- Enhanced heatmap interactivity (click days for hourly breakdown, hours for appointments)
-- Monthly goal column charts replacing progress bars
-- Updated all profitability metrics to use comprehensive labor costs
-
-### v2.20251103.04 - Utilization & Commissions
-**Major Features:**
-- Added utilization tracking throughout dashboard (average, daily trend, per VSP)
-- Added commission tracking (membership & product sales, excludes services)
-- Membership charts now show weekly averages with clear notation
-- Improved tab order for studio owners/managers
-- Enhanced payroll ZIP file processing for time tracking and commissions
-- Automatic special character cleaning in product names (®, ™, ©, Â)
+### Security & Privacy
+- **Zero server communication** - no data uploaded anywhere
+- **Client-side only** - everything happens in your browser
+- **Local storage** - only settings stored locally
+- **No tracking** - no analytics or telemetry
+- **Open file** - you can inspect the code
 
 ---
 
-## Prerequisites & Momence Setup
+## Data Files Explained
 
-### Momence Configuration Requirements
+### Required Files (4)
 
-Before exporting data from Momence, you must properly configure your account. This one-time setup ensures accurate data collection and dashboard functionality.
+#### 1. Membership Sales Export
+**File:** `momence--membership-sales-export.csv`
+**Momence Report:** "Membership sales - A report on membership purchases history"
 
-#### 1. Pay Rates Configuration
-**Location:** Studio Set-up → Pay Rates
+**Key Fields:**
+- `Bought Date/Time (GMT)` - When membership was purchased
+- `Product name` - Name of membership plan
+- `Paid Amount` - Revenue from membership
+- `Frequency` - Billing frequency (monthly, annual, etc.)
+- `Customer Email` - Primary key for customer matching
+- `Customer Name` - Display name
+- `Home location` - Location assignment
+- `Status` - Active/Cancelled
+- `Sold by` - Staff member who sold it
 
-**Setup Instructions:**
-1. Navigate to Studio Set-up in Momence
-2. Click on "Pay Rates"
-3. Create pay rate structures for each VSP level:
-   - **Example levels:** Level 1, Level 2, Lead, Senior, Master
-   - **Rate types:** Hourly rates or per-session rates
-   - **Service types:** Table Time, Studio Lead, Admin, Events, Intro Sessions
-4. Assign specific rates to each service type
-5. Configure special rates:
-   - Introductory session rates (often lower)
-   - Event rates (may be higher)
-   - Administrative/non-client work rates
-   - Training/development rates
-6. Save and verify all rate structures
+**Used For:**
+- MRR (Monthly Recurring Revenue) calculation
+- Active membership tracking
+- Membership growth trends
+- Revenue attribution
+- Staff performance on sales
 
-**Why This Matters:**
-- Accurate labor cost calculations in dashboard
-- Proper VSP compensation tracking
-- Financial performance metrics depend on correct pay rates
-- Helps identify which services are most profitable
+#### 2. Membership Cancellations Export
+**File:** `momence--membership-sales-export__1_.csv`
+**Momence Report:** "Membership sales" → Cancellations tab
+
+**Key Fields:**
+- `Bought Date/Time (GMT)` - Original purchase date
+- `Product name` - Membership plan name
+- `Customer Email` - For matching to active members
+- `Cancellation Date` - When they cancelled
+- `Cancellation Reason` - Why they cancelled
+- `Paid Amount` - Value of lost MRR
+
+**Used For:**
+- Churn rate calculation
+- Cancellation reason analysis
+- Lost MRR tracking
+- Retention insights
+- Customer lifecycle analysis
+
+#### 3. New Leads & Customers
+**File:** `momence-new-leads-and-customers.csv`
+**Momence Report:** "New Leads & Customers by join date"
+
+**Key Fields:**
+- `E-mail` - Primary key
+- `First name`, `Last name` - Customer info
+- `Type` - "Lead" or "Customer"
+- `Join date` - When they joined
+- `Lead source` - How they found you
+- `LTV` - Lifetime value
+- `Home location` - Location assignment
+
+**Used For:**
+- Lead generation tracking
+- Customer acquisition trends
+- Lead source effectiveness
+- LTV analysis
+- Customer segmentation
+
+#### 4. Practitioner Payroll ZIP
+**File:** `momence-payroll-report-summary.zip`
+**Momence Report:** "Practitioner Payroll - Multiple practitioners payroll details"
+
+**Contains Multiple Files Per Practitioner:**
+- `momence-payroll-appointments-[name].csv` - Appointment details
+- `momence-payroll-appointments-[name]-aggregate.csv` - Appointment summary
+- `momence-payroll-time-[name].csv` - Clock in/out records
+- `momence-payroll-commissions-[name].csv` - Commission data
+
+**Appointment File Fields:**
+- `Appointment Date` - When appointment occurred
+- `Customer Email` - Client identifier
+- `Customer Name` - Display name
+- `Appointment` - Service name
+- `Revenue` - Payment amount
+- `Time (h)` - Duration in hours
+- `Total Payout` - VSP compensation
+- `Practitioner First Name`, `Practitioner Last Name` - VSP info
+- `Location` - Where service was performed
+- `Late cancellations` - Yes/No flag
+
+**Time Tracking File Fields:**
+- `Clocked in` - Clock in timestamp
+- `Clocked out` - Clock out timestamp
+- `Duration (h)` - Hours worked
+- `Hourly Rate` - Pay rate
+- `Payout` - Amount earned
+
+**Commission File Fields:**
+- `Commission Date` - When commission earned
+- `Item name` - Product/membership sold
+- `Item type` - "Membership" or "Product"
+- `Item price` - Sale amount
+- `Commission earned` - VSP commission
+
+**Used For:**
+- Appointment revenue tracking
+- VSP performance metrics
+- Utilization calculation (appointment hours vs clocked hours)
+- Non-appointment labor cost tracking
+- Commission tracking
+- Location-specific metrics
+- Schedule optimization
+
+### Optional Files (2)
+
+#### 5. Leads Converted Report
+**File:** `momence-leads-converted-report.csv`
+**Momence Report:** "Leads converted" or "Lead Conversion Report"
+
+**Key Fields:**
+- `First Name`, `Last Name` - Lead info
+- `E-mail` - Primary key
+- `Lead source` - Acquisition channel
+- `Converted` - Conversion date
+- `Converted to` - What they converted to (membership, package, etc.)
+- `LTV` - Lifetime value post-conversion
+
+**Used For:**
+- Lead conversion rate tracking
+- Source effectiveness analysis
+- Conversion timeline analysis
+- LTV by lead source
+- Marketing ROI calculation
+
+**Benefits:**
+- More accurate conversion tracking than just type changes
+- Understand which sources convert best
+- Track time-to-conversion
+- Optimize marketing spend
+
+#### 6. Appointments Attendance Report ZIP
+**File:** `momence-appointments-attendance-report-summary.zip`
+**Momence Report:** "Appointments attendance report"
+
+**Contains:**
+- `momence-appointments-attendance-report-combined.csv` - Full attendance records
+- `momence-appointments-attendance-report-aggregate-combined.csv` - Summary data
+- Individual VSP attendance files
+
+**Combined File Fields:**
+- `Staff Name` - VSP name (used for mapping)
+- `Staff E-mail` - VSP email
+- `Time booked (h)` - Hours of appointments
+- `Total time (h)` - Total clocked hours
+- `First Name`, `Last Name` - Client info
+- `E-mail` - Client email
+- `Date of reservation` - Appointment date/time
+- `Is paid` - Payment status (Yes/No)
+
+**Used For:**
+- Booking pipeline visibility (upcoming appointments)
+- Most frequent client identification
+- VSP workload analysis
+- Payment status tracking
+- Client loyalty metrics
+- Future revenue projection
+- VSP name mapping (cleaner reports)
+
+**New Features Unlocked:**
+- **Attendance Analytics** section in Insights tab
+- Top 10 most frequent clients
+- Top VSPs by appointments booked
+- Upcoming appointments count
+- Paid vs unpaid reservation breakdown
+- Booking pipeline strength indicator
 
 ---
 
-#### 2. Practitioner Setup
-**Location:** Studio Set-up → Practitioners
+## Dashboard Tabs Deep Dive
 
-**Setup Instructions:**
-1. Navigate to Studio Set-up → Practitioners
-2. For each VSP (Vital Stretch Practitioner):
-   - Add full name
-   - Add email address
-   - Add phone number
-   - Select appropriate role/level (matches pay rates)
-   - Set default pay rate
-   - Mark as "Active" (for current team members)
-3. Ensure all contact information is complete and accurate
-4. Verify active status is correct:
-   - Active: Currently employed
-   - Inactive: No longer with company (keep for historical data)
+### 1. Overview Tab 📊
 
-**Why This Matters:**
-- Dashboard tracks performance by individual VSP
-- Labor cost attribution requires accurate practitioner data
-- Segmentation and filtering by VSP
-- Historical tracking when practitioners leave/join
+**Purpose:** High-level business snapshot
 
-**Best Practice:**
-- Don't delete practitioners when they leave—mark them as inactive
-- Update pay rates immediately when VSPs receive raises
-- Keep contact information current for payroll reports
+**Key Metrics:**
+- **Total Revenue** - Appointment revenue + membership revenue
+  - Excludes active member appointment revenue (to avoid double-counting)
+- **Total Appointments** - Count of all appointments
+- **Unique Clients** - Distinct customer emails
+- **Avg Revenue/Appt** - Total revenue ÷ appointment count
 
----
+**Financial Performance Section:**
+- **Net Profit** - Revenue - labor - franchise fees
+- **Profit Margin** - (Net profit ÷ revenue) × 100
+- **Total Labor Cost** - Appointment payouts + non-appointment labor
+- **Appointment Payouts** - Direct VSP compensation from appointments
+- **Non-Appt Labor** - (Clocked hours - appointment hours) × base hourly rate
 
-#### 3. Appointment Pay Rates
-**Location:** Appointments → Boards
+**How Non-Appt Labor is Calculated:**
+1. Get all clocked time from payroll ZIP
+2. Sum total clocked hours for filtered period/location
+3. Sum total appointment hours for same period/location
+4. Non-appt hours = Clocked hours - Appointment hours
+5. Cost = Non-appt hours × base hourly rate (from settings)
 
-**Setup Instructions:**
-1. Navigate to Appointments section
-2. Go to appointment boards/scheduling
-3. For each VSP on the board:
-   - Set their pay rate for regular appointments
-   - Verify rates match their assigned level from Pay Rates setup
-   - Apply rates to different service types:
-     - Table Time (regular stretching sessions)
-     - Studio Lead (when acting as shift lead)
-     - Events (workshops, community events)
-     - Intro sessions (introductory offers)
-4. Check for override rates:
-   - Some VSPs may have custom rates
-   - Document any exceptions
-   - Verify with franchise owner/manager
+**Franchise Fees Section:**
+- Franchise Fee (default 6%)
+- Brand Fund (default 2%)
+- Credit Card Processing (default 3%)
+- Total Fees
+- Impact on profit calculation
 
-**Special Considerations:**
-- **Introductory sessions:** Often paid at different rate (track separately)
-- **Events:** May have flat fee or higher hourly rate
-- **Lead shifts:** Additional compensation for leadership duties
-- **Training:** Rate for training new practitioners
+**Period Comparison:**
+- When filtering by specific month, shows comparison to previous month
+- Comparison indicators: ↑ (increase), ↓ (decrease)
+- Percentage change calculation
 
-**Why This Matters:**
-- Appointment-level labor costs for profitability analysis
-- Tracks which appointments/services are most profitable
-- Identifies VSP earning variations
-- Helps optimize scheduling for both client service and labor costs
+**Intro Appointments:**
+- Counts appointments with "intro" in service name
+- Tracked separately from paid appointments
 
----
+### 2. Timeline Tab 📈
 
-#### 4. Time Clock Setup (Optional but Strongly Recommended)
-**Location:** Studio Set-up → Time Clock
+**Purpose:** Trend analysis over time
 
-**Setup Instructions:**
-1. Navigate to Studio Set-up → Time Clock
-2. Enable time clock for all VSPs
-3. Configure clocking rules:
-   - Grace period for clock-in/out
-   - Break time rules
-   - Automatic clock-out settings
-   - Notification preferences
-4. Set up approval workflows (if applicable)
-5. Train all VSPs on proper procedures:
-   - How to clock in at shift start
-   - How to clock out at shift end
-   - How to handle breaks
-   - What to do if they forget to clock in/out
+**Charts:**
+- **Revenue Trend** - Daily revenue with 7-day moving average
+- **Appointments Trend** - Daily appointment count
+- **MRR Trend** - Monthly recurring revenue over time
+- **Avg Ticket Trend** - Average revenue per appointment
 
-**Why This Matters:**
-- **Utilization metrics:** Dashboard calculates hours worked vs hours paid
-- **Non-appointment labor:** Captures admin time, cleaning, prep work
-- **Comprehensive labor costs:** Total compensation = appointment pay + non-appointment hours
-- **Efficiency tracking:** Identifies gaps between scheduled and actual work
-- **Compliance:** Helps with labor law compliance and accurate payroll
+**Features:**
+- Interactive charts (click for details)
+- Date range filtering
+- Location filtering
+- Export to CSV
+
+**Time Grouping:**
+- Less than 60 days: Daily
+- 60-180 days: Weekly
+- More than 180 days: Monthly
+
+### 3. VSP Performance Tab 👥
+
+**Purpose:** Individual practitioner metrics
+
+**Metrics Per VSP:**
+- Total Revenue Generated
+- Number of Appointments
+- Average Revenue per Appointment
+- Total Hours Worked
+- Total Payout Earned
+- Commission Earned (if data available)
+- Utilization Rate (if time tracking available)
 
 **Utilization Calculation:**
 ```
-Utilization Rate = (Appointment Hours) / (Total Hours Clocked)
-Example: 6 hours appointments / 8 hours clocked = 75% utilization
+Utilization = (Appointment Hours ÷ Clocked Hours) × 100
 ```
 
-**What Time Clock Data Provides:**
-- Clock-in and clock-out times
-- Total hours worked per shift
-- Break times
-- Non-appointment work hours
-- Daily/weekly/monthly utilization rates
+**Sorting:**
+- By revenue (default)
+- By appointments
+- By utilization
+- By commission
 
-**If You Don't Use Time Clock:**
-- Dashboard will still work for appointment-based metrics
-- Labor costs will only include appointment pay (not comprehensive)
-- Utilization metrics will not be available
-- Financial performance may appear artificially high
+**Filtering:**
+- By location
+- By date range
+- Search by name
+
+### 4. Customers Tab 🧑‍🤝‍🧑
+
+**Purpose:** Client analysis and segmentation
+
+**Demographics:**
+- Total Customers
+- New Customers (this period)
+- Active Members
+- Visit distribution (1 visit, 2-3 visits, 4-10, 11+)
+
+**LTV Analysis:**
+- LTV Distribution chart (6 tiers)
+- Click any tier to see customers in that range
+- Export customer lists
+
+**Client Segmentation (5 Segments):**
+
+1. **VIP Clients**
+   - Criteria: 10+ visits OR LTV > $1,000
+   - Action: Reward loyalty, create VIP program
+
+2. **New Clients**
+   - Criteria: 1-3 visits in past 30 days
+   - Action: Follow-up campaigns, intro packages
+
+3. **At-Risk Clients**
+   - Criteria: No visit in 60+ days, historically active
+   - Action: Re-engagement campaigns, special offers
+
+4. **Inactive Paid Members**
+   - Criteria: Active membership, no appointments in 30+ days
+   - Action: Urgent follow-up, prevent churn
+
+5. **High-Frequency Non-Members**
+   - Criteria: 5+ visits, no active membership
+   - Action: Membership conversion campaigns
+
+**Export Features:**
+- Click any segment to see details
+- Export segment as CSV with contact info
+- Use for email campaigns, CRM imports
+
+### 5. Retention Tab 🔄
+
+**Purpose:** Analyze customer retention and churn
+
+**Metrics:**
+- **Retention Rate** - Percentage of customers who return
+- **Churn Rate** - Percentage of members who cancel
+- **Avg Customer Lifetime** - Average days as active customer
+
+**Cohort Analysis:**
+- Groups customers by join month
+- Tracks retention month-over-month
+- Color-coded heatmap (green = good, red = bad)
+
+**Churn Analysis:**
+- Monthly churn rate trend
+- Churn by location
+- Churn by membership type
+
+### 6. Journey Tab 🚀
+
+**Purpose:** Customer lifecycle funnel
+
+**Stages:**
+1. **Leads** - Prospects in system
+2. **Converted Leads** - Leads who became customers
+3. **First Appointment** - Completed intro/first visit
+4. **Repeat Customer** - 2+ appointments
+5. **Member** - Active membership holder
+
+**Conversion Rates:**
+- Lead → Customer
+- Customer → Repeat
+- Repeat → Member
+
+**Drop-off Analysis:**
+- Shows where customers are lost
+- Helps identify friction points
+- Optimization opportunities
+
+### 7. Memberships Tab 💳
+
+**Purpose:** Subscription business tracking
+
+**Key Metrics:**
+- **MRR (Monthly Recurring Revenue)** - Sum of active membership values
+- **Active Members** - Count of active subscriptions
+- **Avg Membership Value** - MRR ÷ active members
+- **MRR Growth Rate** - Month-over-month change
+
+**MRR Calculation:**
+- Only counts active memberships (Status = "Active")
+- Normalizes to monthly value:
+  - Annual: Paid Amount ÷ 12
+  - Quarterly: Paid Amount ÷ 3
+  - Monthly: Paid Amount
+
+**Charts:**
+- MRR Trend over time
+- Members by Type (pie chart)
+- MRR by Location (if multi-location)
+
+**Membership Analysis:**
+- Top membership types by revenue
+- Top membership types by count
+- Growth trends
+
+### 8. Cancellations Tab ❌
+
+**Purpose:** Understand and reduce churn
+
+**Metrics:**
+- Total Cancellations
+- Cancellation Rate
+- Lost MRR
+- Avg Time to Cancel
+
+**Cancellation Reasons:**
+- Chart showing top reasons
+- Click for detailed list
+- Export for follow-up
+
+**Patterns:**
+- Cancellations by month
+- Cancellations by location
+- Cancellations by membership type
+
+**Win-Back Opportunities:**
+- Recent cancellations (< 30 days)
+- High-value cancellations
+- Exportable contact lists
+
+### 9. Schedule Tab 📅
+
+**Purpose:** Optimize scheduling and staffing
+
+**Key Features:**
+
+**Appointment Heatmap by Location:**
+- Separate heatmap for each location
+- Shows busiest times by day (Monday-Saturday) and hour (6am-9pm)
+- Color intensity shows appointment volume
+- Click any cell for detailed appointment list
+- Click day name for hourly breakdown
+
+**How to Use:**
+- Identify peak times for staffing
+- Find scheduling gaps
+- Optimize practitioner schedules
+- Plan marketing for slow times
+
+**Schedule Optimization Insights:**
+- Average utilization rate
+- Total gap hours
+- Cost of gaps (lost revenue)
+- Potential additional revenue
+
+**Gap Analysis Table:**
+- Top 20 days with largest scheduling gaps
+- Shows practitioner, date, gaps, utilization
+- Opportunity value calculation
+
+### 10. Insights Tab 💡
+
+**Purpose:** Actionable recommendations and goal tracking
+
+**Monthly Goal Tracking:**
+- Revenue vs Goal (bar chart)
+- Appointments vs Goal (bar chart)
+- Intro Appointments vs Goal (bar chart)
+- Progress percentages
+- Gap calculations
+
+**Key Insights:**
+- Profit margin analysis
+- Client retention rate
+- Top service performance
+- Revenue per client
+- Client engagement metrics
+
+**Attendance Analytics** (when attendance data loaded):
+- Total reservations count
+- Upcoming appointments (booking pipeline)
+- Paid vs unpaid breakdown
+- Top 10 most frequent clients
+- Top VSPs by appointments booked
+- Booking pipeline health indicator
+
+**AI Recommendations:**
+- Priority-ranked action items
+- Based on your actual data
+- Estimated impact
+- Specific action plans
+- Categories: High/Medium/Low priority
+
+**Action Items:**
+- Weekly recommended actions
+- Follow-up campaigns
+- Package creation suggestions
+- Schedule optimization tips
+- Referral program ideas
+
+### 11. Leads Tab 🎯
+
+**Purpose:** Lead tracking and conversion (requires Leads Converted report)
+
+**Key Metrics:**
+- Total Leads
+- Conversion Rate
+- Avg Time to Convert
+- Total LTV from Conversions
+
+**Lead Source Analysis:**
+- Leads by source (chart)
+- Conversion rate by source
+- LTV by source
+- Click source for detailed lead list
+
+**Lead Timeline:**
+- Daily lead generation
+- Conversion trend over time
+- Click any date for lead details
+
+**Features:**
+- Export lead lists by source
+- Filter by date range
+- Filter by conversion status
 
 ---
 
-## Data Export Instructions
+## Advanced Features
 
-### Overview of Required Files
+### Filtering System
 
-You need to export **3-4 files** from your Momence account:
+**Available Filters:**
+- **Month** - Select specific month or "All Months"
+- **Location** - Select specific location or "All Locations"
+- **Practitioner** - Select specific VSP or "All Practitioners"
+- **Service** - Select specific service type or "All Services"
+- **Date Range** - Custom start and end dates
 
-| # | File Type | Required? | Purpose |
-|---|-----------|-----------|---------|
-| 1 | Membership Sales CSV | ✅ Required | MRR, membership tracking, subscription values |
-| 2 | Membership Cancellations CSV | ✅ Required | Churn analysis, lost revenue, cancellation reasons |
-| 3 | New Leads & Customers CSV | ✅ Required | Customer demographics, LTV, acquisition sources |
-| 4 | Practitioner Payroll ZIP | ⭐ Strongly Recommended | Appointments, utilization, commissions, labor costs |
+**How Filtering Works:**
+1. User changes filter dropdown
+2. `applyFilters()` function runs
+3. Creates new filtered datasets:
+   - `filteredAppointments` - from `appointmentsData`
+   - `filteredMemberships` - from `membershipsData`
+   - `filteredLeads` - from `leadsData`
+   - `filteredTimeTracking` - from `window.timeTrackingData`
+4. Filters respect practitioner-location relationships
+5. All tabs re-render with filtered data
+6. Charts update automatically
 
-**Export Frequency Recommendation:**
-- **Weekly:** For active monitoring and segment outreach
-- **Monthly:** Minimum for business reviews
-- **Before major decisions:** Always use latest data
+**Critical: Time Tracking Filtering**
 
----
+The time tracking filter has special logic to respect location filtering:
 
-### Detailed Export Instructions
+1. First, filters appointments by all criteria (month, location, practitioner)
+2. Builds a set of practitioners who have appointments in filtered data
+3. Filters time tracking to ONLY include those practitioners
+4. This ensures time tracking respects location (since practitioners work at specific locations)
+5. Filters by date range (month/start date/end date)
 
-#### Report 1: Membership Sales
-**Momence Report Name:** `Membership sales - A report on membership purchases history`
+**Why This Matters:**
+- Prevents counting time from practitioners at other locations
+- Ensures Non-Appt Labor calculates correctly
+- Maintains data accuracy when location filtering
 
-**What it includes:**
-- Purchase ID and Membership ID
-- Customer name and email
-- Membership type and name (e.g., "1 Hour/Month", "3 Hours/Month")
-- Purchase date/time (GMT timezone)
-- Paid amount (monthly subscription price)
-- Remaining value/credits
-- Expiry date and renewal date
-- Status: Active, Expired, Frozen, Refunded, Cancelled
-- Sold by (VSP who sold the membership)
-- Location (for multi-location franchises)
+### Period Comparison
 
-**Export Steps:**
-1. Log in to your Momence account
-2. Navigate to the **Reports** section
-3. Find "Membership sales" in your **Favorite Reports**
-4. Click the report to open it
-5. Select your desired date range:
-   - **Recommended:** "All time" for complete history
-   - Alternative: Last 12 months for recent analysis
-6. Click **Download Summary** button
-7. File will download as: `momence--membership-sales-export.csv`
-8. Save to a consistent location (e.g., `~/Downloads/Momence-Data/`)
+**When Enabled:**
+- Selecting a specific month activates comparison
+- Compares to previous month automatically
+- Shows delta (↑ increase, ↓ decrease)
+- Percentage change calculated
 
-**File Naming:**
-The dashboard expects one of these names:
-- `momence--membership-sales-export.csv` (default Momence name)
-- `membership-sales.csv` (simplified)
-- Any CSV with "membership" and "sales" in filename
+**Metrics Compared:**
+- Total Revenue
+- Total Appointments
+- Unique Clients
+- Net Profit
+- And more...
 
-**Why This File Is Critical:**
-- **MRR Calculation:** Monthly Recurring Revenue from active subscriptions
-- **Membership Trends:** Track sales over time, seasonality, growth
-- **Cancellation Matching:** Links cancellations to subscription values
-- **Popular Memberships:** Identifies which membership types sell best
-- **Revenue Forecasting:** Predicts future recurring revenue
-- **Sales Attribution:** Tracks which VSPs sell most memberships
+**Comparison Indicator Colors:**
+- Green: Positive change
+- Red: Negative change
+- Gray: No change
 
-**Data Verification Checklist:**
-- ✅ File contains all active memberships
-- ✅ Historical memberships included (for cancelled/expired matching)
-- ✅ Paid amounts are accurate
-- ✅ Status field populated correctly
-- ✅ Customer emails present (crucial for matching)
+### CSV Export
 
----
+**Any Data Can Be Exported:**
+1. Click chart, table, or segment
+2. Click "Export to CSV" button
+3. Browser downloads CSV file
+4. Use in Excel, Google Sheets, CRM, etc.
 
-#### Report 2: Membership Cancellations
-**Momence Report Name:** `Membership sales - A report on membership purchases history` (Cancellations tab)
+**Export Formats:**
+- Client segments (name, email, phone, etc.)
+- Lead lists (with source, conversion status)
+- Appointment details
+- Revenue reports
+- And more...
 
-**What it includes:**
-- Customer name and email
-- Membership type that was cancelled
-- Cancelled at (date and time)
-- Cancellation reason (customer-provided)
-- Possible improvements (customer feedback)
-- Home location (customer's primary studio)
-- Membership details (what they had)
+### Interactive Charts
 
-**Export Steps:**
-1. In Momence, navigate to **Reports** section
-2. Open the "Membership sales" report
-3. Click on the **"Cancellations"** tab within the report
-4. Select date range:
-   - **Recommended:** "All time" for complete churn history
-   - Alternative: Last 6-12 months for recent trends
-5. Click **Download Summary** (downloads from Cancellations tab)
-6. File will download as: `momence--membership-sales-export__1_.csv`
-   - Note: Momence adds `__1_` or `(1)` to the filename
-7. Save to consistent location
+**Click Functionality:**
+- Bar charts → Show details for that bar
+- Pie charts → Show breakdown for that slice
+- Line charts → Show data point details
+- Heatmaps → Show appointments for that time slot
 
-**File Naming:**
-The dashboard expects one of these naming patterns:
-- `momence--membership-sales-export__1_.csv` (default Momence)
-- `momence--membership-sales-export(1).csv` (alternative Momence)
-- `membership-cancellations.csv` (simplified)
-- Any CSV with "membership" and "cancel" or "cancellation" in filename
+**Hover Tooltips:**
+- All charts show values on hover
+- Percentages for pie charts
+- Trends for line charts
 
-**Why This File Is Critical:**
-- **Churn Rate Calculation:** Percentage of members who cancel
-- **Lost Revenue Tracking:** MRR lost from cancellations
-- **Reason Analysis:** Why customers are leaving
-- **Improvement Opportunities:** Customer feedback for service improvements
-- **Retention Strategy:** Identify patterns to prevent future cancellations
-- **Segment Risk:** Flag at-risk customers with similar profiles
+### Client Segmentation Engine
 
-**How Cancellation Value Is Calculated:**
-```
-For each cancellation:
-1. Find customer email in cancellations CSV
-2. Look up customer's membership(s) in Membership Sales CSV
-3. Use most recent membership purchase
-4. Extract "Paid Amount" as monthly recurring value
-5. Sum all cancellation values for total lost MRR
-```
+**How It Works:**
+1. Aggregates all appointment and membership data per customer
+2. Calculates:
+   - Total visits
+   - Last visit date
+   - Total LTV
+   - Membership status
+   - Visit frequency
+3. Applies segment criteria
+4. Assigns customers to segments
+5. Generates downloadable contact lists
 
-**Example:**
-- Customer: jane@email.com
-- Cancelled: November 1, 2025
-- Had membership: "2 Hours/Month" at $195/month
-- Lost MRR: $195/month
+**Segment Priority:**
+1. Inactive Paid Members (most urgent)
+2. At-Risk (needs attention)
+3. VIP (maintain relationship)
+4. High-Frequency Non-Members (conversion opportunity)
+5. New Clients (nurture)
 
-**Data Verification Checklist:**
-- ✅ Customer emails match Membership Sales export
-- ✅ Cancellation dates are accurate
-- ✅ Cancellation reasons captured (if available)
-- ✅ All cancellations in selected date range included
+### Appointment Heatmap Algorithm
 
-**Important Note on v2.20251104.07 Fix:**
-- Previous versions matched by Membership ID (not in cancellations file)
-- New version matches by email (accurate)
-- Ensures correct lost revenue calculations
+**For Each Location:**
+1. Initialize grid (Monday-Saturday, 6am-9pm)
+2. For each appointment:
+   - Extract day of week
+   - Extract hour
+   - Increment counter for that cell
+3. Calculate max value for color scaling
+4. Render heatmap with 8 intensity levels (0-7)
+5. Add click handlers for interactivity
+
+**Color Scaling:**
+- Level 0 (white): No appointments
+- Level 1-2 (light blue): Low
+- Level 3-4 (medium blue): Medium
+- Level 5-6 (dark blue): High
+- Level 7 (darkest blue): Maximum
 
 ---
 
-#### Report 3: New Leads & Customers
-**Momence Report Name:** `New Leads & Customers by join date - Report that combines your new leads and customers with join dates, LTV, and aggregator source`
+## Calculations & Formulas
 
-**What it includes:**
-- Customer full name
-- Email address
-- Phone number
-- Join date (when they first engaged with you)
-- Customer type: "Lead" vs "Customer"
-- Lifetime Value (LTV) - total revenue from this customer
-- Aggregator source (how they found you):
-  - Google, Facebook, Instagram, Direct, Referral, etc.
-- First purchase information
-- Location (for multi-location franchises)
-- Tags/labels (if used in Momence)
-
-**Export Steps:**
-1. Navigate to **Reports** section in Momence
-2. Find "New Leads & Customers by join date" in Favorite Reports
-3. Click the report to open
-4. Select date range:
-   - **Recommended:** "All time" for complete customer history
-   - Alternative: Last 12 months for recent acquisition trends
-5. Click **Download Summary**
-6. File will download as: `momence--new-leads-and-customers.csv`
-7. Save to consistent location
-
-**File Naming:**
-Dashboard expects one of these patterns:
-- `momence--new-leads-and-customers.csv` (default)
-- `new-leads-customers.csv` (simplified)
-- Any CSV with "leads" or "customers" in filename
-
-**Why This File Is Critical:**
-- **Customer Demographics:** Age, location, contact info
-- **Acquisition Tracking:** Which marketing channels work best
-- **LTV Analysis:** Identify highest-value customer profiles
-- **Segmentation:** Create targeted campaigns by customer type
-- **Lead Conversion:** Track how leads become customers
-- **Growth Tracking:** Monitor customer acquisition trends over time
-- **Marketing ROI:** Measure effectiveness of different sources
-
-**Data Verification Checklist:**
-- ✅ All customers and leads included
-- ✅ Email addresses populated (critical for matching)
-- ✅ Join dates accurate
-- ✅ LTV calculated correctly
-- ✅ Aggregator sources captured (if available)
-- ✅ Customer vs Lead designation correct
-
-**Understanding Customer Type:**
-- **Lead:** Expressed interest but no purchase yet
-- **Customer:** Made at least one purchase
-- Dashboard tracks conversion from Lead → Customer
-
----
-
-#### Report 4: Practitioner Payroll ZIP File (Optional but Strongly Recommended)
-**Momence Report Name:** `Practitioner Payroll - Multiple practitioners payroll details`
-
-**What it includes (in ZIP file):**
-- **Multiple CSV files** (one per practitioner)
-- **Appointment details:** Date, time, client name, service type, duration
-- **Appointment pay:** Rate paid, total compensation per appointment
-- **Time tracking:** Clock in/out times, breaks, total hours
-- **Commissions:** Membership sales commissions, product sales commissions
-- **Works/Doesn't Work summary:** Scheduled vs actual hours
-
-**Export Steps:**
-1. Navigate to **Reports** section in Momence
-2. Find "Practitioner Payroll" in your Favorite Reports
-3. Click to open the report
-4. **Select practitioners:**
-   - Option A: Click "All Practitioners" (if available)
-   - Option B: Manually select each VSP from the list
-5. Choose date range:
-   - **Recommended for first export:** "All time" or last 12 months
-   - **Recommended for weekly updates:** Last 7-90 days
-6. Click **Download** button
-7. Momence will create a ZIP file automatically
-8. File name will be something like: `payroll-YYYY-MM-DD.zip` or `practitioner-payroll.zip`
-9. Save to consistent location
-10. **Do NOT extract the ZIP file** - Dashboard handles ZIP files automatically!
-
-**What's Inside the ZIP:**
-```
-practitioner-payroll.zip
-├── John_Smith_payroll.csv
-├── Jane_Doe_payroll.csv  
-├── Mike_Johnson_payroll.csv
-└── ... (one CSV per practitioner)
-```
-
-**Each Practitioner CSV Contains:**
-- Date of appointment/shift
-- Client name (or "Non-appointment work")
-- Service type (Table Time, Studio Lead, etc.)
-- Start time and end time
-- Duration (in minutes or hours)
-- Pay rate for that appointment
-- Amount paid
-- Clock-in time (if time clock enabled)
-- Clock-out time (if time clock enabled)
-- Commission earned (for membership/product sales)
-
-**Why This File Is Critical:**
-- **Comprehensive Labor Costs:** Appointment pay + non-appointment hours
-- **Utilization Metrics:** Calculate efficiency (appointment time / total time)
-- **Commission Tracking:** Monitor membership and product sales performance
-- **VSP Performance:** Individual metrics, appointments per VSP, revenue per VSP
-- **Profitability Analysis:** Accurate costs for true profit margins
-- **Scheduling Optimization:** Identify peak times, understaffed periods
-- **Works/Doesn't Work Analysis:** Compare scheduled vs actual work
-
-**Utilization Calculation Example:**
-```
-VSP: John Smith
-Date: November 4, 2025
-
-Time Clock Data:
-- Clock in: 9:00 AM
-- Clock out: 5:00 PM  
-- Total hours: 8 hours
-- Break: 0.5 hours
-- Worked: 7.5 hours
-
-Appointment Data:
-- 10:00 AM - Client A - 1 hour
-- 11:00 AM - Client B - 1 hour
-- 1:00 PM - Client C - 1 hour
-- 2:30 PM - Client D - 1.5 hours
-- 4:00 PM - Client E - 1 hour
-- Total appointment hours: 5.5 hours
-
-Utilization = 5.5 / 7.5 = 73.3%
-
-Non-appointment time: 2 hours (admin, cleaning, prep)
-```
-
-**Commission Tracking Example:**
-```
-VSP: Jane Doe
-Date: November 3, 2025
-
-Commissions Earned:
-- Membership sale: "2 Hours/Month" → $20 commission
-- Product sale: "Stretching Kit" → $5 commission
-- Total commissions: $25
-
-Appointment Pay: $180 (6 appointments × $30/session)
-Non-appointment Hours: 2 hours × $13/hr = $26
-Total Compensation: $180 + $26 + $25 = $231
-```
-
-**Dashboard Features Using This Data:**
-- 📊 VSP Performance tab: Individual stats, utilization, commissions
-- 💰 Financial Performance: Accurate labor costs including non-appointment
-- 📈 Timeline: Utilization trends over time
-- 🔍 Appointment analysis: Which services most profitable
-- 👥 VSP comparison: Performance relative to team
-
-**File Upload:**
-- ✅ Upload the **ZIP file directly** - do not extract first!
-- ✅ Dashboard automatically:
-  - Extracts all practitioner CSVs
-  - Processes each file
-  - Aggregates data
-  - Calculates metrics
-
-**Data Verification Checklist:**
-- ✅ ZIP file contains CSV for each practitioner
-- ✅ Date ranges match your needs
-- ✅ Appointment data complete
-- ✅ Time clock data included (if enabled)
-- ✅ Commission data present (if applicable)
-- ✅ Pay rates accurate
-
-**What If I Don't Have This File:**
-Dashboard will still work, but you'll miss:
-- Utilization metrics (won't be calculated)
-- Commission tracking (not available)
-- Comprehensive labor costs (appointment pay only)
-- Individual VSP appointment details
-- Works/doesn't work analysis
-
-**Recommendation:** Even if you didn't enable time clock initially, export this file! It still contains valuable appointment-level data and commission information.
-
----
-
-### Export Best Practices
-
-#### File Organization
-Create a consistent folder structure:
-```
-Documents/
-└── Momence-Data/
-    ├── 2025-11-04/
-    │   ├── momence--membership-sales-export.csv
-    │   ├── momence--membership-sales-export__1_.csv
-    │   ├── momence--new-leads-and-customers.csv
-    │   └── payroll-2025-11-04.zip
-    ├── 2025-10-28/
-    │   └── ... (previous week's exports)
-    └── Archive/
-        └── ... (older exports)
-```
-
-#### Weekly Export Routine
-**Recommended: Every Monday morning**
-1. Log in to Momence (5 minutes)
-2. Export all 4 reports (5 minutes)
-3. Save to dated folder (1 minute)
-4. Upload to dashboard (2 minutes)
-5. Review key metrics (5 minutes)
-6. Export urgent segments (3 minutes)
-
-**Total time:** ~20 minutes per week
-
-#### Date Range Selection
-**For First-Time Export:**
-- Select "All time" for all reports
-- Gives complete historical data
-- Enables trend analysis
-- Required for accurate retention calculations
-
-**For Weekly Updates:**
-- Option A: Export "All time" again (safest, ensures no missed data)
-- Option B: Export last 7-14 days only (faster, requires manual merging)
-
-**For Monthly Reviews:**
-- Export "All time" or last 90 days
-- Ensures complete data set
-- Captures seasonal trends
-
-#### File Naming Tips
-Keep Momence's default names for simplicity:
-- ✅ `momence--membership-sales-export.csv`
-- ✅ `momence--membership-sales-export__1_.csv`
-- ✅ `momence--new-leads-and-customers.csv`
-- ✅ `payroll-2025-11-04.zip`
-
-Or rename for clarity:
-- `YYYY-MM-DD-membership-sales.csv`
-- `YYYY-MM-DD-membership-cancellations.csv`
-- `YYYY-MM-DD-leads-customers.csv`
-- `YYYY-MM-DD-payroll.zip`
-
-#### Data Validation Before Upload
-**Quick Checks:**
-1. File sizes look reasonable (not 0 KB or suspiciously small)
-2. Open in Excel/Numbers to spot-check data
-3. Verify date ranges match what you selected
-4. Check that customer emails are populated
-5. Ensure no completely blank columns
-
-**Red Flags:**
-- ❌ File is 0 KB or very small
-- ❌ All rows are identical
-- ❌ Critical columns are blank (email, dates)
-- ❌ File won't open in Excel
-- ❌ Export failed/timed out message
-
-If you see red flags, re-export from Momence.
-
----
-
-## Installation & Setup
-
-### System Requirements
-
-**Operating Systems:**
-- ✅ Windows 10 or later
-- ✅ macOS 10.14 (Mojave) or later
-- ✅ Linux (any modern distribution)
-- ✅ Chrome OS
-
-**Browsers (One Required):**
-- ✅ Google Chrome 90+ (recommended)
-- ✅ Microsoft Edge 90+
-- ✅ Mozilla Firefox 88+
-- ✅ Safari 14+
-- ✅ Brave, Opera, Vivaldi (Chromium-based)
-
-**Hardware:**
-- **RAM:** 2GB minimum, 4GB+ recommended
-- **Storage:** 2MB for dashboard + your CSV files
-- **Display:** 1280×720 minimum, 1920×1080+ recommended
-- **Internet:** Only needed once to download dashboard
-
-**Not Required:**
-- ❌ No server
-- ❌ No installation
-- ❌ No administrator privileges
-- ❌ No command line
-- ❌ No programming knowledge
-- ❌ No database software
-- ❌ No plugins or extensions
-
----
-
-### Initial Dashboard Setup
-
-#### Step 1: Obtain the Dashboard File
-- Receive `vital-stretch-dashboard-v2.html` from franchise administrator
-- Or download from approved franchise resource location
-- Save to an easy-to-find location:
-  - ✅ `Desktop` (easiest for first-time users)
-  - ✅ `Documents/Vital-Stretch`
-  - ✅ `C:\Business\Analytics` (Windows)
-  - ✅ `~/Business/Analytics` (Mac/Linux)
-
-#### Step 2: Create a Shortcut (Optional but Recommended)
-**Windows:**
-1. Right-click the HTML file
-2. Choose "Create Shortcut"
-3. Drag shortcut to Desktop
-4. Rename to "📊 Vital Stretch Dashboard"
-
-**macOS:**
-1. Right-click (or Ctrl-click) the HTML file
-2. Choose "Make Alias"
-3. Drag alias to Desktop or Dock
-4. Rename to "Vital Stretch Dashboard"
-
-**Browser Bookmark:**
-1. Open the dashboard HTML in browser
-2. Press Ctrl+D (Windows) or Cmd+D (Mac)
-3. Name bookmark "Vital Stretch Dashboard"
-4. Save to Bookmarks Bar for one-click access
-
-#### Step 3: First Launch
-1. **Double-click** the HTML file
-   - It will open in your default browser
-   - Or right-click → "Open With" → Choose browser
-2. Dashboard loads instantly (no login required)
-3. You'll see the data upload interface
-
-#### Step 4: Upload Your Data
-1. Click the **📤 Upload Data** button (top-right)
-2. Upload modal appears with 4 sections
-3. Upload files in any order:
-   - **Membership Sales CSV** → Click "Choose File" → Select CSV
-   - **Cancellations CSV** → Click "Choose File" → Select CSV
-   - **Leads & Customers CSV** → Click "Choose File" → Select CSV
-   - **Payroll ZIP** (optional) → Click "Choose File" → Select ZIP
-4. Watch for green checkmarks (✅) after each upload
-5. Dashboard processes data automatically
-6. All tabs populate with your data
-
-**Upload Progress Indicators:**
-- ⏳ "Processing..." - File is being read
-- ✅ "Loaded successfully" - Data imported, metrics calculated
-- ❌ "Error: ..." - Problem with file (see Troubleshooting)
-
-#### Step 5: Configure Settings
-1. Click **⚙️ Settings** button (top-right, next to Upload)
-2. Configure **Business Settings:**
-   - **Timezone:** Select your local timezone (affects date calculations)
-   - **Franchise Fee:** Default 6% (adjust if different)
-   - **Brand Fund:** Default 2% (adjust if different)
-   - **Credit Card Fees:** Default 3% (typical processing fees)
-3. Set **Monthly Goals:**
-   - **Revenue Goal:** Default $20,000 (adjust to your target)
-   - **Paid Appointments Goal:** Default 300 (non-intro appointments)
-   - **Intro Appointments Goal:** Default 50 (intro offers)
-4. Configure **Labor Settings:**
-   - **Base Hourly Rate:** Default $13.00 (for non-appointment work)
-5. Click **💾 Save Settings**
-6. Confirmation message appears: "Settings saved successfully!"
-7. Settings are stored in browser local storage (persist across sessions)
-
----
-
-### First-Time Data Review
-
-#### Overview Tab Quick Check
-After uploading data, verify these metrics make sense:
+### Financial Calculations
 
 **Total Revenue:**
-- Should match your Momence total (within rounding)
-- If $0 or wildly incorrect, check CSV files
-
-**Total Customers:**
-- Should match approximate number of unique customers
-- Cross-reference with Momence dashboard
-
-**Active Memberships:**
-- Should match your current active subscriber count
-- Check against Momence membership report
-
-**Monthly Recurring Revenue (MRR):**
-- Sum of all active membership values
-- Should align with expected monthly subscription income
-
-**If Numbers Look Wrong:**
-- Check that all 3 required CSVs are uploaded (green checkmarks)
-- Verify date range filter (top-right) isn't excluding data
-- See Troubleshooting section below
-
-#### Goals Progress Check
-In Overview tab, verify goal progress charts:
-
-**Monthly Revenue vs Goal:**
-- Bars show actual revenue each month
-- Red line shows your goal ($20,000 default)
-- Should show realistic progress
-
-**Monthly Paid Appointments vs Goal:**
-- Only counts paid appointments (not intros)
-- Goal: 300/month default
-- If counting seems off, verify payroll ZIP uploaded
-
-**Monthly Intro Appointments vs Goal:**
-- Only counts intro offers
-- Goal: 50/month default
-- Tracked separately from paid appointments
-
-#### Financial Performance Verification
-In Overview tab, check Financial Performance section:
-
 ```
-Total Revenue: $XX,XXX
-Labor Costs: $X,XXX
-Gross Profit: $XX,XXX (XX%)
-Net Profit: $XX,XXX (XX%)
+Appointment Revenue (non-members) +
+Appointment Revenue (non-active-members) +
+Membership Revenue
 ```
 
-**Sanity Checks:**
-- Labor costs should be 25-40% of revenue (typical range)
-- Gross profit margin: 60-75% is healthy
-- Net profit margin: 15-25% after franchise fees
-
-**If margins look wrong:**
-- Verify base hourly rate is set correctly (Settings)
-- Check that payroll ZIP is uploaded (for comprehensive costs)
-- Ensure pay rates are configured in Momence
-
----
-
-## Dashboard Structure & Features
-
-### Main Interface Components
-
-#### Header Bar
-**Location:** Top of dashboard
-
-**Elements:**
-- **Dashboard Title:** "The Vital Stretch Analytics Dashboard"
-- **Version Number:** Current version (e.g., v2.20251104.07)
-- **Upload Button** (📤): Opens data upload modal
-- **Settings Button** (⚙️): Opens franchise configuration
-- **Date Range Selector:** Filter all data by date
-- **Location Filter:** (if multi-location data present)
-- **Practitioner Filter:** Filter by specific VSP
-- **Compare To Dropdown:** Select comparison period
-
-#### Tab Navigation
-**Location:** Below header
-
-**8 Primary Tabs:**
-1. 📊 **Overview** - Key metrics and goal tracking
-2. 📈 **Timeline** - Trends over time
-3. 👥 **VSP Performance** - Individual practitioner metrics
-4. 🧑‍🤝‍🧑 **Customers** - Client demographics and segmentation
-5. 🔄 **Retention** - Churn and cohort analysis
-6. 🚀 **Journey** - Customer lifecycle funnel
-7. 💳 **Memberships** - Subscription tracking
-8. ❌ **Cancellations** - Churn reasons and lost revenue
-
-**Tab Behavior:**
-- Click to switch between tabs
-- Current tab highlighted
-- Tab content loads instantly
-- All tabs respect active filters
-
-#### Footer
-**Location:** Bottom of page
-
-**Information Displayed:**
-- Version number
-- Last updated date
-- Created by attribution
-- Copyright/license (if applicable)
-
----
-
-### Key Metrics Dictionary
-
-#### Financial Metrics
-
-**Total Revenue**
-- **Definition:** Sum of all income from appointments and memberships
-- **Calculation:** Appointment revenue + Membership sales
-- **Includes:** Paid appointments, intro offers, membership purchases
-- **Excludes:** Refunds (if marked as such)
-
-**Labor Costs**
-- **Definition:** Total compensation to VSPs for all work
-- **Calculation:** (Appointment pay) + (Non-appointment hours × Base hourly rate) + (Commissions)
-- **Includes:** Hourly pay, per-session pay, commissions, admin time
-- **Note:** Requires payroll ZIP for accurate calculation
-
-**Gross Profit**
-- **Definition:** Revenue minus direct labor costs
-- **Calculation:** Total Revenue - Labor Costs
-- **Interpretation:** Money available before franchise fees and other expenses
-
-**Gross Profit Margin**
-- **Definition:** Percentage of revenue remaining after labor
-- **Calculation:** (Gross Profit / Total Revenue) × 100
-- **Healthy Range:** 60-75% for service businesses
-- **Example:** $20,000 revenue - $6,000 labor = $14,000 / $20,000 = 70%
-
-**Net Profit**
-- **Definition:** Profit after all major expenses
-- **Calculation:** Gross Profit - Franchise Fee - Brand Fund - CC Fees
-- **Example:**
-  ```
-  Revenue: $20,000
-  Labor: $6,000
-  Gross: $14,000
-  Franchise Fee (6%): $1,200
-  Brand Fund (2%): $400
-  CC Fees (3%): $600
-  Net Profit: $11,800 (59% margin)
-  ```
-
-**Net Profit Margin**
-- **Definition:** Final profit percentage after all major expenses
-- **Calculation:** (Net Profit / Total Revenue) × 100
-- **Healthy Range:** 15-30% for franchise businesses
-- **Use:** Indicates true business profitability
-
-**Monthly Recurring Revenue (MRR)**
-- **Definition:** Predictable monthly income from active subscriptions
-- **Calculation:** Sum of all active membership "Paid Amount" values
-- **Example:**
-  ```
-  10 members × $107.50/month = $1,075 MRR
-  5 members × $195/month = $975 MRR
-  Total MRR = $2,050
-  ```
-- **Importance:** Forecasts future revenue, measures subscription health
-
----
-
-#### Customer Metrics
-
-**Total Customers**
-- **Definition:** Unique individuals who have engaged with your business
-- **Calculation:** Count of unique customer emails
-- **Includes:** Both "Lead" and "Customer" types
-- **Note:** A person who cancels remains in count (for historical tracking)
-
-**Active Customers**
-- **Definition:** Customers with appointments or active memberships in selected period
-- **Calculation:** Unique customers with activity in date range
-- **Use:** Measures current customer base size
-
-**New Customers**
-- **Definition:** First-time customers in selected period
-- **Calculation:** Customers whose join date falls within date range
-- **Use:** Tracks acquisition rate
-
-**Customer Lifetime Value (LTV)**
-- **Definition:** Average total revenue per customer over their lifetime
-- **Calculation:** Total Revenue / Total Customers
-- **Example:** $100,000 revenue / 200 customers = $500 LTV
-- **Use:** Measures long-term customer value
-
-**Average Visits per Customer**
-- **Definition:** Mean number of appointments per customer
-- **Calculation:** Total Appointments / Total Customers
-- **Healthy Range:** 5-15 visits (varies by business model)
-
----
-
-#### Retention Metrics
-
-**Churn Rate**
-- **Definition:** Percentage of members who cancel in a period
-- **Calculation:** (Cancellations / Active Members at Start) × 100
-- **Example:** 5 cancellations / 100 members = 5% monthly churn
-- **Healthy Target:** <5% monthly churn
-- **Annual Churn:** Monthly churn × 12 (e.g., 5% monthly = 60% annual)
-
-**Retention Rate**
-- **Definition:** Percentage of customers who remain active
-- **Calculation:** 100% - Churn Rate
-- **Example:** 100% - 5% = 95% retention rate
-- **Healthy Target:** >95% monthly retention
-
-**Cohort Retention**
-- **Definition:** Percentage of a specific cohort (e.g., January signups) still active over time
-- **Use:** Identifies when customers are most likely to churn
-- **Example:**
-  ```
-  January cohort: 20 members
-  Month 1: 95% retained (19 active)
-  Month 3: 80% retained (16 active)
-  Month 6: 65% retained (13 active)
-  ```
-
-**Lost MRR**
-- **Definition:** Monthly recurring revenue lost from cancellations
-- **Calculation:** Sum of cancelled members' subscription values
-- **Example:** 5 members cancel × $107.50/month average = $537.50 lost MRR
-- **Use:** Quantifies financial impact of churn
-
----
-
-#### Operational Metrics
-
-**Total Appointments**
-- **Definition:** All appointments completed in period
-- **Calculation:** Count of all appointments (intro + paid)
-- **Note:** Dashboard now separates paid vs intro
-
-**Paid Appointments**
-- **Definition:** Appointments at regular price (not intro offers)
-- **Goal:** 300/month (default, configurable)
-- **Use:** Measures revenue-generating capacity
-
-**Intro Appointments**
-- **Definition:** Introductory offers to new/potential customers
-- **Goal:** 50/month (default, configurable)
-- **Use:** Tracks top-of-funnel acquisition
-
-**Utilization Rate**
-- **Definition:** Percentage of worked time spent on appointments
-- **Calculation:** (Appointment Hours / Total Hours Clocked) × 100
-- **Example:** 30 hours appointments / 40 hours worked = 75% utilization
-- **Healthy Target:** 70-85% (allows time for admin, breaks, prep)
-- **Requires:** Time clock data (from payroll ZIP)
-
-**Average Ticket**
-- **Definition:** Average revenue per appointment
-- **Calculation:** Total Revenue / Total Appointments
-- **Example:** $20,000 revenue / 200 appointments = $100 average ticket
-- **Use:** Measures pricing effectiveness
-
----
-
-#### Commission Metrics
-
-**Total Commissions**
-- **Definition:** Earnings from selling memberships and products
-- **Calculation:** Sum of all commission entries from payroll ZIP
-- **Includes:** Membership sales, product sales, referral bonuses
-- **Excludes:** Service/appointment commissions (counted in base pay)
-
-**Commissions by VSP**
-- **Definition:** Individual practitioner commission performance
-- **Use:** Identifies top sellers, bonus calculations
-- **Dashboard Location:** VSP Performance tab
-
-**Commission per Sale**
-- **Definition:** Average commission earned per item sold
-- **Example:** $200 total commissions / 10 items = $20 per sale
-
----
-
-### Color Coding & Visual Language
-
-#### Brand Colors
-**Primary:** #013160 (Deep blue)
-- Used for: Main headers, primary buttons, key metrics
-- Represents: Trust, professionalism, The Vital Stretch brand
-
-**Accent:** #71BED2 (Light blue)
-- Used for: Secondary elements, highlights, hover states
-- Represents: Energy, wellness, approachability
-
-**Highlight:** #FBB514 (Warm yellow/gold)
-- Used for: Calls-to-action, important alerts, goals
-- Represents: Achievement, attention, warmth
-
-#### Status Colors
-- **Green (#28a745):** Positive metrics, goals exceeded, success states
-- **Red (#dc3545):** Negative metrics, goals missed, alerts
-- **Yellow (#ffc107):** Warnings, at-risk states, attention needed
-- **Gray (#6c757d):** Neutral, inactive, disabled
-
-#### Chart Colors
-Carefully selected for:
-- ✅ Colorblind accessibility
-- ✅ Print-friendly
-- ✅ High contrast
-- ✅ Brand consistency
-
-**Line Chart Trendlines:**
-- Primary data: Brand colors (70% opacity, 3px width)
-- Comparison periods: Dotted lines, lighter opacity
-- Goals: Dashed lines, highlight color
-
----
-
-## All Dashboard Tabs Explained
-
-*(This section would continue with detailed explanations of each tab. Due to length, I'll continue with the structure)*
-
-### Tab 1: 📊 Overview
-[Detailed tab documentation...]
-
-### Tab 2: 📈 Timeline
-[Detailed tab documentation...]
-
-*(And so on for all tabs...)*
-
----
-
-## Filtering & Comparison Tools
-
-[Detailed filtering documentation...]
-
----
-
-## Settings & Configuration
-
-[Detailed settings documentation...]
-
----
-
-## Advanced Client Segmentation
-
-[Detailed segmentation documentation...]
-
----
-
-## Calculation Methodologies
-
-[Detailed calculation documentation...]
-
----
-
-## Data Requirements & CSV Structures
-
-[Detailed CSV structure documentation...]
+**Appointment Revenue Calculation:**
+- Excludes appointments from active members (to avoid double-counting with MRR)
+- Active member check: Email match between appointments and active memberships
+
+**Total Labor Cost:**
+```
+Appointment Payouts +
+Non-Appointment Labor Cost
+```
+
+**Non-Appointment Labor Cost:**
+```
+(Total Clocked Hours - Total Appointment Hours) × Base Hourly Rate
+```
+
+**Net Profit:**
+```
+Total Revenue - 
+Total Labor Cost - 
+Franchise Fees - 
+Brand Fund - 
+Credit Card Fees
+```
+
+**Profit Margin:**
+```
+(Net Profit ÷ Total Revenue) × 100
+```
+
+### Membership Calculations
+
+**MRR (Monthly Recurring Revenue):**
+```
+For each active membership:
+  If frequency contains "annual": Amount ÷ 12
+  Else if frequency contains "quarterly": Amount ÷ 3
+  Else: Amount (monthly)
+  
+MRR = Sum of all normalized amounts
+```
+
+**Churn Rate:**
+```
+(Cancellations This Period ÷ Active Members Start of Period) × 100
+```
+
+**Average Membership Value:**
+```
+Total MRR ÷ Number of Active Members
+```
+
+### Customer Metrics
+
+**LTV (Lifetime Value):**
+```
+Sum of all revenue from this customer
+(appointments + memberships + products)
+```
+
+**Retention Rate:**
+```
+(Customers with 2+ Visits ÷ Total Customers) × 100
+```
+
+**Avg Visits Per Customer:**
+```
+Total Appointments ÷ Unique Customers
+```
+
+**Customer Acquisition Cost (if known):**
+```
+Total Marketing Spend ÷ New Customers
+```
+
+### VSP Performance
+
+**Utilization Rate:**
+```
+(Total Appointment Hours ÷ Total Clocked Hours) × 100
+```
+
+**Revenue Per Hour:**
+```
+Total Revenue Generated ÷ Total Hours Worked
+```
+
+**Appointments Per Day:**
+```
+Total Appointments ÷ Number of Days Worked
+```
+
+### Goal Progress
+
+**Revenue Progress:**
+```
+(Actual Revenue ÷ Revenue Goal) × 100
+```
+
+**Appointments Needed Per Week:**
+```
+Math.ceil((Goal - Current) ÷ Weeks Remaining)
+```
+
+**On Track Calculation:**
+```
+Current Progress ≥ (Days Elapsed ÷ Days in Month) × 100
+```
 
 ---
 
 ## Troubleshooting Guide
 
-[Detailed troubleshooting information...]
+### Common Issues and Solutions
+
+#### Issue: Non-Appt Labor Shows Zero or Disappears
+
+**Causes:**
+1. Time tracking data not loaded
+2. Field name mismatch
+3. No practitioners match filtered appointments
+4. All time records filtered out by date
+
+**Solutions:**
+1. Upload Practitioner Payroll ZIP file
+2. Ensure Momence time clock is enabled
+3. Clear browser cache (Ctrl+Shift+R)
+4. Check console for debug messages (F12)
+5. Verify practitioners are clocking in/out properly
+
+**Debug Steps:**
+1. Open browser console (F12)
+2. Apply month filter
+3. Look for debug output:
+   ```
+   DEBUG: Filtering time tracking... {
+     totalTimeRecords: XXX,
+     practitionersInFiltered: [...],
+     ...
+   }
+   ```
+4. If `filteredCount: 0`, no records match filters
+5. If `totalTimeRecords: 0`, data not loaded
+
+#### Issue: Dashboard Won't Update to Latest Version
+
+**Cause:** Browser cache holding old version
+
+**Solution:**
+1. Force reload: `Ctrl+Shift+R` (Win) or `Cmd+Shift+R` (Mac)
+2. Check tab title shows correct version
+3. Check footer shows correct version
+4. If still doesn't work:
+   - Clear all browser cache
+   - Try incognito/private mode
+   - Try different browser
+
+#### Issue: Data Not Showing After Upload
+
+**Causes:**
+1. Missing required files
+2. Incorrect file format
+3. File exported incorrectly from Momence
+4. Browser blocking file access
+
+**Solutions:**
+1. Verify all 4 required files uploaded
+2. Check for green checkmarks (✅) on each
+3. Ensure files exported correctly:
+   - Membership Sales: CSV from report
+   - Cancellations: CSV from Cancellations tab
+   - Leads: CSV from New Leads & Customers
+   - Payroll: ZIP file with all practitioners
+4. Try different browser
+5. Disable browser extensions
+6. Check browser console for errors
+
+#### Issue: Attendance Analytics Not Showing
+
+**Cause:** Attendance report not uploaded
+
+**Solution:**
+1. This is an optional feature
+2. Only appears when attendance ZIP is uploaded
+3. Upload `momence-appointments-attendance-report-summary.zip`
+4. Look for green checkmark
+5. Refresh to see Attendance Analytics in Insights tab
+
+#### Issue: Settings Not Saving
+
+**Causes:**
+1. Browser blocking localStorage
+2. Private/incognito mode
+3. Browser storage full
+
+**Solutions:**
+1. Ensure not in private/incognito mode
+2. Check browser settings allow localStorage
+3. Try different browser
+4. Clear browser storage
+5. Check for browser extensions blocking storage
+
+#### Issue: Charts Not Rendering
+
+**Causes:**
+1. JavaScript error
+2. Browser compatibility
+3. Chart.js not loaded
+4. Data format issue
+
+**Solutions:**
+1. Check browser console for errors (F12)
+2. Use modern browser (Chrome 90+, Firefox 88+, Edge 90+)
+3. Disable browser extensions
+4. Clear cache and reload
+5. Try different browser
+
+#### Issue: Export CSV Not Working
+
+**Causes:**
+1. Browser blocking downloads
+2. Pop-up blocker active
+3. No data to export
+
+**Solutions:**
+1. Allow downloads in browser settings
+2. Disable pop-up blocker for dashboard
+3. Check that data is displayed before exporting
+4. Try different browser
+
+### Browser Console Debugging
+
+**How to Access:**
+- Windows/Linux: Press `F12`
+- Mac: Press `Cmd+Option+I`
+- Or right-click → Inspect → Console tab
+
+**What to Look For:**
+- Red error messages
+- `DEBUG:` messages (for time tracking)
+- `Uncaught` errors
+- Failed network requests (shouldn't be any)
+
+**Common Error Messages:**
+
+**"Cannot read property X of undefined"**
+- Data not loaded properly
+- Missing required field in CSV
+- Re-upload data files
+
+**"Chart is not defined"**
+- Chart.js library not loaded
+- Check internet connection when first loading dashboard
+- Refresh page
+
+**"localStorage is not available"**
+- Browser blocking local storage
+- Disable private/incognito mode
+- Check browser settings
 
 ---
 
-## Best Practices
+## Performance Optimization
 
-[Detailed best practices...]
+### Large Dataset Handling
+
+**Dashboard Can Handle:**
+- 100,000+ appointments
+- 10,000+ customers
+- 1,000+ memberships
+- 5+ years of data
+
+**Optimization Techniques:**
+1. Lazy rendering - tabs render only when clicked
+2. Filtered datasets - work with filtered data, not full dataset
+3. Chart decimation - reduce data points for charts
+4. Virtual scrolling - for large tables
+5. Debouncing - filter changes don't trigger immediate re-render
+
+### Memory Management
+
+**Global Variables:**
+- `appointmentsData` - Master appointment dataset
+- `membershipsData` - Master membership dataset
+- `leadsData` - Master leads dataset
+- `filteredAppointments` - Filtered appointments
+- `filteredMemberships` - Filtered memberships
+- `filteredLeads` - Filtered leads
+- `filteredTimeTracking` - Filtered time tracking
+- `window.timeTrackingData` - Master time tracking dataset
+- `window.employeeUtilization` - Calculated utilization data
+- `allCharts` - Object holding all Chart.js instances
+
+**Chart Memory Management:**
+- Destroy chart before creating new one
+- `destroyChart()` function cleans up properly
+- Prevents memory leaks
+
+### Browser Performance Tips
+
+**For Best Performance:**
+1. Use Chrome or Edge (best JavaScript performance)
+2. Close unnecessary browser tabs
+3. Disable unused extensions
+4. Restart browser periodically
+5. Keep browser updated
+
+**If Dashboard Feels Slow:**
+1. Reduce date range (filter to specific period)
+2. Filter to specific location
+3. Close charts tab when not using
+4. Export large datasets rather than viewing in browser
+5. Consider splitting data into multiple time periods
 
 ---
 
-## Privacy & Compliance
+## Browser Compatibility
 
-### Data Privacy
-Your data never leaves your computer. The dashboard:
-- ✅ Runs entirely in browser
-- ✅ No server uploads
-- ✅ No external API calls
-- ✅ No tracking or analytics
-- ✅ Works completely offline
+### Fully Supported Browsers
 
-### Local Storage
-Settings are saved to browser local storage:
-- Goals and preferences
-- Timezone configuration
-- Fee percentages
-- No customer data stored (only settings)
+**Chrome/Edge 90+**
+- ✅ Full compatibility
+- ✅ Best performance
+- ✅ All features work
+- Recommended browser
 
-### Data Security Best Practices
-- Store CSV files in secure location
-- Don't share files publicly
-- Use encrypted backup for files
-- Password-protect computer
-- Clear browser cache when using shared computers
+**Firefox 88+**
+- ✅ Full compatibility
+- ✅ Good performance
+- ✅ All features work
+
+**Safari 14+**
+- ✅ Full compatibility
+- ⚠️ Slightly slower chart rendering
+- ✅ All features work
+
+### Partially Supported
+
+**Internet Explorer 11**
+- ❌ Not supported
+- ❌ Does not support modern JavaScript
+- Solution: Use Chrome, Firefox, or Edge
+
+**Older Browsers**
+- ❌ Browsers older than listed versions not supported
+- Solution: Update browser to latest version
+
+### Mobile Browsers
+
+**Mobile Chrome/Safari**
+- ✅ Works but not optimized for mobile
+- ⚠️ Small screen makes some features difficult
+- Recommendation: Use on desktop/laptop for best experience
+
+### Operating Systems
+
+**Windows 10/11**
+- ✅ Fully supported
+- Recommended: Chrome or Edge
+
+**macOS**
+- ✅ Fully supported  
+- Recommended: Chrome or Safari
+
+**Linux**
+- ✅ Fully supported
+- Recommended: Chrome or Firefox
+
+**iOS/Android**
+- ⚠️ Works but not optimized
+- Recommendation: Use desktop for full features
 
 ---
 
 ## Version History
 
-[Complete version history...]
+### v2.20251105.5 (Current - November 5, 2025)
+
+**Critical Fixes:**
+- 🔴 **FIXED:** Non-Appt Labor calculation with month/location filtering
+  - Root cause: Time tracking field name was wrong ("Clock in date" vs "Clocked in")
+  - Now properly filters time tracking to match filtered appointments
+  - Respects location filtering through practitioner matching
+- 🔴 **FIXED:** Template literal bug in Insights showing raw code instead of calculated value
+
+**New Features:**
+- ✨ **Attendance Analytics** - New section in Insights tab
+  - Top 10 most frequent clients
+  - Top VSPs by appointments booked  
+  - Upcoming appointments count (booking pipeline)
+  - Paid vs unpaid reservation tracking
+  - Future revenue visibility
+- ✨ **Location-Specific Heatmaps** - Separate heatmap for each location in Schedule tab
+  - Each location shows its own busy times
+  - Easier to compare locations
+  - Click functionality filters by location
+- ✨ **Leads Converted Report Support** - Enhanced lead tracking
+- ✨ **Attendance Report ZIP Support** - Unlock attendance analytics features
+
+**Improvements:**
+- 🎨 Comparison text reduced to 8px for better visual hierarchy
+- 🔧 Added cache-busting meta tags
+- 🔧 Added debug console logging for troubleshooting
+- 🔧 Improved error handling
+
+### v2.20251104.07 (November 4, 2025)
+
+**Bug Fixes:**
+- 🔴 Fixed cancellation value calculations (MRR matching)
+- 🔴 Fixed paid appointments vs goal tracking
+- Improved email-based matching for cancellations
+- Separate tracking for paid vs intro appointments
+
+### v2.20251104.06
+
+**Changes:**
+- Changed default revenue goal to $20,000
+- Changed default intro goal to 50
+- Fixed churn rate by location
+- Enhanced customer name extraction
+
+### v2.20251103.05
+
+**Features:**
+- Added franchise configuration settings
+- Comprehensive labor cost tracking
+- New financial performance section
+- Monthly goal visualizations
+
+### v2.20251103.04
+
+**Features:**
+- Added utilization tracking
+- Added commission tracking
+- Enhanced ZIP file processing
+- Improved tab organization
+
+### v2.20251102 and Earlier
+
+**Initial Features:**
+- 8 main analytical tabs
+- Client segmentation
+- CSV export functionality
+- Chart.js integration
+- Membership tracking
+- Lead management
+- Basic filtering
+- Goal tracking
 
 ---
 
-## Technical Specifications
+## Best Practices
 
-### Technologies Used
-- **HTML5** - Structure
-- **JavaScript (ES6+)** - Logic and calculations
-- **Chart.js 3.9.1** - Visualizations
-- **PapaParse 5.3.0** - CSV parsing
-- **JSZip 3.7.1** - ZIP file extraction
-- **CSS3** - Styling and responsive design
+### Data Management
 
-### Browser Compatibility
-Tested and verified on:
-- ✅ Chrome 90+
-- ✅ Edge 90+
-- ✅ Firefox 88+
-- ✅ Safari 14+
+**Weekly Routine (15 minutes):**
+1. Export fresh data from Momence
+2. Upload to dashboard
+3. Review goal progress
+4. Check VSP performance
+5. Export urgent segments (Inactive Paid Members)
+6. Plan outreach campaigns
 
-### Performance
-- **Load time:** <2 seconds
-- **Data processing:** <5 seconds for typical datasets
-- **Chart rendering:** <1 second per chart
-- **File size:** ~2MB (self-contained)
+**Monthly Review (1 hour):**
+1. Analyze full month trends
+2. Compare to previous periods
+3. Review all customer segments
+4. Deep dive on retention & churn
+5. Adjust strategies based on insights
+6. Update goals if needed
 
-### Limitations
-- Maximum file size: ~100MB (browser dependent)
-- Large datasets may be slower to process
-- Requires modern browser (no IE11 support)
+### File Organization
+
+**Recommended Folder Structure:**
+```
+The-Vital-Stretch-Analytics/
+├── dashboard.html
+├── data/
+│   ├── 2025-11/
+│   │   ├── momence--membership-sales-export.csv
+│   │   ├── momence--membership-sales-export__1_.csv
+│   │   ├── momence-new-leads-and-customers.csv
+│   │   ├── momence-payroll-report-summary.zip
+│   │   ├── momence-leads-converted-report.csv
+│   │   └── momence-appointments-attendance-report-summary.zip
+│   ├── 2025-10/
+│   └── 2025-09/
+└── exports/
+    ├── segments/
+    ├── reports/
+    └── archives/
+```
+
+### Security Best Practices
+
+1. **Store Dashboard Securely**
+   - Keep on encrypted drive
+   - Backup regularly
+   - Don't share via public links
+
+2. **Protect Data Files**
+   - Don't upload to cloud storage unless encrypted
+   - Delete old files when no longer needed
+   - Shred when disposing
+
+3. **Browser Security**
+   - Keep browser updated
+   - Use strong password for device
+   - Lock computer when away
+   - Log out of Momence after exporting
+
+### Usage Tips
+
+1. **Start with Overview**
+   - Get high-level snapshot
+   - Identify areas needing attention
+   - Then dive into specific tabs
+
+2. **Use Filters Effectively**
+   - Start broad (All Locations, All Time)
+   - Then narrow down (Specific Location, Specific Month)
+   - Compare periods to identify trends
+
+3. **Act on Segments**
+   - Export Inactive Paid Members weekly
+   - Follow up with At-Risk clients monthly
+   - Reach out to VIPs quarterly
+   - Convert High-Frequency Non-Members
+
+4. **Monitor Leading Indicators**
+   - Lead generation rate
+   - Intro appointment count
+   - Retention rate trends
+   - Booking pipeline (upcoming appointments)
+
+5. **Track Lagging Indicators**
+   - Revenue
+   - MRR
+   - Churn rate
+   - Profit margin
 
 ---
 
-## Quick Reference
+## Glossary
 
-### Essential Keyboard Shortcuts
-- **Ctrl/Cmd + D** - Bookmark dashboard
-- **F5** - Refresh dashboard (re-processes data)
-- **Ctrl/Cmd + F** - Find on page
-- **Esc** - Close modals
+**MRR** - Monthly Recurring Revenue from active memberships
 
-### Common Tasks Quick Guide
+**LTV** - Lifetime Value, total revenue from a customer
 
-**Upload New Data:**
-📤 Upload button → Choose files → Wait for ✅
+**VSP** - Vital Stretch Practitioner (staff member)
 
-**Export Segment:**
-Customers tab → Segmentation section → Download button
+**Churn** - When a customer cancels their membership
 
-**Compare Periods:**
-Header → Compare To dropdown → Select period
+**Retention** - Percentage of customers who return for repeat visits
 
-**Adjust Goals:**
-⚙️ Settings → Monthly Goals → Update values → Save
+**Utilization** - Percentage of clocked time spent on appointments
 
-**Filter by Date:**
-Header → Date Range selector → Select range → Apply
+**Non-Appt Labor** - Time clocked but not spent on appointments (admin, cleaning, training)
 
-**View VSP Details:**
-VSP Performance tab → Click VSP name
+**Intro Appointment** - Discounted first-time appointment to attract new clients
+
+**Booking Pipeline** - Upcoming scheduled appointments (future revenue)
+
+**Active Member** - Customer with currently active membership subscription
+
+**At-Risk Client** - Previously active customer who hasn't visited recently
+
+**Cohort** - Group of customers who joined in the same time period
+
+**Conversion Rate** - Percentage of leads who become customers
+
+**Gap** - Scheduling gap between appointments (unutilized time)
 
 ---
 
-## Support & Resources
+## Support & Contact
 
 ### Getting Help
-- **This Documentation** - Complete reference
-- **Dashboard Tooltips** - Hover over (?) icons
-- **Franchise Administrator** - For dashboard updates
-- **Momence Support** - For data export issues
+
+**Documentation:**
+- README.md - Quick start guide
+- README-Detailed.md - This document (comprehensive technical guide)
+- BUG-EXPLANATION.md - Technical bug details
+- VERIFICATION-GUIDE.md - How to verify dashboard loaded correctly
+- CHANGES.md - Detailed changelog
+
+**Troubleshooting:**
+1. Check Troubleshooting Guide (above)
+2. Clear browser cache and force reload
+3. Check browser console for errors
+4. Try different browser
+5. Contact franchise administrator
+
+**Feature Requests:**
+- Document desired features
+- Explain use case
+- Provide example data if possible
+- Contact via franchise network
 
 ### Reporting Issues
-Include:
-- Dashboard version (from footer)
-- Browser and version
-- Describe the issue
-- Steps to reproduce
-- Screenshots (if applicable)
 
----
-
-## Contact & Credits
-
-**Dashboard Version:** v2.20251104.07  
-**Last Updated:** November 4, 2025  
-**Created By:** bonJoeV with ❤️  
-**Designed For:** The Vital Stretch Franchise
-
-### Acknowledgments
-- The Vital Stretch team
-- Momence platform
-- Open source libraries: Chart.js, PapaParse, JSZip
-
----
-
-## Final Notes
-
-This dashboard is designed to empower you with actionable insights. Remember:
-
-1. **Upload data weekly** - Fresh data = Fresh insights
-2. **Review regularly** - Weekly 15-min reviews catch issues early
-3. **Act on segments** - Dormant customers want to hear from you
-4. **Track goals** - What gets measured gets improved
-5. **Iterate constantly** - Small changes compound over time
-
-### The Formula
-📊 **Measure** → 🔍 **Analyze** → 🎯 **Act** → 📈 **Improve** → 🔄 **Repeat**
+**When reporting an issue, include:**
+1. Dashboard version (check footer)
+2. Browser name and version
+3. Operating system
+4. Steps to reproduce issue
+5. Screenshot if applicable
+6. Console errors if any (F12 → Console)
+7. Which tab/feature is affected
 
 ---
 
 **Thank you for using The Vital Stretch Analytics Dashboard!**
 
-*This detailed documentation covers all aspects of dashboard setup, configuration, and use. For a simplified quick-start guide, see README.md.*
+**Created with ❤️ by bonJoeV for The Vital Stretch Franchise**
+
+*This dashboard is designed to help franchise owners make data-driven decisions and grow their business. Use it weekly, act on insights, and watch your business thrive.*
 
 ---
 
-**Document Version:** 3.0  
-**Document Type:** Complete Technical & User Documentation  
-**Status:** Current and Complete
-
----
-
-*End of Detailed README*
+**Version:** v2.20251105.5  
+**Last Updated:** November 5, 2025  
+**License:** Proprietary - For The Vital Stretch franchise use only

@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Vital Stretch - Analytics Dashboard</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>The Vital Stretch - Analytics Dashboard [v5-FIELD-FIX]</title>
     
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Yeseva+One&display=swap" rel="stylesheet">
@@ -966,6 +969,13 @@
             gap: 25px;
             margin-bottom: 30px;
         }
+        
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 25px;
+            margin-bottom: 30px;
+        }
 
         .chart-container {
             background: white;
@@ -1258,7 +1268,7 @@
         }
 
         .comparison-details {
-            font-size: 11px;
+            font-size: 8px;
             color: #666;
             font-style: italic;
             margin-top: 3px;
@@ -1850,10 +1860,10 @@
             <div class="tab" onclick="switchTab('timeline')">Timeline</div>
             <div class="tab" onclick="switchTab('practitioners')">VSP</div>
             <div class="tab" onclick="switchTab('customers')">Customers</div>
+            <div class="tab" onclick="switchTab('leads')">Leads</div>
             <div class="tab" onclick="switchTab('retention')">Retention</div>
             <div class="tab" onclick="switchTab('journey')">Journey</div>
             <div class="tab" onclick="switchTab('memberships')">Memberships</div>
-            <div class="tab" onclick="switchTab('cancellations')">Cancellations</div>
             <div class="tab" onclick="switchTab('schedule')">Schedule</div>
             <div class="tab" onclick="switchTab('insights')">Insights</div>
         </div>
@@ -1861,7 +1871,7 @@
         <!-- Tab Contents -->
         <div id="overview" class="tab-content active"></div>
         <div id="memberships" class="tab-content"></div>
-        <div id="cancellations" class="tab-content"></div>
+        <div id="leads" class="tab-content"></div>
         <div id="journey" class="tab-content"></div>
         <div id="retention" class="tab-content"></div>
         <div id="schedule" class="tab-content"></div>
@@ -1894,6 +1904,14 @@
                     </div>
                     
                     <div class="upload-box">
+                        <h3>📋 Attendance Report</h3>
+                        <p style="font-size: 12px; color: #666; margin: 10px 0;">VSP attendance & name mapping</p>
+                        <input type="file" id="attendanceZipFile" accept=".zip" style="display: none;">
+                        <label for="attendanceZipFile" class="upload-btn">Choose Zip File</label>
+                        <div class="upload-status" id="attendanceZipStatus"></div>
+                    </div>
+                    
+                    <div class="upload-box">
                         <h3>💳 Memberships</h3>
                         <p style="font-size: 12px; color: #666; margin: 10px 0;">Sales & cancellations</p>
                         <input type="file" id="membershipsFile" accept=".csv" multiple style="display: none;">
@@ -1907,6 +1925,14 @@
                         <input type="file" id="leadsFile" accept=".csv" style="display: none;">
                         <label for="leadsFile" class="upload-btn">Choose File</label>
                         <div class="upload-status" id="leadsStatus"></div>
+                    </div>
+                    
+                    <div class="upload-box">
+                        <h3>🎯 Leads Converted Report</h3>
+                        <p style="font-size: 12px; color: #666; margin: 10px 0;">Detailed lead sources & conversions</p>
+                        <input type="file" id="leadsConvertedFile" accept=".csv" style="display: none;">
+                        <label for="leadsConvertedFile" class="upload-btn">Choose File</label>
+                        <div class="upload-status" id="leadsConvertedStatus"></div>
                     </div>
                 </div>
                 
@@ -2555,12 +2581,14 @@
         }
         
         // Show day of week details
-        function showDayOfWeekDetails(dayName) {
+        function showDayOfWeekDetails(dayName, location = null) {
             const dayAppointments = filteredAppointments.filter(row => {
                 const date = parseDate(row['Appointment Date']);
                 if (!date) return false;
                 const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-                return days[date.getDay()] === dayName;
+                const matchesDay = days[date.getDay()] === dayName;
+                const matchesLocation = !location || row.Location === location;
+                return matchesDay && matchesLocation;
             });
             
             const revenue = dayAppointments.reduce((sum, a) => sum + (parseFloat(a.Revenue) || 0), 0);
@@ -2613,6 +2641,7 @@
             
             const content = `
                 <div class="modal-highlight">
+                    ${location ? `<strong>Location:</strong> ${location}<br>` : ''}
                     <strong>Day:</strong> ${dayName}<br>
                     <strong>Total Appointments:</strong> ${dayAppointments.length}<br>
                     <strong>Unique Clients:</strong> ${uniqueClients}<br>
@@ -2621,7 +2650,7 @@
                 </div>
                 
                 <div class="modal-section">
-                    <h4>Peak Hours on ${dayName}</h4>
+                    <h4>Peak Hours on ${dayName}${location ? ` at ${location}` : ''}</h4>
                     <p style="font-size: 12px; color: #999; margin: -10px 0 10px 0; font-style: italic;">↓ Sorted by Appointment Count (Highest First)</p>
                     <table class="modal-table">
                         <thead>
@@ -2642,11 +2671,11 @@
                 </div>
             `;
             
-            showModal(`${dayName} Performance`, content);
+            showModal(`${dayName} Performance${location ? ` - ${location}` : ''}`, content);
         }
         
         // Show specific hour details with individual appointment information
-        function showHourDetails(dayName, hour) {
+        function showHourDetails(dayName, hour, location = null) {
             const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
             const dayIndex = days.indexOf(dayName);
             
@@ -2654,7 +2683,9 @@
             const hourAppointments = filteredAppointments.filter(row => {
                 const date = parseDate(row['Appointment Date']);
                 if (!date) return false;
-                return date.getDay() === dayIndex && date.getHours() === hour;
+                const matchesTime = date.getDay() === dayIndex && date.getHours() === hour;
+                const matchesLocation = !location || row.Location === location;
+                return matchesTime && matchesLocation;
             });
             
             if (hourAppointments.length === 0) {
@@ -2704,6 +2735,7 @@
             
             const content = `
                 <div class="modal-highlight">
+                    ${location ? `<strong>Location:</strong> ${location}<br>` : ''}
                     <strong>Time Slot:</strong> ${dayName}s at ${displayHour}:00 ${ampm}<br>
                     <strong>Total Appointments:</strong> ${hourAppointments.length}<br>
                     <strong>Unique Clients:</strong> ${uniqueClients}<br>
@@ -2713,7 +2745,7 @@
                 
                 <div class="modal-section">
                     <h4>All Appointments at This Time</h4>
-                    <p style="font-size: 12px; color: #999; margin: -10px 0 10px 0; font-style: italic;">↓ Showing all ${dayName} appointments at ${displayHour}:00 ${ampm}</p>
+                    <p style="font-size: 12px; color: #999; margin: -10px 0 10px 0; font-style: italic;">↓ Showing all ${dayName} appointments at ${displayHour}:00 ${ampm}${location ? ` at ${location}` : ''}</p>
                     <table class="modal-table">
                         <thead>
                             <tr>
@@ -2838,16 +2870,19 @@
         // Global State
         let appointmentsData = [];
         let leadsData = [];
+        let leadsConvertedData = [];
         let membershipsData = [];
         let membershipCancellationsData = [];
         let filteredAppointments = [];
         let filteredMemberships = [];
         let filteredLeads = [];
+        let filteredLeadsConverted = [];
         let filteredCancellations = [];
         let filteredTimeTracking = [];
         let allCharts = {};
         let membershipTypes = {};
         let salesByStaff = {};
+        let staffEmailToName = {}; // Map staff email to full name
         
         // Configuration
         const CONFIG = {
@@ -2975,6 +3010,33 @@
             });
         }
         
+        // Format staff name to "First name, Last initial" format
+        function formatStaffName(nameOrEmail) {
+            if (!nameOrEmail || nameOrEmail === 'Direct/Online') return nameOrEmail;
+            
+            // Check if we have a mapping from email to full name
+            const emailLower = nameOrEmail.toLowerCase().trim();
+            if (staffEmailToName[emailLower]) {
+                nameOrEmail = staffEmailToName[emailLower];
+            }
+            
+            // If it's an email and we don't have a mapping, extract the name part
+            if (nameOrEmail.includes('@') && !staffEmailToName[emailLower]) {
+                nameOrEmail = nameOrEmail.split('@')[0].replace(/[._]/g, ' ');
+            }
+            
+            // Split by spaces and get parts
+            const parts = nameOrEmail.trim().split(/\s+/);
+            if (parts.length === 0) return nameOrEmail;
+            if (parts.length === 1) return parts[0]; // Just first name
+            
+            // Get first name and last initial
+            const firstName = parts[0];
+            const lastInitial = parts[parts.length - 1].charAt(0).toUpperCase();
+            
+            return `${firstName} ${lastInitial}.`;
+        }
+        
         // Memoized date parsing for performance
         const dateCache = new Map();
         function parseDate(dateStr) {
@@ -3075,6 +3137,61 @@
                 },
                 error: function(error) {
                     document.getElementById('leadsStatus').innerHTML = 
+                        '<span style="color: var(--danger);">❌ Error loading file</span>';
+                    console.error('Parse error:', error);
+                }
+            });
+        });
+        
+        document.getElementById('leadsConvertedFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            document.getElementById('leadsConvertedStatus').innerHTML = '<span class="spinner"></span> Processing...';
+            
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    leadsConvertedData = results.data;
+                    
+                    // Map to leadsData format for compatibility with Customers tab
+                    leadsData = leadsConvertedData.map(row => {
+                        return {
+                            'First name': row['First Name'] || '',
+                            'Last name': row['Last Name'] || '',
+                            'E-mail': row['E-mail'] || '',
+                            'Type': (row['Converted to'] && row['Converted to'] !== 'N/A') ? 'Customer' : 'Lead',
+                            'Join date': row['Converted'] || '',
+                            'Aggregator': row['Lead source'] || 'Unknown',
+                            'LTV': row['LTV'] || '0'
+                        };
+                    });
+                    filteredLeads = [...leadsData];
+                    
+                    // Count conversions and sources
+                    const converted = leadsConvertedData.filter(row => {
+                        const convertedTo = (row['Converted to'] || '').trim();
+                        return convertedTo && convertedTo !== 'N/A' && convertedTo !== '';
+                    }).length;
+                    
+                    const sources = new Set(leadsConvertedData.map(row => row['Lead source']).filter(s => s));
+                    
+                    let statusHTML = '<span style="color: var(--success); font-weight: 600;">✅ ';
+                    statusHTML += `${formatNumber(leadsConvertedData.length)} leads, `;
+                    statusHTML += `${formatNumber(converted)} converted, `;
+                    statusHTML += `${formatNumber(sources.size)} sources`;
+                    statusHTML += '</span>';
+                    
+                    document.getElementById('leadsConvertedStatus').innerHTML = statusHTML;
+                    
+                    if (appointmentsData.length > 0) {
+                        hideEmptyState();
+                        renderAllTabs();
+                    }
+                },
+                error: function(error) {
+                    document.getElementById('leadsConvertedStatus').innerHTML = 
                         '<span style="color: var(--danger);">❌ Error loading file</span>';
                     console.error('Parse error:', error);
                 }
@@ -3347,6 +3464,67 @@
             }
         });
         
+        // Zip File Handler for Attendance Report (VSP Name Mapping)
+        document.getElementById('attendanceZipFile').addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            document.getElementById('attendanceZipStatus').innerHTML = '<span class="spinner"></span> Processing attendance data...';
+            
+            try {
+                const zip = await JSZip.loadAsync(file);
+                
+                // Look for the combined attendance report
+                for (const [filename, zipEntry] of Object.entries(zip.files)) {
+                    if (zipEntry.dir) continue;
+                    
+                    if (filename.includes('attendance-report-combined')) {
+                        const content = await zipEntry.async('text');
+                        
+                        Papa.parse(content, {
+                            header: true,
+                            skipEmptyLines: true,
+                            complete: function(results) {
+                                // Store the full attendance data
+                                window.attendanceData = results.data;
+                                
+                                // Build email to name mapping
+                                results.data.forEach(row => {
+                                    const email = (row['Staff E-mail'] || '').toLowerCase().trim();
+                                    const name = (row['Staff Name'] || '').trim();
+                                    
+                                    if (email && name && !staffEmailToName[email]) {
+                                        staffEmailToName[email] = name;
+                                    }
+                                });
+                                
+                                const mappingCount = Object.keys(staffEmailToName).length;
+                                const attendanceCount = results.data.length;
+                                document.getElementById('attendanceZipStatus').innerHTML = 
+                                    `<span style="color: var(--success);">✅ Loaded ${attendanceCount} attendance records from ${mappingCount} VSPs</span>`;
+                                
+                                // Re-render tabs to update staff names and attendance metrics
+                                if (appointmentsData.length > 0) {
+                                    renderAllTabs();
+                                }
+                            },
+                            error: function(error) {
+                                console.error('Parse error:', error);
+                                document.getElementById('attendanceZipStatus').innerHTML = 
+                                    '<span style="color: var(--danger);">❌ Error parsing attendance data</span>';
+                            }
+                        });
+                        break;
+                    }
+                }
+                
+            } catch (error) {
+                document.getElementById('attendanceZipStatus').innerHTML = 
+                    '<span style="color: var(--danger);">❌ Error processing zip file</span>';
+                console.error('Zip processing error:', error);
+            }
+        });
+        
         // Initialize Dashboard
         function initializeDashboard() {
             if (appointmentsData.length === 0) return;
@@ -3357,6 +3535,7 @@
             document.getElementById('mainTabs').style.display = 'flex';
             
             populateFilters();
+            applyFilters(); // Apply initial filters to populate filtered data
             renderAllTabs();
         }
         
@@ -3622,6 +3801,24 @@
                 return true;
             });
             
+            // Filter leads converted data by date range
+            filteredLeadsConverted = leadsConvertedData.filter(row => {
+                const convertedDate = row['Converted'] ? parseDate(row['Converted']) : null;
+                if (!convertedDate) return false; // Exclude leads without converted dates
+                
+                // Month filter
+                if (month !== 'all') {
+                    const rowMonth = `${convertedDate.getFullYear()}-${String(convertedDate.getMonth() + 1).padStart(2, '0')}`;
+                    if (rowMonth !== month) return false;
+                }
+                
+                // Date range filters
+                if (startDate && convertedDate < new Date(startDate)) return false;
+                if (endDate && convertedDate > new Date(endDate)) return false;
+                
+                return true;
+            });
+            
             // Filter membership cancellations by date range (use Cancelled at)
             filteredCancellations = membershipCancellationsData.filter(row => {
                 const cancelledDate = row['Cancelled at'] ? parseDate(row['Cancelled at']) : null;
@@ -3660,12 +3857,37 @@
                 });
             }
             
-            // Filter time tracking by date range
+            // Filter time tracking by date range and location (via practitioners)
             if (window.timeTrackingData && window.timeTrackingData.length > 0) {
+                // First, get the list of practitioners from the filtered appointments
+                // This ensures we only count time tracking for practitioners at the selected location/filters
+                const practitionersInFiltered = new Set();
+                filteredAppointments.forEach(row => {
+                    const empName = row['Employee Name'];
+                    if (empName) {
+                        practitionersInFiltered.add(empName);
+                    }
+                });
+                
+                console.log('DEBUG: Filtering time tracking...', {
+                    totalTimeRecords: window.timeTrackingData.length,
+                    practitionersInFiltered: Array.from(practitionersInFiltered),
+                    month: month,
+                    sampleTimeRecord: window.timeTrackingData[0]
+                });
+                
                 filteredTimeTracking = window.timeTrackingData.filter(row => {
                     if (!row['Employee Name']) return false;
-                    const clockedDate = parseDate(row['Clock in date']);
+                    
+                    // FIXED: Use "Clocked in" not "Clock in date"
+                    const clockedDate = parseDate(row['Clocked in']);
                     if (!clockedDate) return false;
+                    
+                    // CRITICAL: Only include time tracking for practitioners who have appointments in filtered data
+                    // If no appointments in filter, exclude ALL time tracking
+                    if (!practitionersInFiltered.has(row['Employee Name'])) {
+                        return false;
+                    }
                     
                     // Month filter
                     if (month !== 'all') {
@@ -3681,6 +3903,12 @@
                     if (practitioner !== 'all' && row['Employee Name'] !== practitioner) return false;
                     
                     return true;
+                });
+                
+                console.log('DEBUG: After filtering time tracking:', {
+                    filteredCount: filteredTimeTracking.length,
+                    sampleFiltered: filteredTimeTracking[0],
+                    totalHours: filteredTimeTracking.reduce((sum, t) => sum + parseFloat(t['Duration (h)'] || 0), 0)
                 });
             } else {
                 filteredTimeTracking = [];
@@ -3788,7 +4016,7 @@
             switch(tabName) {
                 case 'overview': renderOverviewTab(); break;
                 case 'memberships': if (membershipsData.length > 0) renderMembershipsTab(); break;
-                case 'cancellations': if (membershipCancellationsData.length > 0) renderCancellationsTab(); break;
+                case 'leads': renderLeadsTab(); break;
                 case 'journey': renderJourneyTab(); break;
                 case 'retention': renderRetentionTab(); break;
                 case 'schedule': renderScheduleTab(); break;
@@ -3873,7 +4101,21 @@
             let nonApptLaborCost = 0;
             
             if (filteredTimeTracking && filteredTimeTracking.length > 0) {
-                const totalClockedHours = filteredTimeTracking.reduce((sum, t) => {
+                // Get the list of practitioners who have appointments in the filtered data
+                const practitionersInFiltered = new Set();
+                data.forEach(row => {
+                    const empName = row['Employee Name'];
+                    if (empName) {
+                        practitionersInFiltered.add(empName);
+                    }
+                });
+                
+                // Only count time tracking for practitioners who have appointments in the filtered data
+                const relevantTimeTracking = filteredTimeTracking.filter(t => 
+                    practitionersInFiltered.has(t['Employee Name'])
+                );
+                
+                const totalClockedHours = relevantTimeTracking.reduce((sum, t) => {
                     const hours = parseFloat(t['Duration (h)'] || 0);
                     return sum + hours;
                 }, 0);
@@ -4635,7 +4877,7 @@
                 
                 <div class="table-container" style="position: relative;">
                     <div class="interactive-badge" title="Click any day to see detailed breakdown" style="position: absolute; top: 15px; right: 15px; display: flex;"></div>
-                    <h2>Appointment Heatmap</h2>
+                    <h2>Appointment Heatmap by Location</h2>
                     <p style="margin-bottom: 15px; color: #666;">Busiest appointment times by day and hour (Monday-Saturday). Click any day to see detailed breakdown.</p>
                     <div id="heatmapContainer"></div>
                 </div>
@@ -4765,8 +5007,8 @@
             
             // Categorize customers into segments
             Object.values(customerMap).forEach(customer => {
-                // VIP tier (>$2500 LTV)
-                if (customer.ltv > 2500) {
+                // VIP tier (>$2000 LTV)
+                if (customer.ltv > 2000) {
                     segments.vip.push({...customer, segment: 'VIP'});
                 }
                 
@@ -4979,7 +5221,7 @@
                         <div class="segment-card vip">
                             <div class="segment-icon">👑</div>
                             <div class="segment-title">VIP Clients</div>
-                            <div class="segment-description">High-value clients with >$2,500 lifetime value</div>
+                            <div class="segment-description">High-value clients with >$2,000 lifetime value</div>
                             <div class="segment-count">${formatNumber(segments.vip.length)}</div>
                             <div class="segment-stats">
                                 <div class="segment-stats-row">
@@ -5166,8 +5408,7 @@
             const tier3 = ltvs.filter(ltv => ltv > 250 && ltv <= 500).length;
             const tier4 = ltvs.filter(ltv => ltv > 500 && ltv <= 1000).length;
             const tier5 = ltvs.filter(ltv => ltv > 1000 && ltv <= 2000).length;
-            const tier6 = ltvs.filter(ltv => ltv > 2000 && ltv <= 3000).length;
-            const tier7 = ltvs.filter(ltv => ltv > 3000).length;
+            const tier6 = ltvs.filter(ltv => ltv > 2000).length;
             
             // Top customers
             const sortedByLTV = [...filteredLeads]
@@ -5201,8 +5442,8 @@
                     </div>
                     <div class="metric-card">
                         <div class="metric-label">VIP Customers</div>
-                        <div class="metric-value">${formatNumber(tier7)}</div>
-                        <div class="metric-subtext">>$3,000 LTV</div>
+                        <div class="metric-value">${formatNumber(tier6)}</div>
+                        <div class="metric-subtext">>$2,000 LTV</div>
                     </div>
                 </div>
                 
@@ -5269,7 +5510,7 @@
             
             // Render charts
             setTimeout(() => {
-                renderLTVDistributionChart(tier1, tier2, tier3, tier4, tier5, tier6, tier7);
+                renderLTVDistributionChart(tier1, tier2, tier3, tier4, tier5, tier6);
                 renderCustomerTypesChart(customers, leads);
             }, 100);
         }
@@ -5388,12 +5629,15 @@
                 };
             });
             
+            // Filter out Sauna
+            const filteredPractitioners = practitioners.filter(p => !p.name.toLowerCase().includes('sauna'));
+            
             // Sort by score for leaderboard
-            practitioners.sort((a, b) => b.score - a.score);
+            filteredPractitioners.sort((a, b) => b.score - a.score);
             
             // Create simplified practitionerData for existing charts
             const practitionerData = {};
-            practitioners.forEach(p => {
+            filteredPractitioners.forEach(p => {
                 practitionerData[p.name] = {
                     appointments: p.appointments,
                     revenue: p.revenue,
@@ -5408,38 +5652,38 @@
                     <p>Comprehensive performance metrics and rankings based on revenue, efficiency, client satisfaction, and consistency.</p>
                 </div>
                 
-                <div class="metrics-grid" style="grid-template-columns: repeat(${practitioners.some(p => p.utilization !== null) ? (practitioners.some(p => p.commissions > 0) ? '6' : '5') : (practitioners.some(p => p.commissions > 0) ? '5' : '4')}, 1fr);">
+                <div class="metrics-grid" style="grid-template-columns: repeat(${filteredPractitioners.some(p => p.utilization !== null) ? (filteredPractitioners.some(p => p.commissions > 0) ? '6' : '5') : (filteredPractitioners.some(p => p.commissions > 0) ? '5' : '4')}, 1fr);">
                     <div class="metric-card">
                         <div class="metric-label">Top Performer</div>
-                        <div class="metric-value" style="font-size: 1.5em;">${practitioners[0]?.name || 'N/A'}</div>
-                        <div class="metric-subtext">${practitioners[0] ? formatNumber(practitioners[0].score) + ' points' : ''}</div>
+                        <div class="metric-value" style="font-size: 1.5em;">${filteredPractitioners[0]?.name || 'N/A'}</div>
+                        <div class="metric-subtext">${filteredPractitioners[0] ? formatNumber(filteredPractitioners[0].score) + ' points' : ''}</div>
                     </div>
                     <div class="metric-card">
                         <div class="metric-label">Highest Revenue</div>
-                        <div class="metric-value">${formatCurrency(Math.max(...practitioners.map(p => p.revenue)))}</div>
-                        <div class="metric-subtext">${practitioners.sort((a,b) => b.revenue - a.revenue)[0]?.name || 'N/A'}</div>
+                        <div class="metric-value">${formatCurrency(Math.max(...filteredPractitioners.map(p => p.revenue)))}</div>
+                        <div class="metric-subtext">${filteredPractitioners.sort((a,b) => b.revenue - a.revenue)[0]?.name || 'N/A'}</div>
                     </div>
                     <div class="metric-card">
                         <div class="metric-label">Best Efficiency</div>
-                        <div class="metric-value">${formatCurrency(Math.max(...practitioners.map(p => p.revenuePerHour)))}/hr</div>
-                        <div class="metric-subtext">${practitioners.sort((a,b) => b.revenuePerHour - a.revenuePerHour)[0]?.name || 'N/A'}</div>
+                        <div class="metric-value">${formatCurrency(Math.max(...filteredPractitioners.map(p => p.revenuePerHour)))}/hr</div>
+                        <div class="metric-subtext">${filteredPractitioners.sort((a,b) => b.revenuePerHour - a.revenuePerHour)[0]?.name || 'N/A'}</div>
                     </div>
                     <div class="metric-card">
                         <div class="metric-label">Most Clients</div>
-                        <div class="metric-value">${Math.max(...practitioners.map(p => p.clients))}</div>
-                        <div class="metric-subtext">${practitioners.sort((a,b) => b.clients - a.clients)[0]?.name || 'N/A'}</div>
+                        <div class="metric-value">${Math.max(...filteredPractitioners.map(p => p.clients))}</div>
+                        <div class="metric-subtext">${filteredPractitioners.sort((a,b) => b.clients - a.clients)[0]?.name || 'N/A'}</div>
                     </div>
-                    ${practitioners.some(p => p.utilization !== null) ? `
+                    ${filteredPractitioners.some(p => p.utilization !== null) ? `
                     <div class="metric-card success">
                         <div class="metric-label">Avg Utilization</div>
-                        <div class="metric-value">${(practitioners.filter(p => p.utilization !== null).reduce((sum, p) => sum + p.utilization, 0) / practitioners.filter(p => p.utilization !== null).length).toFixed(1)}%</div>
+                        <div class="metric-value">${(filteredPractitioners.filter(p => p.utilization !== null).reduce((sum, p) => sum + p.utilization, 0) / filteredPractitioners.filter(p => p.utilization !== null).length).toFixed(1)}%</div>
                         <div class="metric-subtext">Table time efficiency</div>
                     </div>
                     ` : ''}
-                    ${practitioners.some(p => p.commissions > 0) ? `
+                    ${filteredPractitioners.some(p => p.commissions > 0) ? `
                     <div class="metric-card" style="background: linear-gradient(135deg, rgba(40, 167, 69, 0.1), rgba(32, 201, 151, 0.05)); border-left: 4px solid #28a745;">
                         <div class="metric-label">Total Commissions</div>
-                        <div class="metric-value">${formatCurrency(practitioners.reduce((sum, p) => sum + p.commissions, 0))}</div>
+                        <div class="metric-value">${formatCurrency(filteredPractitioners.reduce((sum, p) => sum + p.commissions, 0))}</div>
                         <div class="metric-subtext">Memberships & Products</div>
                     </div>
                     ` : ''}
@@ -5465,10 +5709,10 @@
             `;
             
             // Re-sort by score for leaderboard display
-            practitioners.sort((a, b) => b.score - a.score);
+            filteredPractitioners.sort((a, b) => b.score - a.score);
             
             // Add leaderboard cards
-            practitioners.forEach((p, index) => {
+            filteredPractitioners.forEach((p, index) => {
                 const rank = index + 1;
                 const rankClass = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : 'other';
                 const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
@@ -5493,6 +5737,11 @@
                                         <div class="leaderboard-stat">
                                             <strong>${formatCurrency(p.revenuePerHour)}/hr</strong> Efficiency
                                         </div>
+                                        ${p.clockedHours > 0 ? `
+                                        <div class="leaderboard-stat">
+                                            <strong>${formatNumber(p.clockedHours)} hrs</strong> Hours Worked
+                                        </div>
+                                        ` : ''}
                                         ${p.utilization !== null ? `
                                         <div class="leaderboard-stat">
                                             <strong>${p.utilization.toFixed(1)}%</strong> Utilization
@@ -5535,13 +5784,13 @@
                                 <th>$/Hour</th>
                                 <th>$/Appt</th>
                                 <th>Clients</th>
-                                ${practitioners.some(p => p.utilization !== null) ? '<th>Utilization</th>' : ''}
-                                ${practitioners.some(p => p.commissions > 0) ? '<th>Commissions</th>' : ''}
+                                ${filteredPractitioners.some(p => p.utilization !== null) ? '<th>Utilization</th>' : ''}
+                                ${filteredPractitioners.some(p => p.commissions > 0) ? '<th>Commissions</th>' : ''}
                                 <th>Profit %</th>
                             </tr>
                         </thead>
                         <tbody>
-                            ${practitioners.map((p, i) => `
+                            ${filteredPractitioners.map((p, i) => `
                                 <tr>
                                     <td><strong>${i + 1}</strong></td>
                                     <td>${p.name}</td>
@@ -5551,8 +5800,8 @@
                                     <td>${formatCurrency(p.revenuePerHour)}</td>
                                     <td>${formatCurrency(p.revenuePerAppt)}</td>
                                     <td>${formatNumber(p.clients)}</td>
-                                    ${p.utilization !== null ? `<td>${p.utilization.toFixed(1)}%</td>` : (practitioners.some(pr => pr.utilization !== null) ? '<td>-</td>' : '')}
-                                    ${p.commissions > 0 ? `<td>${formatCurrency(p.commissions)}</td>` : (practitioners.some(pr => pr.commissions > 0) ? '<td>-</td>' : '')}
+                                    ${p.utilization !== null ? `<td>${p.utilization.toFixed(1)}%</td>` : (filteredPractitioners.some(pr => pr.utilization !== null) ? '<td>-</td>' : '')}
+                                    ${p.commissions > 0 ? `<td>${formatCurrency(p.commissions)}</td>` : (filteredPractitioners.some(pr => pr.commissions > 0) ? '<td>-</td>' : '')}
                                     <td>${p.profitMargin.toFixed(1)}%</td>
                                 </tr>
                             `).join('')}
@@ -5563,10 +5812,10 @@
                 <div class="alert success">
                     <h4>🎯 Performance Insights</h4>
                     <ul style="margin: 10px 0 0 20px; line-height: 1.8;">
-                        <li><strong>Top Performer:</strong> ${practitioners[0]?.name} leads with ${formatNumber(practitioners[0]?.score)} points, excelling in overall performance.</li>
-                        <li><strong>Revenue Leader:</strong> ${practitioners.sort((a,b) => b.revenue - a.revenue)[0]?.name} generated ${formatCurrency(practitioners.sort((a,b) => b.revenue - a.revenue)[0]?.revenue)} in revenue.</li>
-                        <li><strong>Efficiency Champion:</strong> ${practitioners.sort((a,b) => b.revenuePerHour - a.revenuePerHour)[0]?.name} achieves ${formatCurrency(practitioners.sort((a,b) => b.revenuePerHour - a.revenuePerHour)[0]?.revenuePerHour)}/hour.</li>
-                        <li><strong>Client Favorite:</strong> ${practitioners.sort((a,b) => b.clients - a.clients)[0]?.name} serves ${practitioners.sort((a,b) => b.clients - a.clients)[0]?.clients} unique clients.</li>
+                        <li><strong>Top Performer:</strong> ${filteredPractitioners[0]?.name} leads with ${formatNumber(filteredPractitioners[0]?.score)} points, excelling in overall performance.</li>
+                        <li><strong>Revenue Leader:</strong> ${filteredPractitioners.sort((a,b) => b.revenue - a.revenue)[0]?.name} generated ${formatCurrency(filteredPractitioners.sort((a,b) => b.revenue - a.revenue)[0]?.revenue)} in revenue.</li>
+                        <li><strong>Efficiency Champion:</strong> ${filteredPractitioners.sort((a,b) => b.revenuePerHour - a.revenuePerHour)[0]?.name} achieves ${formatCurrency(filteredPractitioners.sort((a,b) => b.revenuePerHour - a.revenuePerHour)[0]?.revenuePerHour)}/hour.</li>
+                        <li><strong>Client Favorite:</strong> ${filteredPractitioners.sort((a,b) => b.clients - a.clients)[0]?.name} serves ${filteredPractitioners.sort((a,b) => b.clients - a.clients)[0]?.clients} unique clients.</li>
                     </ul>
                 </div>
             `;
@@ -5786,6 +6035,24 @@
                         </div>
                     </div>
                     
+                    ${filteredLeadsConverted.length > 0 ? `
+                    <div class="chart-container full-width">
+                        <div class="interactive-badge" title="Click on any bar to see lead details"></div>
+                        <h3>Daily Leads by All Locations</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="leadsTimelineAllChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-container full-width">
+                        <div class="interactive-badge" title="Click on any bar to see lead details"></div>
+                        <h3>Daily Leads by Location (Stacked)</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="leadsTimelineLocationStackedChart"></canvas>
+                        </div>
+                    </div>
+                    ` : ''}
+                    
                     <div class="chart-container full-width">
                         <h3>💸 Franchise Fees Timeline (Stacked)</h3>
                         <div class="chart-wrapper">
@@ -5819,12 +6086,45 @@
                 </div>
             `;
             
+            // Add appointment heatmaps by location
+            const locations = [...new Set(data.map(row => row.Location).filter(l => l))].sort();
+            if (locations.length > 0) {
+                locations.forEach(location => {
+                    const locationAppts = data.filter(row => row.Location === location);
+                    html += `
+                        <div class="section">
+                            <h2>📅 Appointment Heatmap - ${location}</h2>
+                            <p style="color: #666; margin-bottom: 15px;">
+                                <strong>${locationAppts.length}</strong> appointments at ${location} location
+                            </p>
+                            <div id="apptHeatmapContainer-${location.replace(/\s+/g, '-')}" style="overflow-x: auto;">
+                                <div id="apptHeatmap-${location.replace(/\s+/g, '-')}"></div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
             document.getElementById('timeline').innerHTML = html;
             
             // Render charts
             setTimeout(() => {
                 renderTimelineCharts(dailyData, dates);
                 renderMembershipTimelineCharts();
+                if (leadsConvertedData.length > 0) {
+                    renderLeadsTimelineCharts();
+                }
+                
+                // Render appointment heatmaps by location
+                const locations = [...new Set(data.map(row => row.Location).filter(l => l))].sort();
+                locations.forEach(location => {
+                    const locationAppts = data.filter(row => row.Location === location);
+                    const containerId = `apptHeatmap-${location.replace(/\s+/g, '-')}`;
+                    const container = document.getElementById(containerId);
+                    if (container) {
+                        renderAppointmentHeatmap(locationAppts, containerId, location);
+                    }
+                });
             }, 100);
         }
         
@@ -5843,7 +6143,21 @@
             let nonApptLaborCost = 0;
             
             if (filteredTimeTracking && filteredTimeTracking.length > 0) {
-                const totalClockedHours = filteredTimeTracking.reduce((sum, t) => {
+                // Get the list of practitioners who have appointments in the filtered data
+                const practitionersInFiltered = new Set();
+                data.forEach(row => {
+                    const empName = row['Employee Name'];
+                    if (empName) {
+                        practitionersInFiltered.add(empName);
+                    }
+                });
+                
+                // Only count time tracking for practitioners who have appointments in the filtered data
+                const relevantTimeTracking = filteredTimeTracking.filter(t => 
+                    practitionersInFiltered.has(t['Employee Name'])
+                );
+                
+                const totalClockedHours = relevantTimeTracking.reduce((sum, t) => {
                     const hours = parseFloat(t['Duration (h)'] || 0);
                     return sum + hours;
                 }, 0);
@@ -5963,7 +6277,7 @@
                 <div class="alert ${retentionRate >= 50 ? 'success' : 'warning'}">
                     <h4>💡 Key Insights & Recommendations</h4>
                     <ul style="margin: 10px 0 0 20px; line-height: 1.8;">
-                        <li><strong>Revenue:</strong> You're at ${revenueProgress.toFixed(0)}% of your monthly goal. ${revenueProgress >= 80 ? 'Great progress! Consider upselling premium services to exceed your target.' : 'To reach goal faster, focus on booking ${Math.ceil((appointmentsGoal - data.length)/7)} more appointments per week.'}</li>
+                        <li><strong>Revenue:</strong> You're at ${revenueProgress.toFixed(0)}% of your monthly goal. ${revenueProgress >= 80 ? 'Great progress! Consider upselling premium services to exceed your target.' : `To reach goal faster, focus on booking ${Math.ceil((CONFIG.monthlyAppointmentGoal - data.length)/7)} more appointments per week.`}</li>
                         <li><strong>Retention:</strong> ${retentionRate.toFixed(0)}% of clients return for multiple visits. ${retentionRate >= 50 ? 'Excellent retention! Consider launching a VIP membership program for your most loyal clients.' : 'Create a 3-visit intro package and follow up within 48 hours of first appointments to boost retention.'}</li>
                         <li><strong>Profitability:</strong> Your profit margin is ${profitMargin.toFixed(1)}%. ${profitMargin >= 30 ? 'Healthy margins! Consider reinvesting 10-15% into marketing to scale growth.' : 'Review practitioner payout structure and optimize scheduling to reduce idle time and improve margins.'}</li>
                         <li><strong>Service Mix:</strong> "${topService ? topService[0] : 'N/A'}" generates the most revenue. Create package deals combining your top service with complementary services to increase average transaction value.</li>
@@ -5987,6 +6301,163 @@
                         </ol>
                     </div>
                 </div>
+                
+                ${window.attendanceData && window.attendanceData.length > 0 ? `
+                <div class="table-container" style="background: linear-gradient(135deg, rgba(113, 190, 210, 0.05), rgba(113, 190, 210, 0.02)); border-left: 5px solid var(--accent);">
+                    <h2>📋 Attendance Analytics</h2>
+                    <p style="margin-bottom: 15px; color: #666;">Client booking patterns and upcoming appointments</p>
+                    
+                    ${(() => {
+                        // Filter attendance data by current date filters if applicable
+                        let attendanceRecords = window.attendanceData;
+                        
+                        // Count appointments per client
+                        const clientAppointments = {};
+                        const staffAppointments = {};
+                        let upcomingCount = 0;
+                        let paidCount = 0;
+                        let unpaidCount = 0;
+                        const now = new Date();
+                        
+                        attendanceRecords.forEach(row => {
+                            const clientEmail = (row['E-mail'] || '').toLowerCase().trim();
+                            const clientName = `${row['First Name'] || ''} ${row['Last Name'] || ''}`.trim();
+                            const staffName = row['Staff Name'] || 'Unknown';
+                            const reservationDate = row['Date of reservation'];
+                            const isPaid = (row['Is paid'] || '').toLowerCase();
+                            
+                            if (clientEmail && clientName) {
+                                if (!clientAppointments[clientEmail]) {
+                                    clientAppointments[clientEmail] = {
+                                        name: clientName,
+                                        count: 0,
+                                        upcoming: 0,
+                                        paid: 0
+                                    };
+                                }
+                                clientAppointments[clientEmail].count++;
+                                
+                                // Parse reservation date
+                                if (reservationDate) {
+                                    const resDate = new Date(reservationDate);
+                                    if (resDate > now) {
+                                        clientAppointments[clientEmail].upcoming++;
+                                        upcomingCount++;
+                                    }
+                                }
+                                
+                                if (isPaid === 'yes') {
+                                    clientAppointments[clientEmail].paid++;
+                                    paidCount++;
+                                } else {
+                                    unpaidCount++;
+                                }
+                            }
+                            
+                            // Count by staff
+                            if (staffName) {
+                                staffAppointments[staffName] = (staffAppointments[staffName] || 0) + 1;
+                            }
+                        });
+                        
+                        // Top 10 most frequent clients
+                        const topClients = Object.entries(clientAppointments)
+                            .sort((a, b) => b[1].count - a[1].count)
+                            .slice(0, 10);
+                        
+                        // Top VSPs by appointment count
+                        const topStaff = Object.entries(staffAppointments)
+                            .sort((a, b) => b[1] - a[1])
+                            .slice(0, 5);
+                        
+                        return `
+                            <div class="metrics-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 20px;">
+                                <div class="metric-card">
+                                    <div class="metric-label">📅 Total Reservations</div>
+                                    <div class="metric-value">${formatNumber(attendanceRecords.length)}</div>
+                                    <div class="metric-subtext">From attendance data</div>
+                                </div>
+                                <div class="metric-card ${upcomingCount > 50 ? 'success' : upcomingCount > 20 ? 'warning' : ''}">
+                                    <div class="metric-label">🔮 Upcoming Appointments</div>
+                                    <div class="metric-value">${formatNumber(upcomingCount)}</div>
+                                    <div class="metric-subtext">Future bookings</div>
+                                </div>
+                                <div class="metric-card success">
+                                    <div class="metric-label">✅ Paid</div>
+                                    <div class="metric-value">${formatNumber(paidCount)}</div>
+                                    <div class="metric-subtext">${((paidCount/(paidCount + unpaidCount))*100).toFixed(1)}% of total</div>
+                                </div>
+                                <div class="metric-card warning">
+                                    <div class="metric-label">⏳ Unpaid</div>
+                                    <div class="metric-value">${formatNumber(unpaidCount)}</div>
+                                    <div class="metric-subtext">${((unpaidCount/(paidCount + unpaidCount))*100).toFixed(1)}% of total</div>
+                                </div>
+                            </div>
+                            
+                            <div class="charts-grid" style="grid-template-columns: 1fr 1fr;">
+                                <div>
+                                    <h3>👥 Top 10 Most Frequent Clients</h3>
+                                    <p style="font-size: 12px; color: #666; margin: -5px 0 10px 0;">Clients with most appointments booked</p>
+                                    <table style="width: 100%;">
+                                        <thead>
+                                            <tr>
+                                                <th style="text-align: left;">Client</th>
+                                                <th style="text-align: center;">Total</th>
+                                                <th style="text-align: center;">Upcoming</th>
+                                                <th style="text-align: center;">Paid</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${topClients.map(([email, data], index) => `
+                                                <tr>
+                                                    <td style="font-weight: ${index < 3 ? 'bold' : 'normal'};">
+                                                        ${index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`} ${data.name}
+                                                    </td>
+                                                    <td style="text-align: center; font-weight: bold;">${data.count}</td>
+                                                    <td style="text-align: center;">${data.upcoming}</td>
+                                                    <td style="text-align: center;">${data.paid}</td>
+                                                </tr>
+                                            `).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                
+                                <div>
+                                    <h3>⭐ Top VSPs by Appointments Booked</h3>
+                                    <p style="font-size: 12px; color: #666; margin: -5px 0 10px 0;">VSPs with most appointments in attendance data</p>
+                                    <table style="width: 100%;">
+                                        <thead>
+                                            <tr>
+                                                <th style="text-align: left;">VSP</th>
+                                                <th style="text-align: center;">Appointments</th>
+                                                <th style="text-align: center;">% of Total</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${topStaff.map(([name, count], index) => `
+                                                <tr>
+                                                    <td style="font-weight: ${index < 3 ? 'bold' : 'normal'};">
+                                                        ${index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`} ${name}
+                                                    </td>
+                                                    <td style="text-align: center; font-weight: bold;">${formatNumber(count)}</td>
+                                                    <td style="text-align: center;">${((count/attendanceRecords.length)*100).toFixed(1)}%</td>
+                                                </tr>
+                                            `).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            
+                            ${upcomingCount > 0 ? `
+                            <div class="alert info" style="margin-top: 15px;">
+                                <h4>📅 Booking Pipeline</h4>
+                                <p>You have <strong>${formatNumber(upcomingCount)}</strong> appointments scheduled. ${upcomingCount > 50 ? 'Strong booking pipeline! ' : upcomingCount > 20 ? 'Moderate booking pipeline. ' : 'Limited upcoming bookings. '}${unpaidCount > 10 ? `Consider sending payment reminders to the <strong>${formatNumber(unpaidCount)}</strong> clients with unpaid reservations.` : ''}</p>
+                            </div>
+                            ` : ''}
+                        `;
+                    })()}
+                </div>
+                ` : ''}
                 
                 <div class="table-container">
                     <h2>Complete AI Recommendations Report</h2>
@@ -6543,6 +7014,17 @@
                 .sort((a, b) => b[1].count - a[1].count)
                 .slice(0, 10);
             
+            // Calculate cancellations (expired memberships that were previously active)
+            const canceledCount = expiredMemberships.length;
+            const canceledRevenueLost = expiredMemberships.reduce((sum, m) => sum + (parseFloat(m['Paid Amount']) || 0), 0);
+            
+            // Advanced client segmentation
+            const highValueClients = filteredMemberships.filter(m => parseFloat(m['Paid Amount']) >= 300).length;
+            const subscriptionClients = filteredMemberships.filter(m => m['Membership Type'] === 'subscription').length;
+            const packageClients = filteredMemberships.filter(m => m['Membership Type'] === 'package-events').length;
+            const avgRevPerMember = totalRevenue / new Set(filteredMemberships.map(m => (m['Customer Email'] || '').toLowerCase())).size;
+            const uniqueCustomers = new Set(filteredMemberships.map(m => (m['Customer Email'] || '').toLowerCase())).size;
+            
             let html = `
                 <div class="section">
                     <h2>Membership Analytics Overview</h2>
@@ -6574,56 +7056,43 @@
                             <div class="metric-subtext">${formatNumber(activeMemberships.length)} active<br>${retentionRate}% retention</div>
                         </div>
                         
+                        <div class="metric-card compact" style="background: linear-gradient(135deg, rgba(255, 152, 0, 0.1), rgba(245, 124, 0, 0.05)); border-left: 4px solid #ff9800;">
+                            <div class="metric-label">❌ Cancellations</div>
+                            <div class="metric-value">${formatNumber(canceledCount)}</div>
+                            <div class="metric-subtext">${churnRate}% churn rate<br>${formatCurrency(canceledRevenueLost)} revenue lost</div>
+                        </div>
+                        
                         <div class="metric-card compact" style="background: linear-gradient(135deg, rgba(33, 150, 243, 0.1), rgba(13, 71, 161, 0.05)); border-left: 4px solid #2196f3;">
                             <div class="metric-label">❄️ Frozen</div>
                             <div class="metric-value">${formatNumber(frozenCount)}</div>
                             <div class="metric-subtext">${((frozenCount / totalMemberships) * 100).toFixed(1)}% of total<br>memberships frozen</div>
                         </div>
-                        
-                        <div class="metric-card compact" style="background: linear-gradient(135deg, rgba(244, 67, 54, 0.1), rgba(211, 47, 47, 0.05)); border-left: 4px solid #f44336;">
-                            <div class="metric-label">💸 Refunded</div>
-                            <div class="metric-value">${formatNumber(refundedCount)}</div>
-                            <div class="metric-subtext">${((refundedCount / totalMemberships) * 100).toFixed(1)}% refund rate<br>${formatCurrency(filteredMemberships.reduce((sum, m) => sum + (parseFloat(m.Refunded) || 0), 0))} total</div>
-                        </div>
                     </div>
-                </div>
-                
-                <!-- New vs Renewal Analysis -->
-                <div class="section">
-                    <h2>New Sales vs Renewals</h2>
-                    <div class="charts-grid">
-                        <div class="chart-container">
-                            <h3>Sales Mix (Count)</h3>
-                            <div class="chart-wrapper">
-                                <canvas id="membershipSalesMixChart"></canvas>
-                            </div>
+                    
+                    <!-- Advanced Client Segmentation -->
+                    <div class="metrics-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 20px;">
+                        <div class="metric-card compact" style="background: linear-gradient(135deg, rgba(76, 175, 80, 0.1), rgba(56, 142, 60, 0.05)); border-left: 4px solid #4caf50;">
+                            <div class="metric-label">💎 High-Value Clients</div>
+                            <div class="metric-value">${formatNumber(highValueClients)}</div>
+                            <div class="metric-subtext">${((highValueClients / totalMemberships) * 100).toFixed(1)}% of memberships<br>$300+ purchases</div>
                         </div>
                         
-                        <div class="chart-container">
-                            <h3>Revenue Mix</h3>
-                            <div class="chart-wrapper">
-                                <canvas id="membershipRevenueMixChart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Revenue Charts -->
-                <div class="section">
-                    <h2>Revenue Analysis</h2>
-                    <div class="chart-grid">
-                        <div class="chart-container">
-                            <h3>Cumulative Membership Revenue</h3>
-                            <div class="chart-wrapper">
-                                <canvas id="membershipCumulativeRevenueChart"></canvas>
-                            </div>
+                        <div class="metric-card compact" style="background: linear-gradient(135deg, rgba(103, 58, 183, 0.1), rgba(81, 45, 168, 0.05)); border-left: 4px solid #673ab7;">
+                            <div class="metric-label">🔁 Subscription Members</div>
+                            <div class="metric-value">${formatNumber(subscriptionClients)}</div>
+                            <div class="metric-subtext">${((subscriptionClients / totalMemberships) * 100).toFixed(1)}% recurring<br>MRR: ${formatCurrency(mrr)}</div>
                         </div>
                         
-                        <div class="chart-container">
-                            <h3>Monthly Membership Revenue</h3>
-                            <div class="chart-wrapper">
-                                <canvas id="membershipMonthlyRevenueChart"></canvas>
-                            </div>
+                        <div class="metric-card compact" style="background: linear-gradient(135deg, rgba(0, 188, 212, 0.1), rgba(0, 151, 167, 0.05)); border-left: 4px solid #00bcd4;">
+                            <div class="metric-label">📦 Package Clients</div>
+                            <div class="metric-value">${formatNumber(packageClients)}</div>
+                            <div class="metric-subtext">${((packageClients / totalMemberships) * 100).toFixed(1)}% packages<br>One-time purchases</div>
+                        </div>
+                        
+                        <div class="metric-card compact" style="background: linear-gradient(135deg, rgba(255, 87, 34, 0.1), rgba(230, 74, 25, 0.05)); border-left: 4px solid #ff5722;">
+                            <div class="metric-label">👤 Unique Customers</div>
+                            <div class="metric-value">${formatNumber(uniqueCustomers)}</div>
+                            <div class="metric-subtext">Avg Revenue: ${formatCurrency(avgRevPerMember)}<br>${(totalMemberships / uniqueCustomers).toFixed(1)} purchases/customer</div>
                         </div>
                     </div>
                 </div>
@@ -6684,17 +7153,17 @@
                 
                 <!-- Sales Performance -->
                 <div class="section">
-                    <h2>Sales Performance by Staff</h2>
+                    <h2>Sales Performance by VSP</h2>
                     <div class="chart-grid">
                         <div class="chart-container">
-                            <h3>Memberships Sold by Staff</h3>
+                            <h3>Memberships Sold/Renewed by VSP</h3>
                             <div class="chart-wrapper">
                                 <canvas id="membershipStaffCountChart"></canvas>
                             </div>
                         </div>
                         
                         <div class="chart-container">
-                            <h3>Revenue by Staff</h3>
+                            <h3>Revenue by VSP</h3>
                             <div class="chart-wrapper">
                                 <canvas id="membershipStaffRevenueChart"></canvas>
                             </div>
@@ -6703,12 +7172,12 @@
                     
                     <!-- Staff Performance Table -->
                     <div class="table-container">
-                        <h3>Staff Sales Details</h3>
+                        <h3>VSP Sales Details</h3>
                         <button onclick="exportStaffSalesData()" style="float: right; padding: 8px 16px; background: var(--accent); color: white; border: none; border-radius: 5px; cursor: pointer; margin-bottom: 10px;">📥 Export to CSV</button>
                         <table>
                             <thead>
                                 <tr>
-                                    <th>Staff Member</th>
+                                    <th>VSP</th>
                                     <th>Total Sales</th>
                                     <th>New Sales</th>
                                     <th>Renewals</th>
@@ -6719,7 +7188,7 @@
                             <tbody>
                                 ${sortedStaff.map(([staff, data]) => `
                                     <tr>
-                                        <td><strong>${staff}</strong></td>
+                                        <td><strong>${formatStaffName(staff)}</strong></td>
                                         <td>${formatNumber(data.count)}</td>
                                         <td style="color: #28a745;">${formatNumber(data.newSales || 0)}</td>
                                         <td style="color: #007bff;">${formatNumber(data.renewals || 0)}</td>
@@ -6777,162 +7246,25 @@
             
             // Render charts
             setTimeout(() => {
-                // Sales Mix Chart (New vs Renewal count)
-                const salesMixCanvas = document.getElementById('membershipSalesMixChart');
-                if (salesMixCanvas) {
-                    destroyChart('membershipSalesMix');
-                    const ctx = salesMixCanvas.getContext('2d');
-                    allCharts.membershipSalesMix = new Chart(ctx, {
-                        type: 'doughnut',
-                        data: {
-                            labels: ['New Sales', 'Renewals'],
-                            datasets: [{
-                                data: [newSalesCount, renewalsCount],
-                                backgroundColor: ['#28a745', '#007bff'],
-                                borderWidth: 2,
-                                borderColor: '#fff'
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: {
-                                    position: 'bottom'
-                                },
-                                tooltip: {
-                                    callbacks: {
-                                        label: function(context) {
-                                            const label = context.label || '';
-                                            const value = context.parsed || 0;
-                                            const total = newSalesCount + renewalsCount;
-                                            const percentage = ((value / total) * 100).toFixed(1);
-                                            return label + ': ' + formatNumber(value) + ' (' + percentage + '%)';
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    });
-                }
+                console.log('Rendering membership charts...');
+                console.log('Canvas elements check:', {
+                    typeCount: document.getElementById('membershipTypeCountChart'),
+                    typeRevenue: document.getElementById('membershipTypeRevenueChart')
+                });
+                console.log('Data check:', {
+                    sortedTypes: sortedTypes.length,
+                    filteredMemberships: filteredMemberships.length
+                });
                 
-                // Revenue Mix Chart (New vs Renewal revenue)
-                const revenueMixCanvas = document.getElementById('membershipRevenueMixChart');
-                if (revenueMixCanvas) {
-                    destroyChart('membershipRevenueMix');
-                    const ctx = revenueMixCanvas.getContext('2d');
-                    allCharts.membershipRevenueMix = new Chart(ctx, {
-                        type: 'doughnut',
-                        data: {
-                            labels: ['New Sales', 'Renewals'],
-                            datasets: [{
-                                data: [newSalesRevenue, renewalsRevenue],
-                                backgroundColor: ['#28a745', '#007bff'],
-                                borderWidth: 2,
-                                borderColor: '#fff'
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: {
-                                    position: 'bottom'
-                                },
-                                tooltip: {
-                                    callbacks: {
-                                        label: function(context) {
-                                            const label = context.label || '';
-                                            const value = context.parsed || 0;
-                                            const percentage = ((value / totalRevenue) * 100).toFixed(1);
-                                            return label + ': ' + formatCurrency(value) + ' (' + percentage + '%)';
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    });
-                }
-                
-                // Cumulative revenue chart
-                const cumRevenueCanvas = document.getElementById('membershipCumulativeRevenueChart');
-                if (cumRevenueCanvas) {
-                    destroyChart('membershipCumulativeRevenue');
-                    const ctx = cumRevenueCanvas.getContext('2d');
-                    allCharts.membershipCumulativeRevenue = new Chart(ctx, {
-                        type: 'line',
-                        data: {
-                            labels: cumulativeRevenue.map(d => d.date),
-                            datasets: [{
-                                label: 'Cumulative Revenue',
-                                data: cumulativeRevenue.map(d => d.value),
-                                borderColor: '#28a745',
-                                backgroundColor: 'rgba(40, 167, 69, 0.1)',
-                                borderWidth: 3,
-                                fill: true,
-                                tension: 0.4
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { display: false } },
-                            scales: {
-                                y: {
-                                    beginAtZero: true,
-                                    ticks: {
-                                        callback: function(value) {
-                                            return formatCurrency(value);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    });
-                }
-                
-                // Monthly revenue chart
-                const monthlyCanvas = document.getElementById('membershipMonthlyRevenueChart');
-                if (monthlyCanvas) {
-                    destroyChart('membershipMonthlyRevenue');
-                    const ctx = monthlyCanvas.getContext('2d');
-                    allCharts.membershipMonthlyRevenue = new Chart(ctx, {
-                        type: 'bar',
-                        data: {
-                            labels: sortedMonths.map(m => {
-                                const [year, month] = m.split('-');
-                                const date = new Date(year, month - 1);
-                                return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-                            }),
-                            datasets: [{
-                                label: 'Monthly Revenue',
-                                data: sortedMonths.map(m => monthlyRevenue[m]),
-                                backgroundColor: '#007bff',
-                                borderColor: '#0056b3',
-                                borderWidth: 1
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { display: false } },
-                            scales: {
-                                y: {
-                                    beginAtZero: true,
-                                    ticks: {
-                                        callback: function(value) {
-                                            return formatCurrency(value);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    });
-                }
+                // Sales Mix Chart - REMOVED
+                // Revenue Mix Chart - REMOVED
+                // Cumulative Revenue Chart - REMOVED
+                // Monthly Revenue Chart - REMOVED
                 
                 // Membership type count chart
                 const typeCountCanvas = document.getElementById('membershipTypeCountChart');
                 if (typeCountCanvas) {
+                    console.log('Creating membershipTypeCount chart...');
                     destroyChart('membershipTypeCount');
                     const ctx = typeCountCanvas.getContext('2d');
                     allCharts.membershipTypeCount = new Chart(ctx, {
@@ -7006,11 +7338,15 @@
                             }
                         }
                     });
+                    console.log('membershipTypeCount chart created:', allCharts.membershipTypeCount);
+                } else {
+                    console.error('membershipTypeCountChart canvas not found!');
                 }
                 
                 // Membership type revenue chart (DOUGHNUT with drilldown)
                 const typeRevenueCanvas = document.getElementById('membershipTypeRevenueChart');
                 if (typeRevenueCanvas) {
+                    console.log('Creating membershipTypeRevenue chart...');
                     destroyChart('membershipTypeRevenue');
                     const ctx = typeRevenueCanvas.getContext('2d');
                     allCharts.membershipTypeRevenue = new Chart(ctx, {
@@ -7020,7 +7356,7 @@
                             datasets: [{
                                 data: sortedTypes.map(([, data]) => data.revenue),
                                 backgroundColor: [
-                                    '#28a745', '#007bff', '#ffc107', '#dc3545', '#6c757d',
+                                    '#007bff', '#28a745', '#ffc107', '#dc3545', '#6c757d',
                                     '#17a2b8', '#fd7e14', '#6610f2', '#e83e8c', '#20c997'
                                 ]
                             }]
@@ -7101,7 +7437,7 @@
                     allCharts.membershipStaffCount = new Chart(ctx, {
                         type: 'bar',
                         data: {
-                            labels: sortedStaff.map(([staff]) => staff),
+                            labels: sortedStaff.map(([staff]) => formatStaffName(staff)),
                             datasets: [{
                                 label: 'Memberships Sold',
                                 data: sortedStaff.map(([, data]) => data.count),
@@ -7127,8 +7463,9 @@
                                     });
                                     
                                     let modalContent = `
-                                        <h4>Sales Performance: ${staffName}</h4>
+                                        <h4>Sales Performance: ${formatStaffName(staffName)}</h4>
                                         <p><strong>Memberships Sold:</strong> ${staffData.count}</p>
+                                        <p><strong>New Sales:</strong> ${staffData.newSales || 0} | <strong>Renewals:</strong> ${staffData.renewals || 0}</p>
                                         <p><strong>Revenue Generated:</strong> ${formatCurrency(staffData.revenue)}</p>
                                         <p><strong>Average Sale:</strong> ${formatCurrency(staffData.revenue / staffData.count)}</p>
                                         <hr>
@@ -7140,6 +7477,7 @@
                                                     <th>Membership</th>
                                                     <th>Date</th>
                                                     <th>Amount</th>
+                                                    <th>Type</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -7149,6 +7487,7 @@
                                                         <td>${m['Membership Name']}</td>
                                                         <td>${new Date(m['Bought Date/Time (GMT)']).toLocaleDateString()}</td>
                                                         <td>${formatCurrency(parseFloat(m['Paid Amount']))}</td>
+                                                        <td><span style="padding: 4px 8px; border-radius: 4px; background: ${m._isNewSale ? '#d4edda' : '#cfe2ff'}; color: ${m._isNewSale ? '#155724' : '#084298'};">${m._isNewSale ? 'New Sale' : (m._isRenewal ? 'Renewal' : 'Unknown')}</span></td>
                                                     </tr>
                                                 `).join('')}
                                             </tbody>
@@ -7188,7 +7527,7 @@
                     allCharts.membershipStaffRevenue = new Chart(ctx, {
                         type: 'bar',
                         data: {
-                            labels: sortedStaff.map(([staff]) => staff),
+                            labels: sortedStaff.map(([staff]) => formatStaffName(staff)),
                             datasets: [{
                                 label: 'Revenue',
                                 data: sortedStaff.map(([, data]) => data.revenue),
@@ -7214,9 +7553,10 @@
                                     });
                                     
                                     let modalContent = `
-                                        <h4>Revenue Performance: ${staffName}</h4>
+                                        <h4>Revenue Performance: ${formatStaffName(staffName)}</h4>
                                         <p><strong>Total Revenue:</strong> ${formatCurrency(staffData.revenue)}</p>
                                         <p><strong>Memberships Sold:</strong> ${staffData.count}</p>
+                                        <p><strong>New Sales:</strong> ${staffData.newSales || 0} | <strong>Renewals:</strong> ${staffData.renewals || 0}</p>
                                         <p><strong>Average Sale:</strong> ${formatCurrency(staffData.revenue / staffData.count)}</p>
                                         <hr>
                                         <h5>Top Sales:</h5>
@@ -7227,6 +7567,7 @@
                                                     <th>Membership</th>
                                                     <th>Date</th>
                                                     <th>Amount</th>
+                                                    <th>Type</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -7236,6 +7577,7 @@
                                                         <td>${m['Membership Name']}</td>
                                                         <td>${new Date(m['Bought Date/Time (GMT)']).toLocaleDateString()}</td>
                                                         <td><strong>${formatCurrency(parseFloat(m['Paid Amount']))}</strong></td>
+                                                        <td><span style="padding: 4px 8px; border-radius: 4px; background: ${m._isNewSale ? '#d4edda' : '#cfe2ff'}; color: ${m._isNewSale ? '#155724' : '#084298'};">${m._isNewSale ? 'New Sale' : (m._isRenewal ? 'Renewal' : 'Unknown')}</span></td>
                                                     </tr>
                                                 `).join('')}
                                             </tbody>
@@ -7671,6 +8013,13 @@
                     });
                 }
             }, 100);
+            
+            // Add cancellations data to memberships tab if available
+            if (membershipCancellationsData && membershipCancellationsData.length > 0) {
+                setTimeout(() => {
+                    appendCancellationsToMemberships();
+                }, 150);
+            }
         }
         
         // Export functions for membership data
@@ -7706,20 +8055,1321 @@
             exportToCSV(data, 'staff-sales-' + new Date().toISOString().split('T')[0] + '.csv');
         }
         
-        // MEMBERSHIP CANCELLATIONS TAB
-        function renderCancellationsTab() {
+        // LEADS TAB - Analytics for lead generation
+        // LEADS TAB - Comprehensive lead analytics with conversion tracking
+        function renderLeadsTab() {
+            // Check if we have the enhanced leads converted data
+            const hasConvertedData = leadsConvertedData && leadsConvertedData.length > 0;
+            
+            if (!hasConvertedData && (!leadsData || leadsData.length === 0)) {
+                document.getElementById('leads').innerHTML = `
+                    <div class="alert info">
+                        <h4>📊 Leads Analytics</h4>
+                        <p>Upload the <strong>Leads Converted Report CSV</strong> file to unlock comprehensive lead analytics including:</p>
+                        <ul style="margin: 10px 0 0 20px;">
+                            <li>Detailed lead source tracking</li>
+                            <li>Conversion funnel analysis</li>
+                            <li>Location-based performance</li>
+                            <li>Timeline of lead generation and conversions</li>
+                            <li>LTV by source and location</li>
+                        </ul>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Use enhanced data if available, otherwise fallback to basic leads data
+            const leadsToAnalyze = hasConvertedData ? leadsConvertedData : leadsData;
+            
+            // Filter by date range
+            const filtered = leadsToAnalyze.filter(row => {
+                let dateField = null;
+                if (hasConvertedData) {
+                    dateField = parseDate(row['Converted']);
+                } else {
+                    dateField = parseDate(row['Join date']);
+                }
+                
+                if (!dateField) return false;
+                
+                const month = document.getElementById('monthFilter').value;
+                const startDate = document.getElementById('startDate').value;
+                const endDate = document.getElementById('endDate').value;
+                
+                if (month !== 'all') {
+                    const rowMonth = `${dateField.getFullYear()}-${String(dateField.getMonth() + 1).padStart(2, '0')}`;
+                    if (rowMonth !== month) return false;
+                }
+                
+                if (startDate && dateField < new Date(startDate)) return false;
+                if (endDate && dateField > new Date(endDate + 'T23:59:59')) return false;
+                
+                return true;
+            });
+            
+            // Analyze data
+            const analysis = analyzeLeadsData(filtered, hasConvertedData);
+            
+            // Render the comprehensive dashboard
+            let html = renderLeadsOverview(analysis, hasConvertedData);
+            html += renderLeadsSourceAnalysis(analysis, filtered, hasConvertedData);
+            html += renderLeadsLocationAnalysis(analysis, filtered, hasConvertedData);
+            html += renderLeadsTimeline(filtered, hasConvertedData);
+            html += renderLeadsConversionFunnel(analysis, hasConvertedData);
+            
+            document.getElementById('leads').innerHTML = html;
+            
+            // Render all charts
+            setTimeout(() => {
+                renderLeadsCharts(analysis, filtered, hasConvertedData);
+            }, 100);
+        }
+        
+        function analyzeLeadsData(leads, hasConvertedData) {
+            const analysis = {
+                totalLeads: leads.length,
+                sources: {},
+                locations: {},
+                convertedTo: {},
+                byDate: {},
+                byDayOfWeek: { 'Sunday': 0, 'Monday': 0, 'Tuesday': 0, 'Wednesday': 0, 'Thursday': 0, 'Friday': 0, 'Saturday': 0 },
+                byHour: {},
+                converted: 0,
+                notConverted: 0,
+                totalLTV: 0,
+                ltvBySource: {},
+                ltvByLocation: {},
+                conversionsByMonth: {},
+                sourcesByLocation: {}
+            };
+            
+            // Initialize hours
+            for (let i = 0; i < 24; i++) {
+                analysis.byHour[i] = 0;
+            }
+            
+            leads.forEach(lead => {
+                let dateField = null;
+                let source = 'Unknown';
+                let location = 'Unknown';
+                let ltv = 0;
+                let isConverted = false;
+                let convertedTo = 'N/A';
+                
+                if (hasConvertedData) {
+                    dateField = parseDate(lead['Converted']);
+                    source = lead['Lead source'] || 'Unknown';
+                    // Filter out N/A sources
+                    if (source === 'N/A' || source === 'n/a') {
+                        source = 'Unknown';
+                    }
+                    location = lead['Home location'] || 'Unknown';
+                    ltv = parseFloat(lead['LTV']) || 0;
+                    convertedTo = (lead['Converted to'] || '').trim();
+                    isConverted = convertedTo && convertedTo !== 'N/A' && convertedTo !== '';
+                } else {
+                    dateField = parseDate(lead['Join date']);
+                    source = lead['Aggregator'] || 'Unknown';
+                    // Filter out N/A sources
+                    if (source === 'N/A' || source === 'n/a') {
+                        source = 'Unknown';
+                    }
+                    const type = (lead['Type'] || '').toLowerCase();
+                    isConverted = type === 'customer';
+                    ltv = parseFloat(lead['LTV']) || 0;
+                }
+                
+                // Count by source
+                if (!analysis.sources[source]) {
+                    analysis.sources[source] = { count: 0, converted: 0, ltv: 0 };
+                }
+                analysis.sources[source].count++;
+                analysis.sources[source].ltv += ltv;
+                if (isConverted) analysis.sources[source].converted++;
+                
+                // Count by location
+                if (!analysis.locations[location]) {
+                    analysis.locations[location] = { count: 0, converted: 0, ltv: 0 };
+                }
+                analysis.locations[location].count++;
+                analysis.locations[location].ltv += ltv;
+                if (isConverted) analysis.locations[location].converted++;
+                
+                // Source by location matrix
+                const key = `${source}|${location}`;
+                if (!analysis.sourcesByLocation[key]) {
+                    analysis.sourcesByLocation[key] = { source, location, count: 0, converted: 0, ltv: 0 };
+                }
+                analysis.sourcesByLocation[key].count++;
+                analysis.sourcesByLocation[key].ltv += ltv;
+                if (isConverted) analysis.sourcesByLocation[key].converted++;
+                
+                // Conversion tracking
+                if (isConverted) {
+                    analysis.converted++;
+                    if (hasConvertedData && convertedTo !== 'N/A') {
+                        if (!analysis.convertedTo[convertedTo]) {
+                            analysis.convertedTo[convertedTo] = { count: 0, ltv: 0 };
+                        }
+                        analysis.convertedTo[convertedTo].count++;
+                        analysis.convertedTo[convertedTo].ltv += ltv;
+                    }
+                } else {
+                    analysis.notConverted++;
+                }
+                
+                analysis.totalLTV += ltv;
+                
+                // Time-based analysis
+                if (dateField) {
+                    // By date
+                    const dateKey = dateField.toISOString().split('T')[0];
+                    analysis.byDate[dateKey] = (analysis.byDate[dateKey] || 0) + 1;
+                    
+                    // By day of week
+                    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                    const dayOfWeek = dayNames[dateField.getDay()];
+                    analysis.byDayOfWeek[dayOfWeek]++;
+                    
+                    // By hour
+                    const hour = dateField.getHours();
+                    analysis.byHour[hour]++;
+                    
+                    // Conversions by month
+                    if (isConverted) {
+                        const monthKey = `${dateField.getFullYear()}-${String(dateField.getMonth() + 1).padStart(2, '0')}`;
+                        analysis.conversionsByMonth[monthKey] = (analysis.conversionsByMonth[monthKey] || 0) + 1;
+                    }
+                }
+            });
+            
+            return analysis;
+        }
+        
+        function renderLeadsOverview(analysis, hasConvertedData) {
+            const conversionRate = analysis.totalLeads > 0 ? (analysis.converted / analysis.totalLeads * 100) : 0;
+            const avgLTV = analysis.converted > 0 ? (analysis.totalLTV / analysis.converted) : 0;
+            
+            // Find top source and location
+            const sortedSources = Object.entries(analysis.sources).sort((a, b) => b[1].count - a[1].count);
+            const topSource = sortedSources[0];
+            
+            const sortedLocations = Object.entries(analysis.locations).sort((a, b) => b[1].count - a[1].count);
+            const topLocation = sortedLocations[0];
+            
+            // Best performing source (by conversion rate)
+            const bestSource = sortedSources
+                .filter(([_, data]) => data.count >= 5) // At least 5 leads
+                .sort((a, b) => (b[1].converted/b[1].count) - (a[1].converted/a[1].count))[0];
+            
+            return `
+                <div class="section">
+                    <h2>📊 Leads & Conversion Overview</h2>
+                    
+                    <div class="metrics-grid" style="grid-template-columns: repeat(6, 1fr); margin-bottom: 30px;">
+                        <div class="metric-card">
+                            <div class="metric-label">🎯 Total Leads</div>
+                            <div class="metric-value">${formatNumber(analysis.totalLeads)}</div>
+                            <div class="metric-subtext">All lead entries</div>
+                        </div>
+                        
+                        <div class="metric-card" style="background: linear-gradient(135deg, rgba(40, 167, 69, 0.1), rgba(30, 130, 50, 0.05));">
+                            <div class="metric-label">✅ Converted</div>
+                            <div class="metric-value">${formatNumber(analysis.converted)}</div>
+                            <div class="metric-subtext">${conversionRate.toFixed(1)}% conversion rate</div>
+                        </div>
+                        
+                        <div class="metric-card">
+                            <div class="metric-label">💰 Total LTV</div>
+                            <div class="metric-value">${formatCurrency(analysis.totalLTV)}</div>
+                            <div class="metric-subtext">From converted leads</div>
+                        </div>
+                        
+                        <div class="metric-card">
+                            <div class="metric-label">📈 Avg LTV</div>
+                            <div class="metric-value">${formatCurrency(avgLTV)}</div>
+                            <div class="metric-subtext">Per converted lead</div>
+                        </div>
+                        
+                        <div class="metric-card" style="background: linear-gradient(135deg, rgba(1, 49, 96, 0.1), rgba(1, 49, 96, 0.05));">
+                            <div class="metric-label">🏆 Top Source</div>
+                            <div class="metric-value" style="font-size: 1.1em;">${topSource ? topSource[0].substring(0, 12) : 'N/A'}</div>
+                            <div class="metric-subtext">${topSource ? formatNumber(topSource[1].count) : 0} leads</div>
+                        </div>
+                        
+                        <div class="metric-card" style="background: linear-gradient(135deg, rgba(113, 190, 210, 0.15), rgba(113, 190, 210, 0.05));">
+                            <div class="metric-label">📍 Top Location</div>
+                            <div class="metric-value" style="font-size: 1.1em;">${topLocation ? topLocation[0] : 'N/A'}</div>
+                            <div class="metric-subtext">${topLocation ? formatNumber(topLocation[1].count) : 0} leads</div>
+                        </div>
+                    </div>
+                    
+                    ${bestSource ? `
+                    <div class="alert" style="background: linear-gradient(135deg, rgba(251, 181, 20, 0.1), rgba(251, 181, 20, 0.05)); border-left: 4px solid var(--highlight);">
+                        <h4>⭐ Best Performing Source</h4>
+                        <p><strong>${bestSource[0]}</strong> has the highest conversion rate: ${((bestSource[1].converted/bestSource[1].count)*100).toFixed(1)}% 
+                        (${formatNumber(bestSource[1].converted)} of ${formatNumber(bestSource[1].count)} leads converted)</p>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+        
+        function renderLeadsSourceAnalysis(analysis, leads, hasConvertedData) {
+            const sortedSources = Object.entries(analysis.sources)
+                .sort((a, b) => b[1].count - a[1].count);
+            
+            return `
+                <div class="section">
+                    <h2>🎯 Lead Source Performance</h2>
+                    <div class="chart-grid">
+                        <div class="chart-container">
+                            <h3>Lead Volume by Source</h3>
+                            <div class="chart-wrapper">
+                                <canvas id="leadsSourceVolumeChart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-container">
+                            <h3>Conversion Rate by Source</h3>
+                            <div class="chart-wrapper">
+                                <canvas id="leadsSourceConversionChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="table-container" style="margin-top: 20px;">
+                        <h3>Detailed Source Breakdown</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Source</th>
+                                    <th>Total Leads</th>
+                                    <th>Converted</th>
+                                    <th>Conversion Rate</th>
+                                    <th>Total LTV</th>
+                                    <th>Avg LTV</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${sortedSources.map(([source, data], i) => {
+                                    const convRate = data.count > 0 ? (data.converted / data.count * 100) : 0;
+                                    const avgLTV = data.converted > 0 ? (data.ltv / data.converted) : 0;
+                                    return `
+                                        <tr>
+                                            <td><strong>${i + 1}</strong></td>
+                                            <td><strong>${source}</strong></td>
+                                            <td>${formatNumber(data.count)}</td>
+                                            <td>${formatNumber(data.converted)}</td>
+                                            <td><span style="padding: 4px 8px; border-radius: 4px; background: ${convRate >= 50 ? '#d4edda' : convRate >= 30 ? '#fff3cd' : '#f8d7da'}; color: ${convRate >= 50 ? '#155724' : convRate >= 30 ? '#856404' : '#721c24'};">${convRate.toFixed(1)}%</span></td>
+                                            <td>${formatCurrency(data.ltv)}</td>
+                                            <td>${formatCurrency(avgLTV)}</td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderLeadsLocationAnalysis(analysis, leads, hasConvertedData) {
+            const sortedLocations = Object.entries(analysis.locations)
+                .sort((a, b) => b[1].count - a[1].count);
+            
+            // Source x Location matrix
+            const matrix = Object.values(analysis.sourcesByLocation)
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 15); // Top 15 combinations
+            
+            return `
+                <div class="section">
+                    <h2>📍 Location Performance</h2>
+                    <div class="chart-grid">
+                        <div class="chart-container">
+                            <h3>Leads by Location</h3>
+                            <div class="chart-wrapper">
+                                <canvas id="leadsLocationChart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-container">
+                            <h3>LTV by Location</h3>
+                            <div class="chart-wrapper">
+                                <canvas id="leadsLocationLTVChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="table-container" style="margin-top: 20px;">
+                        <h3>Top Source × Location Combinations</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Source</th>
+                                    <th>Location</th>
+                                    <th>Leads</th>
+                                    <th>Converted</th>
+                                    <th>Conv. Rate</th>
+                                    <th>Total LTV</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${matrix.map((combo, i) => {
+                                    const convRate = combo.count > 0 ? (combo.converted / combo.count * 100) : 0;
+                                    return `
+                                        <tr>
+                                            <td><strong>${i + 1}</strong></td>
+                                            <td>${combo.source}</td>
+                                            <td>${combo.location}</td>
+                                            <td>${formatNumber(combo.count)}</td>
+                                            <td>${formatNumber(combo.converted)}</td>
+                                            <td>${convRate.toFixed(1)}%</td>
+                                            <td>${formatCurrency(combo.ltv)}</td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderLeadsTimeline(leads, hasConvertedData) {
+            let html = `
+                <div class="section">
+                    <h2>📅 Lead Generation Timeline</h2>
+                    <div class="chart-container full-width">
+                        <h3>Daily Lead Activity</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="leadsDailyChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h2>🔥 Lead Generation Heatmap</h2>
+                    <p style="color: #666; margin-bottom: 15px;">Click any cell to see detailed lead information for that day and hour</p>
+                    <div id="leadsHeatmapContainer" style="overflow-x: auto;">
+                        <div id="leadsHeatmap"></div>
+                    </div>
+                </div>
+            `;
+            
+            // Add location-specific heatmaps for SocialFitness leads
+            if (hasConvertedData) {
+                const sfLeads = leads.filter(lead => {
+                    const source = (lead['Lead source'] || '').trim();
+                    return source.startsWith('SF');
+                });
+                
+                if (sfLeads.length > 0) {
+                    // Group by location
+                    const locationMap = {};
+                    sfLeads.forEach(lead => {
+                        const location = lead['Home location'] || 'Unknown';
+                        if (!locationMap[location]) {
+                            locationMap[location] = [];
+                        }
+                        locationMap[location].push(lead);
+                    });
+                    
+                    // Create heatmaps for each location
+                    Object.keys(locationMap).sort().forEach(location => {
+                        const locationLeads = locationMap[location];
+                        html += `
+                            <div class="section">
+                                <h2>🔥 SocialFitness Heatmap - ${location}</h2>
+                                <p style="color: #666; margin-bottom: 15px;">
+                                    <strong>${locationLeads.length}</strong> leads from SocialFitness at ${location} location
+                                </p>
+                                <div id="sfHeatmapContainer-${location.replace(/\s+/g, '-')}" style="overflow-x: auto;">
+                                    <div id="sfHeatmap-${location.replace(/\s+/g, '-')}"></div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+            }
+            
+            return html;
+        }
+        
+        function renderLeadsConversionFunnel(analysis, hasConvertedData) {
+            if (!hasConvertedData || Object.keys(analysis.convertedTo).length === 0) {
+                return '';
+            }
+            
+            const sortedConversions = Object.entries(analysis.convertedTo)
+                .sort((a, b) => b[1].count - a[1].count);
+            
+            return `
+                <div class="section">
+                    <h2>🎯 Conversion Breakdown</h2>
+                    <div class="chart-grid">
+                        <div class="chart-container">
+                            <h3>What Leads Converted To</h3>
+                            <div class="chart-wrapper">
+                                <canvas id="leadsConvertedToChart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-container">
+                            <h3>LTV by Membership Type</h3>
+                            <div class="chart-wrapper">
+                                <canvas id="leadsConvertedToLTVChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="table-container" style="margin-top: 20px;">
+                        <h3>Conversion Type Details</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Membership/Offer</th>
+                                    <th>Conversions</th>
+                                    <th>% of Total</th>
+                                    <th>Total LTV</th>
+                                    <th>Avg LTV</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${sortedConversions.map(([type, data], i) => {
+                                    const pct = (data.count / analysis.converted * 100);
+                                    const avgLTV = data.count > 0 ? (data.ltv / data.count) : 0;
+                                    return `
+                                        <tr>
+                                            <td><strong>${i + 1}</strong></td>
+                                            <td>${type}</td>
+                                            <td>${formatNumber(data.count)}</td>
+                                            <td>${pct.toFixed(1)}%</td>
+                                            <td>${formatCurrency(data.ltv)}</td>
+                                            <td>${formatCurrency(avgLTV)}</td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderLeadsCharts(analysis, leads, hasConvertedData) {
+            // Source Volume Chart
+            const sourceCanvas = document.getElementById('leadsSourceVolumeChart');
+            if (sourceCanvas) {
+                destroyChart('leadsSourceVolume');
+                const ctx = sourceCanvas.getContext('2d');
+                const sortedSources = Object.entries(analysis.sources).sort((a, b) => b[1].count - a[1].count).slice(0, 10);
+                allCharts.leadsSourceVolume = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: sortedSources.map(s => s[0]),
+                        datasets: [{
+                            label: 'Total Leads',
+                            data: sortedSources.map(s => s[1].count),
+                            backgroundColor: '#013160',
+                            borderColor: '#013160',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        onClick: (event, elements) => {
+                            if (elements.length > 0) {
+                                const index = elements[0].index;
+                                const source = sortedSources[index][0];
+                                const sourceLeads = leads.filter(l => (l['Lead source'] || 'Unknown') === source);
+                                showLeadsSourceDetails(source, sourceLeads);
+                            }
+                        },
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { stepSize: 1 }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Source Conversion Rate Chart
+            const sourceConvCanvas = document.getElementById('leadsSourceConversionChart');
+            if (sourceConvCanvas) {
+                destroyChart('leadsSourceConversion');
+                const ctx = sourceConvCanvas.getContext('2d');
+                const sortedSources = Object.entries(analysis.sources)
+                    .filter(([_, data]) => data.count >= 3) // At least 3 leads
+                    .sort((a, b) => b[1].count - a[1].count)
+                    .slice(0, 10);
+                allCharts.leadsSourceConversion = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: sortedSources.map(s => s[0]),
+                        datasets: [{
+                            label: 'Conversion Rate (%)',
+                            data: sortedSources.map(s => (s[1].converted / s[1].count * 100)),
+                            backgroundColor: '#28a745',
+                            borderColor: '#28a745',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        onClick: (event, elements) => {
+                            if (elements.length > 0) {
+                                const index = elements[0].index;
+                                const source = sortedSources[index][0];
+                                const sourceLeads = leads.filter(l => (l['Lead source'] || 'Unknown') === source);
+                                showLeadsSourceDetails(source, sourceLeads);
+                            }
+                        },
+                        plugins: { 
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `${context.parsed.y.toFixed(1)}% conversion`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 100,
+                                ticks: {
+                                    callback: function(value) {
+                                        return value + '%';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Location Chart
+            const locationCanvas = document.getElementById('leadsLocationChart');
+            if (locationCanvas) {
+                destroyChart('leadsLocation');
+                const ctx = locationCanvas.getContext('2d');
+                const sortedLocations = Object.entries(analysis.locations).sort((a, b) => b[1].count - a[1].count);
+                allCharts.leadsLocation = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: sortedLocations.map(l => l[0]),
+                        datasets: [{
+                            data: sortedLocations.map(l => l[1].count),
+                            backgroundColor: ['#013160', '#71BED2', '#FBB514', '#28a745', '#dc3545', '#ffc107', '#9c27b0'],
+                            borderWidth: 2,
+                            borderColor: '#fff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: { padding: 15, font: { size: 12 } }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Location LTV Chart
+            const locationLTVCanvas = document.getElementById('leadsLocationLTVChart');
+            if (locationLTVCanvas) {
+                destroyChart('leadsLocationLTV');
+                const ctx = locationLTVCanvas.getContext('2d');
+                const sortedLocations = Object.entries(analysis.locations).sort((a, b) => b[1].ltv - a[1].ltv);
+                allCharts.leadsLocationLTV = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: sortedLocations.map(l => l[0]),
+                        datasets: [{
+                            label: 'Total LTV',
+                            data: sortedLocations.map(l => l[1].ltv),
+                            backgroundColor: '#71BED2',
+                            borderColor: '#71BED2',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return formatCurrency(value);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Daily Activity Chart
+            const dailyCanvas = document.getElementById('leadsDailyChart');
+            if (dailyCanvas) {
+                destroyChart('leadsDaily');
+                const ctx = dailyCanvas.getContext('2d');
+                const sortedDates = Object.keys(analysis.byDate).sort();
+                allCharts.leadsDaily = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: sortedDates.map(d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+                        datasets: [{
+                            label: 'Daily Leads',
+                            data: sortedDates.map(d => analysis.byDate[d]),
+                            borderColor: '#013160',
+                            backgroundColor: 'rgba(1, 49, 96, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.3
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { stepSize: 1 }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Day of Week Chart - REMOVED
+            // const dayCanvas = document.getElementById('leadsByDayChart');
+            
+            // Hour of Day Chart - REMOVED  
+            // const hourCanvas = document.getElementById('leadsByHourChart');
+            
+            // Render the heatmap
+            renderLeadsHeatmap(leads);
+            
+            // Render SF location-specific heatmaps
+            if (hasConvertedData) {
+                const sfLeads = leads.filter(lead => {
+                    const source = (lead['Lead source'] || '').trim();
+                    return source.startsWith('SF');
+                });
+                
+                if (sfLeads.length > 0) {
+                    // Group by location
+                    const locationMap = {};
+                    sfLeads.forEach(lead => {
+                        const location = lead['Home location'] || 'Unknown';
+                        if (!locationMap[location]) {
+                            locationMap[location] = [];
+                        }
+                        locationMap[location].push(lead);
+                    });
+                    
+                    // Render heatmap for each location
+                    Object.keys(locationMap).sort().forEach(location => {
+                        const containerId = `sfHeatmap-${location.replace(/\s+/g, '-')}`;
+                        const container = document.getElementById(containerId);
+                        if (container) {
+                            renderLocationHeatmap(locationMap[location], containerId, location);
+                        }
+                    });
+                }
+            }
+            
+            // Monthly Conversions Chart
+            const monthlyConvCanvas = document.getElementById('leadsMonthlyConversionsChart');
+            if (monthlyConvCanvas) {
+                destroyChart('leadsMonthlyConversions');
+                const ctx = monthlyConvCanvas.getContext('2d');
+                const sortedMonths = Object.keys(analysis.conversionsByMonth).sort();
+                allCharts.leadsMonthlyConversions = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: sortedMonths.map(m => {
+                            const [year, month] = m.split('-');
+                            return new Date(year, month - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+                        }),
+                        datasets: [{
+                            label: 'Conversions',
+                            data: sortedMonths.map(m => analysis.conversionsByMonth[m]),
+                            backgroundColor: '#28a745',
+                            borderColor: '#28a745',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { stepSize: 1 }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Converted To Chart
+            if (hasConvertedData && Object.keys(analysis.convertedTo).length > 0) {
+                const convertedToCanvas = document.getElementById('leadsConvertedToChart');
+                if (convertedToCanvas) {
+                    destroyChart('leadsConvertedTo');
+                    const ctx = convertedToCanvas.getContext('2d');
+                    const sortedTypes = Object.entries(analysis.convertedTo).sort((a, b) => b[1].count - a[1].count);
+                    allCharts.leadsConvertedTo = new Chart(ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: sortedTypes.map(t => t[0]),
+                            datasets: [{
+                                data: sortedTypes.map(t => t[1].count),
+                                backgroundColor: ['#013160', '#71BED2', '#FBB514', '#28a745', '#dc3545', '#ffc107', '#9c27b0', '#ff5722'],
+                                borderWidth: 2,
+                                borderColor: '#fff'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'right',
+                                    labels: { padding: 10, font: { size: 11 } }
+                                }
+                            }
+                        }
+                    });
+                }
+                
+                // Converted To LTV Chart
+                const convertedToLTVCanvas = document.getElementById('leadsConvertedToLTVChart');
+                if (convertedToLTVCanvas) {
+                    destroyChart('leadsConvertedToLTV');
+                    const ctx = convertedToLTVCanvas.getContext('2d');
+                    const sortedTypes = Object.entries(analysis.convertedTo).sort((a, b) => b[1].ltv - a[1].ltv);
+                    allCharts.leadsConvertedToLTV = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: sortedTypes.map(t => t[0]),
+                            datasets: [{
+                                label: 'Total LTV',
+                                data: sortedTypes.map(t => t[1].ltv),
+                                backgroundColor: '#28a745',
+                                borderColor: '#28a745',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    ticks: {
+                                        callback: function(value) {
+                                            return formatCurrency(value);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+        }
+        
+        function formatTime(hour) {
+            const h = parseInt(hour);
+            if (h === 0) return '12 AM';
+            if (h < 12) return `${h} AM`;
+            if (h === 12) return '12 PM';
+            return `${h - 12} PM`;
+        }
+        
+        function renderLeadsHeatmap(leads) {
+            const heatmapContainer = document.getElementById('leadsHeatmap');
+            if (!heatmapContainer) return;
+            
+            // Build data structure: day -> hour -> leads array
+            const heatmapData = {};
+            const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            dayOrder.forEach(day => {
+                heatmapData[day] = {};
+                for (let hour = 0; hour < 24; hour++) {
+                    heatmapData[day][hour] = [];
+                }
+            });
+            
+            // Populate the heatmap data
+            leads.forEach(lead => {
+                let dateField = null;
+                const hasConvertedData = lead['Lead source'] !== undefined;
+                
+                if (hasConvertedData) {
+                    dateField = parseDate(lead['Converted']);
+                } else {
+                    dateField = parseDate(lead['Join date']);
+                }
+                
+                if (!dateField) return;
+                
+                const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                const dayOfWeek = dayNames[dateField.getDay()];
+                const hour = dateField.getHours();
+                
+                // Only include Monday-Saturday
+                if (dayOrder.includes(dayOfWeek)) {
+                    heatmapData[dayOfWeek][hour].push(lead);
+                }
+            });
+            
+            // Find max count for color scaling
+            let maxCount = 0;
+            dayOrder.forEach(day => {
+                for (let hour = 0; hour < 24; hour++) {
+                    const count = heatmapData[day][hour].length;
+                    if (count > maxCount) maxCount = count;
+                }
+            });
+            
+            // Generate heatmap HTML
+            let html = '<table style="border-collapse: collapse; margin: 0 auto; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">';
+            
+            // Header row with hours
+            html += '<tr><th style="padding: 10px; border: 1px solid #ddd; background: #013160; color: white; font-weight: bold;">Day \\ Hour</th>';
+            for (let hour = 0; hour < 24; hour++) {
+                html += `<th style="padding: 8px; border: 1px solid #ddd; background: #013160; color: white; font-size: 11px; min-width: 35px;">${formatTime(hour)}</th>`;
+            }
+            html += '</tr>';
+            
+            // Data rows
+            dayOrder.forEach(day => {
+                html += '<tr>';
+                html += `<td style="padding: 10px; border: 1px solid #ddd; background: #f5f5f5; font-weight: bold; color: #013160;">${day}</td>`;
+                
+                for (let hour = 0; hour < 24; hour++) {
+                    const count = heatmapData[day][hour].length;
+                    const intensity = maxCount > 0 ? count / maxCount : 0;
+                    
+                    // Color scale from white to dark blue
+                    let bgColor;
+                    if (count === 0) {
+                        bgColor = '#ffffff';
+                    } else {
+                        const r = Math.floor(255 - (intensity * 242)); // 255 -> 13
+                        const g = Math.floor(255 - (intensity * 206)); // 255 -> 49
+                        const b = Math.floor(255 - (intensity * 159)); // 255 -> 96
+                        bgColor = `rgb(${r}, ${g}, ${b})`;
+                    }
+                    
+                    const textColor = intensity > 0.5 ? 'white' : '#333';
+                    const cursor = count > 0 ? 'pointer' : 'default';
+                    const dataAttr = count > 0 ? `data-day="${day}" data-hour="${hour}"` : '';
+                    
+                    html += `<td ${dataAttr} style="padding: 12px; border: 1px solid #ddd; background: ${bgColor}; color: ${textColor}; text-align: center; font-weight: ${count > 0 ? 'bold' : 'normal'}; cursor: ${cursor}; transition: all 0.2s;" 
+                            onmouseover="this.style.transform='scale(1.1)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.2)'; this.style.zIndex='10';" 
+                            onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none'; this.style.zIndex='1';"
+                            ${count > 0 ? `onclick="showHeatmapDetails('${day}', ${hour})"` : ''}>
+                        ${count > 0 ? count : ''}
+                    </td>`;
+                }
+                
+                html += '</tr>';
+            });
+            
+            html += '</table>';
+            heatmapContainer.innerHTML = html;
+            
+            // Store heatmap data globally for click handlers
+            window.leadsHeatmapData = heatmapData;
+        }
+        
+        // Render location-specific heatmap for SF leads
+        function renderLocationHeatmap(leads, containerId, locationName) {
+            const heatmapContainer = document.getElementById(containerId);
+            if (!heatmapContainer) return;
+            
+            // Build data structure: day -> hour -> leads array
+            const heatmapData = {};
+            const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            dayOrder.forEach(day => {
+                heatmapData[day] = {};
+                for (let hour = 0; hour < 24; hour++) {
+                    heatmapData[day][hour] = [];
+                }
+            });
+            
+            // Populate the heatmap data
+            leads.forEach(lead => {
+                const dateField = parseDate(lead['Converted']);
+                if (!dateField) return;
+                
+                const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                const dayOfWeek = dayNames[dateField.getDay()];
+                const hour = dateField.getHours();
+                
+                // Only include Monday-Saturday
+                if (dayOrder.includes(dayOfWeek)) {
+                    heatmapData[dayOfWeek][hour].push(lead);
+                }
+            });
+            
+            // Find max count for color scaling
+            let maxCount = 0;
+            dayOrder.forEach(day => {
+                for (let hour = 0; hour < 24; hour++) {
+                    const count = heatmapData[day][hour].length;
+                    if (count > maxCount) maxCount = count;
+                }
+            });
+            
+            // Generate heatmap HTML
+            let html = '<table style="border-collapse: collapse; margin: 0 auto; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">';
+            
+            // Header row with hours
+            html += '<tr><th style="padding: 10px; border: 1px solid #ddd; background: #013160; color: white; font-weight: bold;">Day \\ Hour</th>';
+            for (let hour = 0; hour < 24; hour++) {
+                html += `<th style="padding: 8px; border: 1px solid #ddd; background: #013160; color: white; font-size: 11px; min-width: 35px;">${formatTime(hour)}</th>`;
+            }
+            html += '</tr>';
+            
+            // Data rows
+            dayOrder.forEach(day => {
+                html += '<tr>';
+                html += `<td style="padding: 10px; border: 1px solid #ddd; background: #f5f5f5; font-weight: bold; color: #013160;">${day}</td>`;
+                
+                for (let hour = 0; hour < 24; hour++) {
+                    const count = heatmapData[day][hour].length;
+                    const intensity = maxCount > 0 ? count / maxCount : 0;
+                    
+                    // Color scale from white to orange (SocialFitness branding)
+                    let bgColor;
+                    if (count === 0) {
+                        bgColor = '#ffffff';
+                    } else {
+                        const r = Math.floor(255 - (intensity * 4)); // 255 -> 251
+                        const g = Math.floor(255 - (intensity * 74)); // 255 -> 181
+                        const b = Math.floor(255 - (intensity * 235)); // 255 -> 20
+                        bgColor = `rgb(${r}, ${g}, ${b})`;
+                    }
+                    
+                    const textColor = intensity > 0.5 ? 'white' : '#333';
+                    const cursor = count > 0 ? 'pointer' : 'default';
+                    const dataAttr = count > 0 ? `data-day="${day}" data-hour="${hour}" data-location="${locationName}"` : '';
+                    
+                    html += `<td ${dataAttr} style="padding: 12px; border: 1px solid #ddd; background: ${bgColor}; color: ${textColor}; text-align: center; font-weight: ${count > 0 ? 'bold' : 'normal'}; cursor: ${cursor}; transition: all 0.2s;" 
+                            onmouseover="this.style.transform='scale(1.1)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.2)'; this.style.zIndex='10';" 
+                            onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none'; this.style.zIndex='1';"
+                            ${count > 0 ? `onclick="showLocationHeatmapDetails('${locationName}', '${day}', ${hour})"` : ''}>
+                        ${count > 0 ? count : ''}
+                    </td>`;
+                }
+                
+                html += '</tr>';
+            });
+            
+            html += '</table>';
+            heatmapContainer.innerHTML = html;
+            
+            // Store heatmap data globally for click handlers
+            if (!window.sfHeatmapData) window.sfHeatmapData = {};
+            window.sfHeatmapData[locationName] = heatmapData;
+        }
+        
+        function showLocationHeatmapDetails(location, day, hour) {
+            if (!window.sfHeatmapData || !window.sfHeatmapData[location] || 
+                !window.sfHeatmapData[location][day] || !window.sfHeatmapData[location][day][hour]) return;
+            
+            const leadsInCell = window.sfHeatmapData[location][day][hour];
+            if (leadsInCell.length === 0) return;
+            
+            let html = `<h3>${location} - ${day} at ${formatTime(hour)}</h3>`;
+            html += `<p style="margin: 10px 0; color: #666;"><strong>${formatNumber(leadsInCell.length)}</strong> SocialFitness lead(s) generated during this time</p>`;
+            
+            // Count converted vs not converted
+            const converted = leadsInCell.filter(l => {
+                const convertedTo = (l['Converted to'] || '').trim();
+                return convertedTo && convertedTo !== 'N/A' && convertedTo !== '';
+            }).length;
+            
+            html += `<p style="margin: 10px 0;"><strong>Converted:</strong> ${converted} of ${leadsInCell.length} (${((converted/leadsInCell.length)*100).toFixed(1)}%)</p>`;
+            
+            html += '<div class="table-container" style="max-height: 400px; overflow-y: auto;">';
+            html += '<table><thead><tr>';
+            html += '<th>Name</th><th>Source</th><th>Converted To</th><th>LTV</th>';
+            html += '</tr></thead><tbody>';
+            
+            leadsInCell.forEach(lead => {
+                const convertedTo = lead['Converted to'] || 'N/A';
+                const isConverted = convertedTo !== 'N/A';
+                const ltv = parseFloat(lead['LTV']) || 0;
+                
+                html += '<tr>';
+                html += `<td>${lead['First Name']} ${lead['Last Name']}</td>`;
+                html += `<td>${lead['Lead source'] || 'Unknown'}</td>`;
+                html += `<td><span style="padding: 4px 8px; border-radius: 4px; background: ${isConverted ? '#d4edda' : '#f8d7da'}; color: ${isConverted ? '#155724' : '#721c24'};">${convertedTo}</span></td>`;
+                html += `<td>${formatCurrency(ltv)}</td>`;
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table></div>';
+            
+            // Add summary stats
+            const totalLTV = leadsInCell.reduce((sum, l) => sum + (parseFloat(l['LTV']) || 0), 0);
+            const avgLTV = converted > 0 ? totalLTV / converted : 0;
+            
+            html += `<div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">`;
+            html += `<strong>Summary:</strong> Total LTV: ${formatCurrency(totalLTV)} | Avg LTV: ${formatCurrency(avgLTV)}`;
+            html += `</div>`;
+            
+            showModal(`SocialFitness Leads: ${location} - ${day} at ${formatTime(hour)}`, html);
+        }
+        
+        // Render appointment heatmap for a specific location
+        function renderAppointmentHeatmap(appointments, containerId, locationName) {
+            const heatmapContainer = document.getElementById(containerId);
+            if (!heatmapContainer) return;
+            
+            // Build data structure: day -> hour -> appointments array
+            const heatmapData = {};
+            const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            dayOrder.forEach(day => {
+                heatmapData[day] = {};
+                for (let hour = 0; hour < 24; hour++) {
+                    heatmapData[day][hour] = [];
+                }
+            });
+            
+            // Populate the heatmap data
+            appointments.forEach(appt => {
+                const dateField = parseDate(appt['Appointment Date']);
+                if (!dateField) return;
+                
+                const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                const dayOfWeek = dayNames[dateField.getDay()];
+                const hour = dateField.getHours();
+                
+                // Only include Monday-Saturday
+                if (dayOrder.includes(dayOfWeek)) {
+                    heatmapData[dayOfWeek][hour].push(appt);
+                }
+            });
+            
+            // Find max count for color scaling
+            let maxCount = 0;
+            dayOrder.forEach(day => {
+                for (let hour = 0; hour < 24; hour++) {
+                    const count = heatmapData[day][hour].length;
+                    if (count > maxCount) maxCount = count;
+                }
+            });
+            
+            // Generate heatmap HTML
+            let html = '<table style="border-collapse: collapse; margin: 0 auto; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">';
+            
+            // Header row with hours
+            html += '<tr><th style="padding: 10px; border: 1px solid #ddd; background: #013160; color: white; font-weight: bold;">Day \\ Hour</th>';
+            for (let hour = 0; hour < 24; hour++) {
+                html += `<th style="padding: 8px; border: 1px solid #ddd; background: #013160; color: white; font-size: 11px; min-width: 35px;">${formatTime(hour)}</th>`;
+            }
+            html += '</tr>';
+            
+            // Data rows
+            dayOrder.forEach(day => {
+                html += '<tr>';
+                html += `<td style="padding: 10px; border: 1px solid #ddd; background: #f5f5f5; font-weight: bold; color: #013160;">${day}</td>`;
+                
+                for (let hour = 0; hour < 24; hour++) {
+                    const count = heatmapData[day][hour].length;
+                    const intensity = maxCount > 0 ? count / maxCount : 0;
+                    
+                    // Color scale from white to accent blue
+                    let bgColor;
+                    if (count === 0) {
+                        bgColor = '#ffffff';
+                    } else {
+                        const r = Math.floor(255 - (intensity * 142)); // 255 -> 113
+                        const g = Math.floor(255 - (intensity * 65));  // 255 -> 190
+                        const b = Math.floor(255 - (intensity * 45));  // 255 -> 210
+                        bgColor = `rgb(${r}, ${g}, ${b})`;
+                    }
+                    
+                    const textColor = intensity > 0.5 ? 'white' : '#333';
+                    const cursor = count > 0 ? 'pointer' : 'default';
+                    const dataAttr = count > 0 ? `data-day="${day}" data-hour="${hour}" data-location="${locationName}"` : '';
+                    
+                    html += `<td ${dataAttr} style="padding: 12px; border: 1px solid #ddd; background: ${bgColor}; color: ${textColor}; text-align: center; font-weight: ${count > 0 ? 'bold' : 'normal'}; cursor: ${cursor}; transition: all 0.2s;" 
+                            onmouseover="this.style.transform='scale(1.1)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.2)'; this.style.zIndex='10';" 
+                            onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none'; this.style.zIndex='1';"
+                            ${count > 0 ? `onclick="showApptHeatmapDetails('${locationName}', '${day}', ${hour})"` : ''}>
+                        ${count > 0 ? count : ''}
+                    </td>`;
+                }
+                
+                html += '</tr>';
+            });
+            
+            html += '</table>';
+            heatmapContainer.innerHTML = html;
+            
+            // Store heatmap data globally for click handlers
+            if (!window.apptHeatmapData) window.apptHeatmapData = {};
+            window.apptHeatmapData[locationName] = heatmapData;
+        }
+        
+        function showApptHeatmapDetails(location, day, hour) {
+            if (!window.apptHeatmapData || !window.apptHeatmapData[location] || 
+                !window.apptHeatmapData[location][day] || !window.apptHeatmapData[location][day][hour]) return;
+            
+            const apptsInCell = window.apptHeatmapData[location][day][hour];
+            if (apptsInCell.length === 0) return;
+            
+            const activeMemberEmails = getActiveMemberEmails();
+            
+            let html = `<h3>${location} - ${day} at ${formatTime(hour)}</h3>`;
+            html += `<p style="margin: 10px 0; color: #666;"><strong>${formatNumber(apptsInCell.length)}</strong> appointment(s) during this time</p>`;
+            
+            // Calculate stats
+            const totalRevenue = apptsInCell.reduce((sum, a) => {
+                const email = (a['Customer Email'] || '').toLowerCase().trim();
+                const revenue = parseFloat(a.Revenue || 0);
+                return sum + (activeMemberEmails.has(email) ? 0 : revenue);
+            }, 0);
+            const totalPayout = apptsInCell.reduce((sum, a) => sum + parseFloat(a['Total Payout'] || 0), 0);
+            const profit = totalRevenue - totalPayout;
+            
+            html += `<p style="margin: 10px 0;">
+                <strong>Revenue:</strong> ${formatCurrency(totalRevenue)} | 
+                <strong>Payout:</strong> ${formatCurrency(totalPayout)} | 
+                <strong>Profit:</strong> ${formatCurrency(profit)}
+            </p>`;
+            
+            html += '<div class="table-container" style="max-height: 400px; overflow-y: auto;">';
+            html += '<table><thead><tr>';
+            html += '<th>Time</th><th>Customer</th><th>Service</th><th>VSP</th><th>Revenue</th>';
+            html += '</tr></thead><tbody>';
+            
+            apptsInCell.forEach(appt => {
+                const dateField = parseDate(appt['Appointment Date']);
+                const time = dateField ? dateField.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : 'N/A';
+                const email = (appt['Customer Email'] || '').toLowerCase().trim();
+                const revenue = parseFloat(appt.Revenue || 0);
+                const displayRevenue = activeMemberEmails.has(email) ? 0 : revenue;
+                
+                html += '<tr>';
+                html += `<td>${time}</td>`;
+                html += `<td>${appt['Customer First Name']} ${appt['Customer Last Name']}</td>`;
+                html += `<td>${appt.Appointment}</td>`;
+                html += `<td>${appt['Practitioner First Name']} ${appt['Practitioner Last Name']}</td>`;
+                html += `<td>${formatCurrency(displayRevenue)}</td>`;
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table></div>';
+            
+            showModal(`Appointments: ${location} - ${day} at ${formatTime(hour)}`, html);
+        }
+        
+        function showHeatmapDetails(day, hour) {
+            if (!window.leadsHeatmapData || !window.leadsHeatmapData[day] || !window.leadsHeatmapData[day][hour]) return;
+            
+            const leadsInCell = window.leadsHeatmapData[day][hour];
+            if (leadsInCell.length === 0) return;
+            
+            const hasConvertedData = leadsInCell[0]['Lead source'] !== undefined;
+            
+            let html = `<h3>${day} at ${formatTime(hour)}</h3>`;
+            html += `<p style="margin: 10px 0; color: #666;"><strong>${formatNumber(leadsInCell.length)}</strong> lead(s) generated during this time</p>`;
+            
+            // Count converted vs not converted
+            let converted = 0;
+            leadsInCell.forEach(lead => {
+                if (hasConvertedData) {
+                    const convertedTo = (lead['Converted to'] || '').trim();
+                    if (convertedTo && convertedTo !== 'N/A' && convertedTo !== '') {
+                        converted++;
+                    }
+                } else {
+                    const type = (lead['Type'] || '').toLowerCase();
+                    if (type === 'customer') converted++;
+                }
+            });
+            
+            html += `<p style="margin: 10px 0;"><strong>Converted:</strong> ${converted} of ${leadsInCell.length} (${((converted/leadsInCell.length)*100).toFixed(1)}%)</p>`;
+            
+            html += '<div class="table-container" style="max-height: 400px; overflow-y: auto;">';
+            html += '<table><thead><tr>';
+            html += '<th>Name</th><th>Date/Time</th><th>Source</th>';
+            if (hasConvertedData) {
+                html += '<th>Converted To</th><th>LTV</th>';
+            } else {
+                html += '<th>Type</th>';
+            }
+            html += '</tr></thead><tbody>';
+            
+            leadsInCell.forEach(lead => {
+                html += '<tr>';
+                html += `<td>${lead['First Name'] || ''} ${lead['Last Name'] || ''}</td>`;
+                
+                let dateField = null;
+                if (hasConvertedData) {
+                    dateField = parseDate(lead['Converted']);
+                } else {
+                    dateField = parseDate(lead['Join date']);
+                }
+                
+                const formattedDate = dateField ? `${String(dateField.getMonth() + 1).padStart(2, '0')}/${String(dateField.getDate()).padStart(2, '0')}/${dateField.getFullYear()}` : 'N/A';
+                html += `<td>${formattedDate}</td>`;
+                
+                if (hasConvertedData) {
+                    html += `<td>${lead['Lead source'] || 'Unknown'}</td>`;
+                    const convertedTo = lead['Converted to'] || 'N/A';
+                    const isConverted = convertedTo !== 'N/A';
+                    html += `<td><span style="padding: 4px 8px; border-radius: 4px; background: ${isConverted ? '#d4edda' : '#f8d7da'}; color: ${isConverted ? '#155724' : '#721c24'};">${convertedTo}</span></td>`;
+                    html += `<td>${formatCurrency(parseFloat(lead['LTV']) || 0)}</td>`;
+                } else {
+                    html += `<td>${lead['Aggregator'] || 'Unknown'}</td>`;
+                    html += `<td>${lead['Type'] || 'N/A'}</td>`;
+                }
+                
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table></div>';
+            showModal(`Lead Details: ${day} at ${formatTime(hour)}`, html);
+        }
+        
+        // MEMBERSHIP CANCELLATIONS - Appended to Memberships Tab
+        function appendCancellationsToMemberships() {
             console.log('renderCancellationsTab called');
             console.log('membershipCancellationsData length:', membershipCancellationsData ? membershipCancellationsData.length : 0);
             console.log('filteredCancellations length:', filteredCancellations ? filteredCancellations.length : 0);
             
             if (!membershipCancellationsData || membershipCancellationsData.length === 0) {
-                console.log('No cancellation data, showing empty state');
-                document.getElementById('cancellations').innerHTML = `
-                    <div class="alert info">
-                        <h4>🚫 Cancellation Analytics</h4>
-                        <p>Upload the <strong>Membership Cancellations CSV</strong> file to unlock comprehensive cancellation analytics including churn reasons, trends, and retention insights.</p>
-                    </div>
-                `;
+                console.log('No cancellation data, skipping cancellations section');
                 return;
             }
             
@@ -7977,6 +9627,14 @@
             console.log('- Most common day:', mostCommonDay);
             
             let html = `
+                <!-- Cancellations Section Divider -->
+                <div style="margin: 60px 0 40px 0; border-top: 3px solid var(--accent); padding-top: 40px;">
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <h1 style="font-size: 2.2em; color: var(--primary); margin-bottom: 10px;">📊 Membership Cancellations</h1>
+                        <p style="font-size: 1.1em; color: #666;">Comprehensive cancellation analytics, churn reasons, and retention insights</p>
+                    </div>
+                </div>
+                
                 <div class="section">
                     <h2>Membership Cancellations Overview</h2>
                     
@@ -8232,7 +9890,10 @@
                 </div>
             `;
             
-            document.getElementById('cancellations').innerHTML = html;
+            // Append cancellations content to memberships tab WITHOUT destroying existing DOM
+            // IMPORTANT: Using insertAdjacentHTML instead of innerHTML += to preserve chart canvas elements
+            const membershipsDiv = document.getElementById('memberships');
+            membershipsDiv.insertAdjacentHTML('beforeend', html);
             
             // Render Monthly Cancellations Chart
             const monthlyCanvas = document.getElementById('cancellationsMonthlyChart');
@@ -10144,19 +11805,22 @@
             const container = document.getElementById('heatmapContainer');
             if (!container) return;
             
-            const heatmapData = {};
             const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
             
-            // Initialize - Monday to Saturday only (no Sunday)
-            days.forEach(day => {
-                heatmapData[day] = {};
-                for (let hour = 6; hour <= 21; hour++) {
-                    heatmapData[day][hour] = 0;
-                }
-            });
-            
-            // Populate
+            // Group appointments by location
+            const locationData = {};
             filteredAppointments.forEach(row => {
+                const location = row.Location || 'Unknown';
+                if (!locationData[location]) {
+                    locationData[location] = {};
+                    days.forEach(day => {
+                        locationData[location][day] = {};
+                        for (let hour = 6; hour <= 21; hour++) {
+                            locationData[location][day][hour] = 0;
+                        }
+                    });
+                }
+                
                 const date = parseDate(row['Appointment Date']);
                 const dayIndex = date.getDay();
                 
@@ -10167,47 +11831,62 @@
                 const dayName = days[dayIndex - 1];
                 const hour = date.getHours();
                 
-                if (heatmapData[dayName] && heatmapData[dayName][hour] !== undefined) {
-                    heatmapData[dayName][hour]++;
+                if (locationData[location][dayName] && locationData[location][dayName][hour] !== undefined) {
+                    locationData[location][dayName][hour]++;
                 }
             });
             
-            // Find max
-            let maxValue = 0;
-            Object.values(heatmapData).forEach(dayData => {
-                Object.values(dayData).forEach(count => {
-                    if (count > maxValue) maxValue = count;
+            // Sort locations alphabetically
+            const locations = Object.keys(locationData).sort();
+            
+            // Render a heatmap for each location
+            let html = '';
+            locations.forEach((location, index) => {
+                const heatmapData = locationData[location];
+                
+                // Find max value for this location
+                let maxValue = 0;
+                Object.values(heatmapData).forEach(dayData => {
+                    Object.values(dayData).forEach(count => {
+                        if (count > maxValue) maxValue = count;
+                    });
                 });
-            });
-            
-            // Render
-            let html = '<table class="heatmap-table"><thead><tr><th>Day</th>';
-            for (let hour = 6; hour <= 21; hour++) {
-                const displayHour = hour > 12 ? `${hour - 12}p` : (hour === 12 ? '12p' : `${hour}a`);
-                html += `<th>${displayHour}</th>`;
-            }
-            html += '</tr></thead><tbody>';
-            
-            days.forEach(day => {
-                html += `<tr><td onclick="showDayOfWeekDetails('${day}')" style="cursor: pointer;">${day}</td>`;
+                
+                // Add location header
+                html += `<div style="margin-top: ${index > 0 ? '30px' : '0'}; padding: 20px; background: ${index % 2 === 0 ? '#f8f9fa' : 'white'}; border-radius: 10px;">`;
+                html += `<h3 style="margin-bottom: 15px; color: var(--primary);">${location}</h3>`;
+                
+                // Render table
+                html += '<table class="heatmap-table"><thead><tr><th>Day</th>';
                 for (let hour = 6; hour <= 21; hour++) {
-                    const count = heatmapData[day][hour];
-                    const intensity = maxValue > 0 ? Math.ceil((count / maxValue) * 7) : 0;
-                    html += `<td class="heatmap-cell heatmap-${intensity}" 
-                        title="${day} ${hour}:00 - ${count} appointments" 
-                        onclick="showHourDetails('${day}', ${hour})" 
-                        style="cursor: pointer;">${count}</td>`;
+                    const displayHour = hour > 12 ? `${hour - 12}p` : (hour === 12 ? '12p' : `${hour}a`);
+                    html += `<th>${displayHour}</th>`;
                 }
-                html += '</tr>';
+                html += '</tr></thead><tbody>';
+                
+                days.forEach(day => {
+                    html += `<tr><td onclick="showDayOfWeekDetails('${day}', '${location}')" style="cursor: pointer; font-weight: 500;">${day}</td>`;
+                    for (let hour = 6; hour <= 21; hour++) {
+                        const count = heatmapData[day][hour];
+                        const intensity = maxValue > 0 ? Math.ceil((count / maxValue) * 7) : 0;
+                        html += `<td class="heatmap-cell heatmap-${intensity}" 
+                            title="${location} - ${day} ${hour}:00 - ${count} appointments" 
+                            onclick="showHourDetails('${day}', ${hour}, '${location}')" 
+                            style="cursor: pointer;">${count}</td>`;
+                    }
+                    html += '</tr>';
+                });
+                
+                html += '</tbody></table>';
+                html += '</div>';
             });
             
-            html += '</tbody></table>';
             html += '<p style="margin-top: 15px; color: #666; font-size: 14px;"><strong>Tip:</strong> Click on a <strong>day name</strong> to see hourly breakdown. Click on an <strong>hour cell</strong> to see specific appointments.</p>';
             
             container.innerHTML = html;
         }
         
-        function renderLTVDistributionChart(tier1, tier2, tier3, tier4, tier5, tier6, tier7) {
+        function renderLTVDistributionChart(tier1, tier2, tier3, tier4, tier5, tier6) {
             const canvas = document.getElementById('ltvDistributionChart');
             if (!canvas) return;
             
@@ -10217,11 +11896,11 @@
             allCharts.ltvDistribution = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: ['$1-$100', '$100-$250', '$250-$500', '$500-$1K', '$1K-$2K', '$2K-$3K', '$3K+'],
+                    labels: ['$1-$100', '$100-$250', '$250-$500', '$500-$1K', '$1K-$2K', '$2K+'],
                     datasets: [{
                         label: 'Customers',
-                        data: [tier1, tier2, tier3, tier4, tier5, tier6, tier7],
-                        backgroundColor: ['#dc3545', '#ffc107', '#71BED2', '#013160', '#28a745', '#9c27b0', '#FBB514']
+                        data: [tier1, tier2, tier3, tier4, tier5, tier6],
+                        backgroundColor: ['#dc3545', '#ffc107', '#71BED2', '#013160', '#28a745', '#9c27b0']
                     }]
                 },
                 options: {
@@ -10230,8 +11909,8 @@
                     onClick: (event, elements) => {
                         if (elements.length > 0) {
                             const index = elements[0].index;
-                            const labels = ['$1-$100', '$100-$250', '$250-$500', '$500-$1000', '$1000-$2000', '$2000-$3000', '$3000+'];
-                            const values = [tier1, tier2, tier3, tier4, tier5, tier6, tier7];
+                            const labels = ['$1-$100', '$100-$250', '$250-$500', '$500-$1000', '$1000-$2000', '$2000+'];
+                            const values = [tier1, tier2, tier3, tier4, tier5, tier6];
                             showLTVDetails(labels[index], values[index]);
                         }
                     },
@@ -10240,7 +11919,7 @@
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
-                                    const total = tier1 + tier2 + tier3 + tier4 + tier5 + tier6 + tier7;
+                                    const total = tier1 + tier2 + tier3 + tier4 + tier5 + tier6;
                                     const percentage = total > 0 ? ((context.parsed.y / total) * 100).toFixed(1) : 0;
                                     return `${formatNumber(context.parsed.y)} customers (${percentage}%)`;
                                 }
@@ -11151,6 +12830,349 @@
                 });
             }
         }
+        
+        // Render leads timeline charts with location breakdown and click handlers
+        function renderLeadsTimelineCharts() {
+            if (!filteredLeadsConverted || filteredLeadsConverted.length === 0) return;
+            
+            // Group leads by date
+            const leadsByDate = {};
+            const leadsByLocationAndDate = {};
+            const locations = new Set();
+            
+            filteredLeadsConverted.forEach(lead => {
+                const convertedDate = parseDate(lead['Converted']);
+                if (!convertedDate) return;
+                
+                const dateKey = convertedDate.toISOString().split('T')[0];
+                const location = lead['Home location'] || 'Unknown';
+                
+                locations.add(location);
+                
+                // Total leads by date
+                if (!leadsByDate[dateKey]) {
+                    leadsByDate[dateKey] = { count: 0, leads: [] };
+                }
+                leadsByDate[dateKey].count++;
+                leadsByDate[dateKey].leads.push(lead);
+                
+                // Leads by location and date
+                if (!leadsByLocationAndDate[location]) {
+                    leadsByLocationAndDate[location] = {};
+                }
+                if (!leadsByLocationAndDate[location][dateKey]) {
+                    leadsByLocationAndDate[location][dateKey] = { count: 0, leads: [] };
+                }
+                leadsByLocationAndDate[location][dateKey].count++;
+                leadsByLocationAndDate[location][dateKey].leads.push(lead);
+            });
+            
+            const sortedDates = Object.keys(leadsByDate).sort();
+            const locationsArray = Array.from(locations).sort();
+            
+            // Store data globally for click handlers
+            window.leadsTimelineData = { leadsByDate, leadsByLocationAndDate, sortedDates, locations: locationsArray };
+            
+            // Chart 1: All leads over time
+            const allCanvas = document.getElementById('leadsTimelineAllChart');
+            if (allCanvas) {
+                destroyChart('leadsTimelineAll');
+                const ctx = allCanvas.getContext('2d');
+                allCharts.leadsTimelineAll = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: sortedDates.map(d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+                        datasets: [{
+                            label: 'Daily Leads',
+                            data: sortedDates.map(d => leadsByDate[d].count),
+                            backgroundColor: '#013160',
+                            borderColor: '#013160',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        onClick: (event, elements) => {
+                            if (elements.length > 0) {
+                                const index = elements[0].index;
+                                const date = sortedDates[index];
+                                showLeadsTimelineDetails(date, leadsByDate[date].leads, 'All Locations');
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `${formatNumber(context.parsed.y)} leads`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { stepSize: 1 }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Chart 2: Stacked by location
+            const stackedCanvas = document.getElementById('leadsTimelineLocationStackedChart');
+            if (stackedCanvas) {
+                destroyChart('leadsTimelineLocationStacked');
+                const ctx = stackedCanvas.getContext('2d');
+                
+                const colors = ['#013160', '#71BED2', '#FBB514', '#28a745', '#dc3545', '#ffc107', '#9c27b0', '#ff5722'];
+                
+                const datasets = locationsArray.map((location, i) => ({
+                    label: location,
+                    data: sortedDates.map(d => leadsByLocationAndDate[location][d]?.count || 0),
+                    backgroundColor: colors[i % colors.length],
+                    borderColor: colors[i % colors.length],
+                    borderWidth: 1
+                }));
+                
+                allCharts.leadsTimelineLocationStacked = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: sortedDates.map(d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        onClick: (event, elements) => {
+                            if (elements.length > 0) {
+                                const index = elements[0].index;
+                                const datasetIndex = elements[0].datasetIndex;
+                                const date = sortedDates[index];
+                                const location = locationsArray[datasetIndex];
+                                const leads = leadsByLocationAndDate[location][date]?.leads || [];
+                                showLeadsTimelineDetails(date, leads, location);
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top'
+                            }
+                        },
+                        scales: {
+                            x: {
+                                stacked: true
+                            },
+                            y: {
+                                stacked: true,
+                                beginAtZero: true,
+                                ticks: { stepSize: 1 }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Chart 3: Individual charts for each location - REMOVED
+            /*
+            let locationChartsHTML = '';
+            locationsArray.forEach((location, i) => {
+                locationChartsHTML += `
+                    <div class="chart-container full-width">
+                        <div class="interactive-badge" title="Click on any bar to see lead details"></div>
+                        <h3>Daily Leads: ${location}</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="leadsTimelineLocation${i}Chart"></canvas>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('leadsTimelineByLocation').innerHTML = locationChartsHTML;
+            
+            // Render individual location charts
+            locationsArray.forEach((location, i) => {
+                const canvas = document.getElementById(`leadsTimelineLocation${i}Chart`);
+                if (canvas) {
+                    const chartKey = `leadsTimelineLocation${i}`;
+                    destroyChart(chartKey);
+                    const ctx = canvas.getContext('2d');
+                    
+                    const colors = ['#013160', '#71BED2', '#FBB514', '#28a745', '#dc3545', '#ffc107', '#9c27b0', '#ff5722'];
+                    
+                    allCharts[chartKey] = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: sortedDates.map(d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+                            datasets: [{
+                                label: 'Daily Leads',
+                                data: sortedDates.map(d => leadsByLocationAndDate[location][d]?.count || 0),
+                                backgroundColor: colors[i % colors.length],
+                                borderColor: colors[i % colors.length],
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            onClick: (event, elements) => {
+                                if (elements.length > 0) {
+                                    const index = elements[0].index;
+                                    const date = sortedDates[index];
+                                    const leads = leadsByLocationAndDate[location][date]?.leads || [];
+                                    showLeadsTimelineDetails(date, leads, location);
+                                }
+                            },
+                            plugins: {
+                                legend: { display: false }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    ticks: { stepSize: 1 }
+                                }
+                            }
+                        }
+                    });
+                }
+            });
+            */
+        }
+        
+        // Show lead details when clicking on timeline chart
+        function showLeadsTimelineDetails(date, leads, location) {
+            if (!leads || leads.length === 0) return;
+            
+            const dateObj = new Date(date);
+            const formattedDate = `${String(dateObj.getMonth() + 1).padStart(2, '0')}/${String(dateObj.getDate()).padStart(2, '0')}/${dateObj.getFullYear()}`;
+            
+            let html = `<h3>${location} - ${formattedDate}</h3>`;
+            html += `<p style="margin: 10px 0; color: #666;"><strong>${formatNumber(leads.length)}</strong> lead(s) joined on this date</p>`;
+            
+            // Count converted vs not converted
+            const converted = leads.filter(l => {
+                const convertedTo = (l['Converted to'] || '').trim();
+                return convertedTo && convertedTo !== 'N/A' && convertedTo !== '';
+            }).length;
+            
+            html += `<p style="margin: 10px 0;"><strong>Converted:</strong> ${converted} of ${leads.length} (${((converted/leads.length)*100).toFixed(1)}%)</p>`;
+            
+            html += '<div class="table-container" style="max-height: 400px; overflow-y: auto;">';
+            html += '<table><thead><tr>';
+            html += '<th>Name</th><th>Source</th><th>Converted To</th><th>LTV</th>';
+            html += '</tr></thead><tbody>';
+            
+            leads.forEach(lead => {
+                const convertedTo = lead['Converted to'] || 'N/A';
+                const isConverted = convertedTo !== 'N/A';
+                const ltv = parseFloat(lead['LTV']) || 0;
+                
+                html += '<tr>';
+                html += `<td>${lead['First Name']} ${lead['Last Name']}</td>`;
+                html += `<td>${lead['Lead source'] || 'Unknown'}</td>`;
+                html += `<td><span style="padding: 4px 8px; border-radius: 4px; background: ${isConverted ? '#d4edda' : '#f8d7da'}; color: ${isConverted ? '#155724' : '#721c24'};">${convertedTo}</span></td>`;
+                html += `<td>${formatCurrency(ltv)}</td>`;
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table></div>';
+            
+            // Add summary stats
+            const totalLTV = leads.reduce((sum, l) => sum + (parseFloat(l['LTV']) || 0), 0);
+            const avgLTV = converted > 0 ? totalLTV / converted : 0;
+            
+            html += `<div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">`;
+            html += `<strong>Summary:</strong> Total LTV: ${formatCurrency(totalLTV)} | Avg LTV: ${formatCurrency(avgLTV)}`;
+            html += `</div>`;
+            
+            showModal(`Leads Details: ${location} - ${formattedDate}`, html);
+        }
+        
+        // Show lead details when clicking on source chart
+        function showLeadsSourceDetails(source, leads) {
+            if (!leads || leads.length === 0) return;
+            
+            let html = `<h3>Leads from: ${source}</h3>`;
+            html += `<p style="margin: 10px 0; color: #666;"><strong>${formatNumber(leads.length)}</strong> lead(s) from this source</p>`;
+            
+            // Count converted vs not converted
+            const converted = leads.filter(l => {
+                const convertedTo = (l['Converted to'] || (l['Type'] === 'Customer' ? 'Yes' : '')).trim();
+                return convertedTo && convertedTo !== 'N/A' && convertedTo !== '';
+            }).length;
+            
+            html += `<p style="margin: 10px 0;"><strong>Converted:</strong> ${converted} of ${leads.length} (${((converted/leads.length)*100).toFixed(1)}%)</p>`;
+            
+            // Group by location
+            const byLocation = {};
+            leads.forEach(l => {
+                const location = l['Home location'] || 'Unknown';
+                if (!byLocation[location]) byLocation[location] = 0;
+                byLocation[location]++;
+            });
+            
+            // Sort leads by date descending
+            const sortedLeads = [...leads].sort((a, b) => {
+                const dateA = parseDate(a['Converted'] || a['Join date']);
+                const dateB = parseDate(b['Converted'] || b['Join date']);
+                if (!dateA && !dateB) return 0;
+                if (!dateA) return 1;
+                if (!dateB) return -1;
+                return dateB - dateA; // Descending
+            });
+            
+            html += '<div class="table-container" style="max-height: 400px; overflow-y: auto;">';
+            html += '<table><thead><tr>';
+            html += '<th>Name</th><th>Date</th><th>Converted To</th><th>LTV</th>';
+            html += '</tr></thead><tbody>';
+            
+            sortedLeads.forEach(lead => {
+                const convertedTo = lead['Converted to'] || (lead['Type'] === 'Customer' ? 'Customer' : 'Lead');
+                const isConverted = lead['Type'] === 'Customer' || (convertedTo !== 'N/A' && convertedTo !== 'Lead');
+                const ltv = parseFloat(lead['LTV']) || 0;
+                const date = parseDate(lead['Converted'] || lead['Join date']);
+                const dateStr = date ? `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}/${date.getFullYear()}` : 'N/A';
+                
+                html += '<tr>';
+                html += `<td>${lead['First Name'] || lead['First name'] || ''} ${lead['Last Name'] || lead['Last name'] || ''}</td>`;
+                html += `<td>${dateStr}</td>`;
+                html += `<td><span style="padding: 4px 8px; border-radius: 4px; background: ${isConverted ? '#d4edda' : '#f8d7da'}; color: ${isConverted ? '#155724' : '#721c24'};">${convertedTo}</span></td>`;
+                html += `<td>${formatCurrency(ltv)}</td>`;
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table></div>';
+            
+            // Add summary stats with location breakdown
+            const totalLTV = leads.reduce((sum, l) => sum + (parseFloat(l['LTV']) || 0), 0);
+            const avgLTV = converted > 0 ? totalLTV / converted : 0;
+            
+            // Sort locations by count descending
+            const sortedLocations = Object.entries(byLocation).sort((a, b) => b[1] - a[1]);
+            
+            html += `<div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">`;
+            html += `<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 15px;">`;
+            html += `<div><strong>Total LTV:</strong><br>${formatCurrency(totalLTV)}</div>`;
+            html += `<div><strong>Avg LTV:</strong><br>${formatCurrency(avgLTV)}</div>`;
+            html += `<div><strong>Locations:</strong><br>${Object.keys(byLocation).length}</div>`;
+            html += `</div>`;
+            
+            // Add location breakdown
+            html += `<div style="border-top: 1px solid #ddd; padding-top: 10px; margin-top: 10px;">`;
+            html += `<strong>Location Breakdown:</strong><br>`;
+            html += `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin-top: 8px;">`;
+            sortedLocations.forEach(([location, count]) => {
+                const percentage = ((count / leads.length) * 100).toFixed(1);
+                html += `<div style="padding: 6px 10px; background: white; border-radius: 4px; border: 1px solid #ddd;">`;
+                html += `<strong>${location}:</strong> ${count} (${percentage}%)`;
+                html += `</div>`;
+            });
+            html += `</div></div>`;
+            html += `</div>`;
+            
+            showModal(`Lead Source Details: ${source}`, html);
+        }
     
         // Modal control functions
         function openSettingsModal() {
@@ -11193,7 +13215,7 @@
     <!-- Footer -->
     <div class="dashboard-footer">
         <div class="footer-content">
-            <span class="footer-version">v2.20251104.08</span>
+            <span class="footer-version">v2.20251105.5</span>
             <span class="footer-separator">|</span>
             <span class="footer-credits">Made by bonJoeV with ❤️</span>
         </div>
