@@ -1538,9 +1538,27 @@
 
         .segmentation-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            grid-template-columns: repeat(5, 1fr);
             gap: 20px;
             margin-bottom: 20px;
+        }
+        
+        @media (max-width: 1400px) {
+            .segmentation-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        
+        @media (max-width: 900px) {
+            .segmentation-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (max-width: 600px) {
+            .segmentation-grid {
+                grid-template-columns: 1fr;
+            }
         }
 
         .segment-card {
@@ -1846,7 +1864,7 @@
                     <button class="quick-filter-btn" onclick="setQuickFilter('90days')">Last 90 Days</button>
                     <button class="quick-filter-btn" onclick="setQuickFilter('thisMonth')">This Month</button>
                     <button class="quick-filter-btn" onclick="setQuickFilter('lastMonth')">Last Month</button>
-                    <button class="quick-filter-btn" onclick="setQuickFilter('reset')">Reset All</button>
+                    <button class="quick-filter-btn" onclick="setQuickFilter('reset')" style="background: #dc3545; color: white; font-weight: bold; border: 2px solid #fff;">🔄 RESET ALL FILTERS</button>
                 </div>
                 <div style="text-align: center;">
                     <button class="refresh-filter-btn" onclick="refreshData()">🔄 Refresh Data</button>
@@ -1861,7 +1879,7 @@
             <div class="tab" onclick="switchTab('practitioners')">VSP</div>
             <div class="tab" onclick="switchTab('customers')">Customers</div>
             <div class="tab" onclick="switchTab('leads')">Leads</div>
-            <div class="tab" onclick="switchTab('retention')">Retention</div>
+            <div class="tab" onclick="switchTab('studios')">Studios</div>
             <div class="tab" onclick="switchTab('journey')">Journey</div>
             <div class="tab" onclick="switchTab('memberships')">Memberships</div>
             <div class="tab" onclick="switchTab('schedule')">Schedule</div>
@@ -1873,7 +1891,7 @@
         <div id="memberships" class="tab-content"></div>
         <div id="leads" class="tab-content"></div>
         <div id="journey" class="tab-content"></div>
-        <div id="retention" class="tab-content"></div>
+        <div id="studios" class="tab-content"></div>
         <div id="schedule" class="tab-content"></div>
         <div id="customers" class="tab-content"></div>
         <div id="practitioners" class="tab-content"></div>
@@ -2054,6 +2072,27 @@
                         </p>
                         <input type="number" id="baseRateInput" value="13" min="0" step="0.50" 
                             style="width: 100%; padding: 12px; border: 2px solid var(--accent); border-radius: 8px; font-size: 16px; font-weight: 600;">
+                    </div>
+                    
+                    <!-- LTV Distribution Tiers -->
+                    <div style="background: var(--gray-light); padding: 20px; border-radius: 10px; border-left: 4px solid var(--primary);">
+                        <label style="display: block; font-weight: 600; color: var(--primary); margin-bottom: 8px;">
+                            💎 LTV Distribution Tiers
+                        </label>
+                        <p style="font-size: 13px; color: #666; margin-bottom: 10px;">
+                            Customer value segmentation (VIP = highest tier)
+                        </p>
+                        <select id="ltvTiersSelect" style="width: 100%; padding: 12px; border: 2px solid var(--accent); border-radius: 8px; font-size: 14px; font-weight: 600;">
+                            <option value="default">Tier 1: Up to $1K+ VIP (Default)</option>
+                            <option value="tier2">Tier 2: Up to $2K+ VIP</option>
+                            <option value="tier3">Tier 3: Up to $3K+ VIP</option>
+                            <option value="tier4">Tier 4: Up to $4K+ VIP</option>
+                            <option value="tier5">Tier 5: Up to $5K+ VIP</option>
+                        </select>
+                        <div style="font-size: 11px; color: #666; margin-top: 5px;">
+                            <strong>Selected tier ranges:</strong><br>
+                            <span id="ltvTierPreview">$1–$50, $50–$150, $150–$300, $300–$500, $500–$1K, $1K+</span>
+                        </div>
                     </div>
                 </div>
                 
@@ -2273,19 +2312,62 @@
         
         // Show LTV distribution details
         function showLTVDetails(range, customers) {
-            const customersInRange = leadsData.filter(customer => {
-                const ltv = parseFloat(customer.LTV) || 0;
+
+
+
+            // Get current tier configuration
+            const currentTierConfig = LTV_TIERS[CONFIG.ltvTiers];
+            const ranges = currentTierConfig.ranges;
+
+            // Helper function to parse K values
+            const parseValue = (str) => {
+                str = str.replace('$', '').trim();
+                if (str.includes('K')) {
+                    return parseFloat(str.replace('K', '')) * 1000;
+                }
+                return parseFloat(str);
+            };
+
+            // Filter customers based on the range label
+            const customersInRange = filteredLeads.filter(customer => {
+                const ltv = parseLTV(customer.LTV);
                 
-                if (range === '$1-$100') return ltv > 0 && ltv <= 100;
-                if (range === '$100-$250') return ltv > 100 && ltv <= 250;
-                if (range === '$250-$500') return ltv > 250 && ltv <= 500;
-                if (range === '$500-$1000') return ltv > 500 && ltv <= 1000;
-                if (range === '$1000-$2000') return ltv > 1000 && ltv <= 2000;
-                if (range === '$2000-$3000') return ltv > 2000 && ltv <= 3000;
-                if (range === '$3000+') return ltv > 3000;
+                // Skip zero LTV
+                if (ltv <= 0) return false;
+                
+                // Check if this is the VIP tier (has +)
+                if (range.includes('+')) {
+                    const result = ltv > ranges[4];
+                    if (result && customer['E-mail'] && customer['E-mail'].toLowerCase().includes('cdahl')) {
+
+                    }
+                    return result;
+                }
+                
+                // Parse the range from the label (e.g., "$1-$100" or "$1K-$2K")
+                const parts = range.split('-');
+                if (parts.length === 2) {
+                    const lower = parseValue(parts[0]);
+                    const upper = parseValue(parts[1]);
+                    
+                    // First tier starts at $1 (i.e., > 0)
+                    if (lower === 1) {
+                        return ltv > 0 && ltv <= upper;
+                    } else {
+                        return ltv > lower && ltv <= upper;
+                    }
+                }
                 
                 return false;
             });
+
+            // Check if Chris Dahl is in the results
+            const chrisInResults = customersInRange.find(c => c['E-mail'] && c['E-mail'].toLowerCase().includes('cdahl'));
+            if (chrisInResults) {
+
+            } else {
+
+            }
             
             // Get detailed info for each customer
             const customersWithDetails = customersInRange.map(c => {
@@ -2339,13 +2421,13 @@
                 return b.latestDate - a.latestDate;
             });
             
-            const totalLTV = customersWithDetails.reduce((sum, c) => sum + (parseFloat(c.LTV) || 0), 0);
+            const totalLTV = customersWithDetails.reduce((sum, c) => sum + parseLTV(c.LTV), 0);
             const avgLTV = customersWithDetails.length > 0 ? totalLTV / customersWithDetails.length : 0;
             
             let tableRows = customersWithDetails.slice(0, 50).map(c => `
                 <tr>
                     <td class="name-cell" data-tooltip="Joined: ${c.joinDateStr}">${c['First name'] || ''} ${c['Last name'] || ''}</td>
-                    <td>${formatCurrency(parseFloat(c.LTV) || 0)}</td>
+                    <td>${formatCurrency(parseLTV(c.LTV))}</td>
                     <td>${c.latestDateStr}</td>
                     <td>${c.practitionerList}</td>
                 </tr>
@@ -2358,7 +2440,7 @@
             // Prepare CSV data
             const csvData = customersWithDetails.map(c => ({
                 'Name': `${c['First name'] || ''} ${c['Last name'] || ''}`,
-                'LTV': parseFloat(c.LTV) || 0,
+                'LTV': parseLTV(c.LTV),
                 'Latest Visit': c.latestDateStr,
                 'Join Date': c.joinDateStr,
                 'Practitioners': c.practitionerList
@@ -2977,11 +3059,21 @@
             franchiseFeePercent: 7.0,
             brandFundPercent: 1.5,
             ccFeesPercent: 2.9,
+            ltvTiers: 'default', // default, tier2, tier3, tier4
             salariedEmployees: [
                 { name: '', annualSalary: 0, startDate: '' },
                 { name: '', annualSalary: 0, startDate: '' },
                 { name: '', annualSalary: 0, startDate: '' }
             ]
+        };
+        
+        // LTV Tier definitions
+        const LTV_TIERS = {
+            default: { ranges: [50, 150, 300, 500, 1000, Infinity], vipMin: 1000 },
+            tier2: { ranges: [100, 300, 500, 1000, 2000, Infinity], vipMin: 2000 },
+            tier3: { ranges: [150, 400, 800, 1500, 3000, Infinity], vipMin: 3000 },
+            tier4: { ranges: [200, 600, 1000, 2000, 4000, Infinity], vipMin: 4000 },
+            tier5: { ranges: [300, 800, 1500, 3000, 5000, Infinity], vipMin: 5000 }
         };
         
         // Franchise Settings Management
@@ -2995,6 +3087,7 @@
                 monthlyIntroApptGoal: parseInt(document.getElementById('monthlyIntroApptGoal').value),
                 monthlyRevenueGoal: parseFloat(document.getElementById('monthlyRevenueGoal').value),
                 baseHourlyRate: parseFloat(document.getElementById('baseRateInput').value),
+                ltvTiers: document.getElementById('ltvTiersSelect').value,
                 salariedEmployees: [
                     {
                         name: document.getElementById('salaryEmp1Name').value.trim(),
@@ -3014,9 +3107,9 @@
                 ]
             };
             
-            // Validate (skip timezone and salariedEmployees as they need special handling)
+            // Validate (skip timezone, ltvTiers, and salariedEmployees as they need special handling)
             for (const [key, value] of Object.entries(settings)) {
-                if (key === 'timezone' || key === 'salariedEmployees') continue;
+                if (key === 'timezone' || key === 'ltvTiers' || key === 'salariedEmployees') continue;
                 if (isNaN(value) || value < 0) {
                     showFranchiseSettingsStatus('❌ Please enter valid numbers (0 or greater) for all fields', 'error');
                     return;
@@ -3045,6 +3138,7 @@
             CONFIG.goals.monthlyIntroAppointments = settings.monthlyIntroApptGoal;
             CONFIG.goals.monthlyRevenue = settings.monthlyRevenueGoal;
             CONFIG.baseHourlyRate = settings.baseHourlyRate;
+            CONFIG.ltvTiers = settings.ltvTiers;
             CONFIG.salariedEmployees = settings.salariedEmployees;
             
             // Save to localStorage
@@ -3084,6 +3178,7 @@
                     CONFIG.goals.monthlyIntroAppointments = settings.monthlyIntroApptGoal || 50;
                     CONFIG.goals.monthlyRevenue = settings.monthlyRevenueGoal || 20000;
                     CONFIG.baseHourlyRate = settings.baseHourlyRate || 13.00;
+                    CONFIG.ltvTiers = settings.ltvTiers || 'default';
                     CONFIG.salariedEmployees = settings.salariedEmployees || [
                         { name: '', annualSalary: 0, startDate: '' },
                         { name: '', annualSalary: 0, startDate: '' },
@@ -3099,6 +3194,7 @@
                     document.getElementById('monthlyIntroApptGoal').value = CONFIG.goals.monthlyIntroAppointments;
                     document.getElementById('monthlyRevenueGoal').value = CONFIG.goals.monthlyRevenue;
                     document.getElementById('baseRateInput').value = CONFIG.baseHourlyRate;
+                    document.getElementById('ltvTiersSelect').value = CONFIG.ltvTiers;
                     
                     // Update salaried employee fields
                     for (let i = 0; i < 3; i++) {
@@ -3113,9 +3209,34 @@
             }
         }
         
+        // Update LTV tier preview text
+        function updateLTVTierPreview() {
+            const tierSelect = document.getElementById('ltvTiersSelect');
+            const previewEl = document.getElementById('ltvTierPreview');
+            
+            if (!tierSelect || !previewEl) return;
+            
+            const tierPreviews = {
+                'default': '$1–$50, $50–$150, $150–$300, $300–$500, $500–$1K, $1K+',
+                'tier2': '$1–$100, $100–$300, $300–$500, $500–$1K, $1K–$2K, $2K+',
+                'tier3': '$1–$150, $150–$400, $400–$800, $800–$1.5K, $1.5K–$3K, $3K+',
+                'tier4': '$1–$200, $200–$600, $600–$1K, $1K–$2K, $2K–$4K, $4K+',
+                'tier5': '$1–$300, $300–$800, $800–$1.5K, $1.5K–$3K, $3K–$5K, $5K+'
+            };
+            
+            previewEl.textContent = tierPreviews[tierSelect.value] || tierPreviews['default'];
+        }
+        
         // Load saved settings on page load
         window.addEventListener('DOMContentLoaded', function() {
             loadFranchiseSettingsFromStorage();
+            
+            // Add event listener for LTV tier dropdown
+            const tierSelect = document.getElementById('ltvTiersSelect');
+            if (tierSelect) {
+                tierSelect.addEventListener('change', updateLTVTierPreview);
+                updateLTVTierPreview(); // Initial update
+            }
         });
         
         // Utility Functions
@@ -3135,6 +3256,15 @@
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
             });
+        }
+        
+        // Helper function to parse LTV values robustly
+        function parseLTV(value) {
+            if (value === null || value === undefined || value === '') return 0;
+            // Remove currency symbols, commas, and whitespace
+            const cleaned = String(value).replace(/[$,\s]/g, '').trim();
+            const parsed = parseFloat(cleaned);
+            return isNaN(parsed) ? 0 : parsed;
         }
         
         // Format staff name to "First name, Last initial" format
@@ -3281,7 +3411,51 @@
                 skipEmptyLines: true,
                 complete: function(results) {
                     leadsData = results.data;
-                    filteredLeads = [...leadsData];
+                    
+                    // 🐛 DEBUG: Log CSV load
+
+
+                    // If leads converted was already loaded, merge lead source data
+                    if (leadsConvertedData.length > 0) {
+
+                        // Create a map of email -> lead source from converted data
+                        const leadSourceMap = new Map();
+                        leadsConvertedData.forEach(row => {
+                            const email = (row['E-mail'] || row['Email'] || '').toLowerCase().trim();
+                            const leadSource = row['Lead source'] || '';
+                            if (email && leadSource) {
+                                leadSourceMap.set(email, leadSource);
+                            }
+                        });
+
+                        // Merge lead sources into newly loaded leadsData
+                        let mergedCount = 0;
+                        leadsData = leadsData.map(customer => {
+                            const email = (customer['E-mail'] || '').toLowerCase().trim();
+                            if (email && leadSourceMap.has(email)) {
+                                mergedCount++;
+                                return {
+                                    ...customer,
+                                    'Aggregator': leadSourceMap.get(email),
+                                    'Lead source': leadSourceMap.get(email)
+                                };
+                            }
+                            return customer;
+                        });
+
+                    }
+                    
+                    // Check for Chris Dahl
+                    const chris = leadsData.find(row => row['E-mail'] && row['E-mail'].toLowerCase().includes('cdahl'));
+                    if (chris) {
+
+
+
+                    } else {
+
+
+
+                    }
                     
                     // Count customers vs leads
                     const customers = leadsData.filter(row => (row['Type'] || '').toLowerCase() === 'customer').length;
@@ -3300,9 +3474,10 @@
                     statusHTML += '</span>';
                     
                     document.getElementById('leadsStatus').innerHTML = statusHTML;
-                    
+
                     if (appointmentsData.length > 0) {
                         hideEmptyState();
+                        applyFilters(); // Re-filter with actual CSV data
                         renderAllTabs();
                     }
                 },
@@ -3325,20 +3500,65 @@
                 skipEmptyLines: true,
                 complete: function(results) {
                     leadsConvertedData = results.data;
-                    
-                    // Map to leadsData format for compatibility with Customers tab
-                    leadsData = leadsConvertedData.map(row => {
-                        return {
-                            'First name': row['First Name'] || '',
-                            'Last name': row['Last Name'] || '',
-                            'E-mail': row['E-mail'] || '',
-                            'Type': (row['Converted to'] && row['Converted to'] !== 'N/A') ? 'Customer' : 'Lead',
-                            'Join date': row['Converted'] || '',
-                            'Aggregator': row['Lead source'] || 'Unknown',
-                            'LTV': row['LTV'] || '0'
-                        };
-                    });
-                    filteredLeads = [...leadsData];
+
+
+
+                    // If main leads CSV already loaded, MERGE lead sources into existing data
+                    if (leadsData.length > 0) {
+
+                        // Create a map of email -> lead source from converted data
+                        const leadSourceMap = new Map();
+                        leadsConvertedData.forEach(row => {
+                            const email = (row['E-mail'] || row['Email'] || '').toLowerCase().trim();
+                            const leadSource = row['Lead source'] || '';
+                            if (email && leadSource) {
+                                leadSourceMap.set(email, leadSource);
+                            }
+                        });
+
+                        // Merge lead sources into existing leadsData
+                        let mergedCount = 0;
+                        leadsData = leadsData.map(customer => {
+                            const email = (customer['E-mail'] || '').toLowerCase().trim();
+                            if (email && leadSourceMap.has(email)) {
+                                mergedCount++;
+                                return {
+                                    ...customer,
+                                    'Aggregator': leadSourceMap.get(email),
+                                    'Lead source': leadSourceMap.get(email)
+                                };
+                            }
+                            return customer;
+                        });
+
+
+                    } else {
+                        // Main leads CSV not loaded yet - use converted data as primary
+
+                        leadsData = leadsConvertedData.map(row => {
+                            // Determine type - prioritize existing Type field, then check Converted to field
+                            let type = row['Type'] || '';
+                            if (!type || type.toLowerCase() === 'lead') {
+                                // Check if they've been converted
+                                type = (row['Converted to'] && row['Converted to'] !== 'N/A' && row['Converted to'] !== '') ? 'Customer' : 'Lead';
+                            }
+                            
+                            return {
+                                'First name': row['First Name'] || row['First name'] || '',
+                                'Last name': row['Last Name'] || row['Last name'] || '',
+                                'E-mail': row['E-mail'] || row['Email'] || '',
+                                'Type': type,
+                                'Join date': row['Join date'] || row['Converted'] || '',
+                                'First purchase': row['First purchase'] || row['Converted'] || '',
+                                'Aggregator': row['Lead source'] || 'Unknown',
+                                'LTV': row['LTV'] || '0',
+                                'Home location': row['Home location'] || '',
+                                'Converted to': row['Converted to'] || '',
+                                'Converted': row['Converted'] || '',
+                                'Lead source': row['Lead source'] || ''
+                            };
+                        });
+                    }
                     
                     // Count conversions and sources
                     const converted = leadsConvertedData.filter(row => {
@@ -3351,13 +3571,14 @@
                     let statusHTML = '<span style="color: var(--success); font-weight: 600;">✅ ';
                     statusHTML += `${formatNumber(leadsConvertedData.length)} leads, `;
                     statusHTML += `${formatNumber(converted)} converted, `;
-                    statusHTML += `${formatNumber(sources.size)} sources`;
+                    statusHTML += `${formatNumber(sources.size)} sources (merged into main data)`;
                     statusHTML += '</span>';
                     
                     document.getElementById('leadsConvertedStatus').innerHTML = statusHTML;
-                    
+
                     if (appointmentsData.length > 0) {
                         hideEmptyState();
+                        applyFilters(); // Re-filter with merged data
                         renderAllTabs();
                     }
                 },
@@ -3395,13 +3616,13 @@
                                 membershipCancellationsData = results.data;
                                 filteredCancellations = [...membershipCancellationsData];
                                 cancellationsCount = results.data.length;
-                                console.log('Loaded cancellations:', cancellationsCount);
+
                             } else if (headers.includes('Bought Date/Time (GMT)')) {
                                 // This is a sales file
                                 membershipsData = results.data;
                                 filteredMemberships = [...membershipsData];
                                 salesCount = results.data.length;
-                                console.log('Loaded memberships:', salesCount);
+
                             } else {
                                 statusMessages.push(`⚠️ Unknown file type`);
                             }
@@ -3433,9 +3654,7 @@
                                 document.getElementById('membershipsStatus').innerHTML = 
                                     '<span style="color: var(--danger);">❌ No valid data found</span>';
                             }
-                            
-                            console.log('Final status - Sales:', membershipsData.length, 'Cancellations:', membershipCancellationsData.length);
-                            
+
                             if (appointmentsData.length > 0 && (membershipsData.length > 0 || membershipCancellationsData.length > 0)) {
                                 hideEmptyState();
                                 renderAllTabs();
@@ -3900,13 +4119,26 @@
         
         // Apply Filters
         function applyFilters() {
+            // 🐛 DEBUG: Track every time applyFilters is called
+
+
             const month = document.getElementById('monthFilter').value;
             const location = document.getElementById('locationFilter').value;
             const practitioner = document.getElementById('practitionerFilter').value;
             const service = document.getElementById('serviceFilter').value;
             const startDate = document.getElementById('startDate').value;
             const endDate = document.getElementById('endDate').value;
-            
+
+
+
+
+
+
+
+
+            // Check Chris before filtering
+            const chrisBeforeFilter = leadsData.find(r => r['E-mail'] && r['E-mail'].toLowerCase().includes('cdahl'));
+
             // Filter appointments
             filteredAppointments = appointmentsData.filter(row => {
                 const date = parseDate(row['Appointment Date']);
@@ -3954,23 +4186,124 @@
                 return true;
             });
             
-            // Filter leads by date range (use Join date)
-            filteredLeads = leadsData.filter(row => {
-                const joinDate = row['Join date'] ? parseDate(row['Join date']) : null;
-                if (!joinDate) return false; // Exclude leads without join dates
-                
-                // Month filter
-                if (month !== 'all') {
-                    const rowMonth = `${joinDate.getFullYear()}-${String(joinDate.getMonth() + 1).padStart(2, '0')}`;
-                    if (rowMonth !== month) return false;
+            // Filter leads by date range (use Join date or First purchase date as fallback)
+            
+            // 🐛 DEBUG: Track Chris through ALL filtering steps
+
+
+
+            // Check if leadsData has been loaded yet
+            if (leadsData.length === 0) {
+
+
+                filteredLeads = [];
+
+            } else {
+                // Step 0: Check original data
+                const chrisInOriginal = leadsData.find(r => r['E-mail'] && r['E-mail'].toLowerCase().includes('cdahl'));
+
+
+
+                if (chrisInOriginal) {
+
                 }
                 
-                // Date range filters
-                if (startDate && joinDate < new Date(startDate)) return false;
-                if (endDate && joinDate > new Date(endDate)) return false;
+                // 🐛 DEBUG: Log filtering settings
+
+
+
+
+
+                // Track Chris through the filter
+                let chrisPassedDateFilter = false;
+                let chrisFailureReason = null;
                 
-                return true;
-            });
+                filteredLeads = leadsData.filter(row => {
+                    const isChris = row['E-mail'] && row['E-mail'].toLowerCase().includes('cdahl');
+                    
+                    // Try Join date first, then First purchase date
+                    const joinDate = row['Join date'] ? parseDate(row['Join date']) : 
+                                     row['First purchase date'] ? parseDate(row['First purchase date']) : null;
+                    
+                    if (isChris) {
+
+
+
+
+                    }
+                    
+                    // If no date at all, include them (they might be legacy data)
+                    if (!joinDate) {
+                        if (isChris) {
+
+                            chrisPassedDateFilter = true;
+                        }
+                        return true;
+                    }
+                    
+                    // Month filter
+                    if (month !== 'all') {
+                        const rowMonth = `${joinDate.getFullYear()}-${String(joinDate.getMonth() + 1).padStart(2, '0')}`;
+                        if (isChris) {
+
+
+
+                        }
+                        if (rowMonth !== month) {
+                            if (isChris) {
+
+                                chrisFailureReason = `Month filter (${rowMonth} !== ${month})`;
+                            }
+                            return false;
+                        }
+                    }
+                    
+                    // Date range filters
+                    if (startDate && joinDate < new Date(startDate)) {
+                        if (isChris) {
+
+
+
+
+                            chrisFailureReason = `Start date (${joinDate} < ${startDate})`;
+                        }
+                        return false;
+                    }
+                    
+                    if (endDate && joinDate > new Date(endDate)) {
+                        if (isChris) {
+
+
+
+
+                            chrisFailureReason = `End date (${joinDate} > ${endDate})`;
+                        }
+                        return false;
+                    }
+                    
+                    if (isChris) {
+
+                        chrisPassedDateFilter = true;
+                    }
+                    
+                    return true;
+                });
+
+
+
+                // Check if Chris is in filtered results
+                const chrisInFiltered = filteredLeads.find(row => row['E-mail'] && row['E-mail'].toLowerCase().includes('cdahl'));
+
+                if (!chrisInFiltered && chrisInOriginal) {
+
+
+
+                } else if (chrisInFiltered) {
+
+
+                }
+
+            }
             
             // Filter leads converted data by date range
             filteredLeadsConverted = leadsConvertedData.filter(row => {
@@ -4039,14 +4372,7 @@
                         practitionersInFiltered.add(empName);
                     }
                 });
-                
-                console.log('DEBUG: Filtering time tracking...', {
-                    totalTimeRecords: window.timeTrackingData.length,
-                    practitionersInFiltered: Array.from(practitionersInFiltered),
-                    month: month,
-                    sampleTimeRecord: window.timeTrackingData[0]
-                });
-                
+
                 filteredTimeTracking = window.timeTrackingData.filter(row => {
                     if (!row['Employee Name']) return false;
                     
@@ -4075,12 +4401,7 @@
                     
                     return true;
                 });
-                
-                console.log('DEBUG: After filtering time tracking:', {
-                    filteredCount: filteredTimeTracking.length,
-                    sampleFiltered: filteredTimeTracking[0],
-                    totalHours: filteredTimeTracking.reduce((sum, t) => sum + parseFloat(t['Duration (h)'] || 0), 0)
-                });
+
             } else {
                 filteredTimeTracking = [];
             }
@@ -4088,6 +4409,19 @@
             // Recalculate utilization based on filtered data
             recalculateUtilization();
             
+            // 🐛 DEBUG: Final state after all filtering
+
+
+            const chrisAfterAllFilters = filteredLeads.find(r => r['E-mail'] && r['E-mail'].toLowerCase().includes('cdahl'));
+
+            if (chrisAfterAllFilters) {
+
+
+
+            } else if (chrisBeforeFilter) {
+
+            }
+
             displayActiveFilters();
             renderAllTabs();
         }
@@ -4099,6 +4433,7 @@
         
         // Quick Filters
         function setQuickFilter(filter) {
+
             const today = new Date();
             const startDateInput = document.getElementById('startDate');
             const endDateInput = document.getElementById('endDate');
@@ -4106,12 +4441,14 @@
             
             // Reset filters
             if (filter === 'reset') {
+
                 startDateInput.value = '';
                 endDateInput.value = '';
                 monthFilter.value = 'all';
                 document.getElementById('locationFilter').value = 'all';
                 document.getElementById('practitionerFilter').value = 'all';
                 document.getElementById('serviceFilter').value = 'all';
+
                 applyFilters();
                 return;
             }
@@ -4189,7 +4526,7 @@
                 case 'memberships': if (membershipsData.length > 0) renderMembershipsTab(); break;
                 case 'leads': renderLeadsTab(); break;
                 case 'journey': renderJourneyTab(); break;
-                case 'retention': renderRetentionTab(); break;
+                case 'studios': renderStudiosTab(); break;
                 case 'schedule': renderScheduleTab(); break;
                 case 'customers': renderCustomersTab(); break;
                 case 'practitioners': renderPractitionersTab(); break;
@@ -4497,7 +4834,7 @@
                 
                 <div class="table-container" style="background: linear-gradient(135deg, rgba(251, 181, 20, 0.05), rgba(251, 181, 20, 0.02)); border-left: 5px solid var(--highlight);">
                     <h2>Financial Performance</h2>
-                    <div class="metrics-grid" style="grid-template-columns: repeat(4, 1fr);">
+                    <div class="metrics-grid" style="grid-template-columns: repeat(${3 + (nonApptHours > 0 ? 1 : 0) + (salaryCosts.total > 0 ? 1 : 0)}, 1fr);">
                         <div class="metric-card ${profit > 0 ? 'success' : 'danger'}">
                             <div class="metric-label">Net Profit</div>
                             <div class="metric-value">
@@ -4922,6 +5259,509 @@
             }, 100);
         }
         
+        // STUDIOS TAB
+        function renderStudiosTab() {
+            const data = filteredAppointments;
+            const activeMemberEmails = getActiveMemberEmails();
+            
+            // Get all unique locations
+            const locations = [...new Set(data.map(row => row.Location).filter(l => l))].sort();
+            
+            if (locations.length === 0) {
+                document.getElementById('studios').innerHTML = `
+                    <div class="alert info">
+                        <h4>📍 Studio Analytics</h4>
+                        <p>No location data available. Upload appointment data with location information to see studio-specific metrics.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Calculate metrics for each studio
+            const studioMetrics = {};
+            
+            locations.forEach(location => {
+                const locationData = data.filter(row => row.Location === location);
+                
+                // Group by month for trends
+                const monthlyData = {};
+                
+                locationData.forEach(row => {
+                    const date = parseDate(row['Appointment Date']);
+                    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                    
+                    if (!monthlyData[monthKey]) {
+                        monthlyData[monthKey] = {
+                            appointments: 0,
+                            revenue: 0,
+                            hours: 0,
+                            clockedHours: 0,
+                            clients: new Set()
+                        };
+                    }
+                    
+                    const email = (row['Customer Email'] || '').toLowerCase().trim();
+                    const revenue = parseFloat(row.Revenue || 0);
+                    const revenueToAdd = activeMemberEmails.has(email) ? 0 : revenue;
+                    
+                    monthlyData[monthKey].appointments++;
+                    monthlyData[monthKey].revenue += revenueToAdd;
+                    monthlyData[monthKey].hours += parseFloat(row['Time (h)'] || 0);
+                    if (email) monthlyData[monthKey].clients.add(email);
+                });
+                
+                // Add clocked hours if available
+                if (window.timeTrackingData && window.timeTrackingData.length > 0) {
+                    window.timeTrackingData.forEach(row => {
+                        if (row.Location === location) {
+                            const clockedIn = row['Clocked in'] ? new Date(row['Clocked in']) : null;
+                            if (clockedIn) {
+                                const monthKey = `${clockedIn.getFullYear()}-${String(clockedIn.getMonth() + 1).padStart(2, '0')}`;
+                                if (monthlyData[monthKey]) {
+                                    monthlyData[monthKey].clockedHours += parseFloat(row['Duration (h)'] || 0);
+                                }
+                            }
+                        }
+                    });
+                }
+                
+                // Calculate totals and averages
+                const totalRevenue = locationData.reduce((sum, row) => {
+                    const email = (row['Customer Email'] || '').toLowerCase().trim();
+                    const revenue = parseFloat(row.Revenue || 0);
+                    return sum + (activeMemberEmails.has(email) ? 0 : revenue);
+                }, 0);
+                
+                const totalAppointments = locationData.length;
+                const uniqueClients = new Set(locationData.map(row => (row['Customer Email'] || '').toLowerCase().trim()).filter(e => e)).size;
+                const avgRevenuePerAppt = totalAppointments > 0 ? totalRevenue / totalAppointments : 0;
+                
+                // Calculate lead conversion for this location
+                let locationLeads = [];
+                let locationIntros = 0;
+                let locationPaid = 0;
+                
+                // Try filteredLeadsConverted first (converted leads report)
+                if (filteredLeadsConverted && filteredLeadsConverted.length > 0) {
+                    locationLeads = filteredLeadsConverted.filter(lead => lead['Home location'] === location);
+                    const convertedLeads = locationLeads.filter(l => {
+                        const convertedTo = (l['Converted to'] || '').trim();
+                        return convertedTo && convertedTo !== 'N/A' && convertedTo !== '';
+                    });
+                    locationIntros = convertedLeads.length;
+                    locationPaid = convertedLeads.filter(l => (l['Converted to'] || '').toLowerCase().includes('paid')).length;
+                } 
+                // Fall back to filteredLeads (new leads & customers report)
+                else if (filteredLeads && filteredLeads.length > 0) {
+                    locationLeads = filteredLeads.filter(lead => (lead['Home location'] || lead['Location']) === location);
+                    const customers = locationLeads.filter(l => l.Type === 'Customer');
+                    locationIntros = customers.length;
+                    locationPaid = customers.filter(l => parseLTV(l.LTV) > 0).length;
+                }
+                
+                const leadToIntroRate = locationLeads.length > 0 ? (locationIntros / locationLeads.length * 100) : 0;
+                const introToPaidRate = locationIntros > 0 ? (locationPaid / locationIntros * 100) : 0;
+                
+                studioMetrics[location] = {
+                    totalRevenue,
+                    totalAppointments,
+                    uniqueClients,
+                    avgRevenuePerAppt,
+                    monthlyData,
+                    leads: locationLeads.length,
+                    intros: locationIntros,
+                    paid: locationPaid,
+                    leadToIntroRate,
+                    introToPaidRate
+                };
+            });
+            
+            // Build HTML with comparison table first
+            let html = `
+                <h2 style="margin-bottom: 20px;">📍 Studio Performance Overview</h2>
+                
+                <!-- Studio Comparison Table -->
+                <div style="background: white; padding: 25px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); margin-bottom: 30px; overflow-x: auto;">
+                    <h3 style="margin-bottom: 15px; color: var(--primary);">📊 Studio Comparison</h3>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                        <thead>
+                            <tr style="background: var(--gray-light); border-bottom: 2px solid var(--accent);">
+                                <th style="padding: 12px; text-align: left; font-weight: 600;">Studio</th>
+                                <th style="padding: 12px; text-align: right; font-weight: 600;">Total Revenue</th>
+                                <th style="padding: 12px; text-align: right; font-weight: 600;">Appointments</th>
+                                <th style="padding: 12px; text-align: right; font-weight: 600;">Unique Clients</th>
+                                <th style="padding: 12px; text-align: right; font-weight: 600;">Avg $/Appt</th>
+                                <th style="padding: 12px; text-align: right; font-weight: 600;">Total Leads</th>
+                                <th style="padding: 12px; text-align: right; font-weight: 600;">Lead→Intro</th>
+                                <th style="padding: 12px; text-align: right; font-weight: 600;">Intro→Paid</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            // Sort studios by total revenue for comparison
+            const sortedLocations = [...locations].sort((a, b) => 
+                studioMetrics[b].totalRevenue - studioMetrics[a].totalRevenue
+            );
+            
+            sortedLocations.forEach((location, idx) => {
+                const metrics = studioMetrics[location];
+                const rowStyle = idx % 2 === 0 ? 'background: #f9f9f9;' : '';
+                html += `
+                    <tr style="${rowStyle} border-bottom: 1px solid var(--gray);">
+                        <td style="padding: 12px; font-weight: 600; color: var(--primary);">${location}</td>
+                        <td style="padding: 12px; text-align: right;">${formatCurrency(metrics.totalRevenue)}</td>
+                        <td style="padding: 12px; text-align: right;">${formatNumber(metrics.totalAppointments)}</td>
+                        <td style="padding: 12px; text-align: right;">${formatNumber(metrics.uniqueClients)}</td>
+                        <td style="padding: 12px; text-align: right;">${formatCurrency(metrics.avgRevenuePerAppt)}</td>
+                        <td style="padding: 12px; text-align: right;">${metrics.leads > 0 ? formatNumber(metrics.leads) : 'N/A'}</td>
+                        <td style="padding: 12px; text-align: right; ${metrics.leadToIntroRate > 50 ? 'color: var(--success); font-weight: 600;' : ''}">${metrics.leads > 0 ? metrics.leadToIntroRate.toFixed(1) + '%' : 'N/A'}</td>
+                        <td style="padding: 12px; text-align: right; ${metrics.introToPaidRate > 50 ? 'color: var(--success); font-weight: 600;' : ''}">${metrics.intros > 0 ? metrics.introToPaidRate.toFixed(1) + '%' : 'N/A'}</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Quick Stats Cards -->
+                <div class="metrics-grid" style="grid-template-columns: repeat(${Math.min(locations.length, 4)}, 1fr); margin-bottom: 30px;">
+            `;
+            
+            sortedLocations.forEach(location => {
+                const metrics = studioMetrics[location];
+                html += `
+                    <div class="metric-card">
+                        <div class="metric-label">${location}</div>
+                        <div class="metric-value">${formatCurrency(metrics.totalRevenue)}</div>
+                        <div class="metric-subtext">${formatNumber(metrics.totalAppointments)} appointments • ${formatNumber(metrics.uniqueClients)} clients</div>
+                    </div>
+                `;
+            });
+            
+            html += `</div>`;
+            
+            // Add customer distribution by Home Location if available
+            if (filteredLeads && filteredLeads.length > 0) {
+                const homeLocationCounts = {};
+                let totalWithHomeLocation = 0;
+                
+                filteredLeads.forEach(lead => {
+                    const homeLocation = lead['Home location'] || 'Unknown';
+                    if (homeLocation !== 'Unknown') {
+                        homeLocationCounts[homeLocation] = (homeLocationCounts[homeLocation] || 0) + 1;
+                        totalWithHomeLocation++;
+                    }
+                });
+                
+                if (totalWithHomeLocation > 0) {
+                    html += `
+                        <div style="background: white; padding: 25px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); margin-bottom: 30px;">
+                            <h3 style="margin-bottom: 15px; color: var(--primary);">🏠 Customer Home Location Distribution</h3>
+                            <p style="color: #666; margin-bottom: 15px;">Based on ${totalWithHomeLocation.toLocaleString()} customers with recorded home location</p>
+                            <div class="metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                    `;
+                    
+                    Object.entries(homeLocationCounts)
+                        .sort((a, b) => b[1] - a[1])
+                        .forEach(([location, count]) => {
+                            const percentage = ((count / totalWithHomeLocation) * 100).toFixed(1);
+                            html += `
+                                <div class="metric-card compact">
+                                    <div class="metric-label">${location}</div>
+                                    <div class="metric-value">${count.toLocaleString()}</div>
+                                    <div class="metric-subtext">${percentage}% of customers</div>
+                                </div>
+                            `;
+                        });
+                    
+                    html += `
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+            
+            // Continue with detailed studio sections
+            
+            // Add detailed studio sections (sorted by revenue)
+            sortedLocations.forEach(location => {
+                const metrics = studioMetrics[location];
+                const months = Object.keys(metrics.monthlyData).sort();
+                
+                // Calculate utilization for each month
+                const monthlyUtilization = months.map(month => {
+                    const data = metrics.monthlyData[month];
+                    return data.clockedHours > 0 ? (data.hours / data.clockedHours * 100) : null;
+                });
+                
+                const avgUtilization = monthlyUtilization.filter(u => u !== null).length > 0
+                    ? monthlyUtilization.filter(u => u !== null).reduce((sum, u) => sum + u, 0) / monthlyUtilization.filter(u => u !== null).length
+                    : null;
+                
+                html += `
+                    <div style="background: white; padding: 25px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); margin-bottom: 30px; border-top: 4px solid var(--primary);">
+                        <h2 style="margin-bottom: 20px;">📍 ${location}</h2>
+                        
+                        <div class="metrics-grid" style="grid-template-columns: repeat(5, 1fr); margin-bottom: 20px;">
+                            <div class="metric-card compact">
+                                <div class="metric-label">Total Revenue</div>
+                                <div class="metric-value">${formatCurrency(metrics.totalRevenue)}</div>
+                                <div class="metric-subtext">All time</div>
+                            </div>
+                            <div class="metric-card compact">
+                                <div class="metric-label">Appointments</div>
+                                <div class="metric-value">${formatNumber(metrics.totalAppointments)}</div>
+                                <div class="metric-subtext">${formatNumber(metrics.uniqueClients)} clients</div>
+                            </div>
+                            <div class="metric-card compact">
+                                <div class="metric-label">Avg Revenue/Appt</div>
+                                <div class="metric-value">${formatCurrency(metrics.avgRevenuePerAppt)}</div>
+                                <div class="metric-subtext">Per appointment</div>
+                            </div>
+                            ${avgUtilization !== null ? `
+                            <div class="metric-card compact success">
+                                <div class="metric-label">Avg Utilization</div>
+                                <div class="metric-value">${avgUtilization.toFixed(1)}%</div>
+                                <div class="metric-subtext">Table time</div>
+                            </div>
+                            ` : '<div class="metric-card compact"><div class="metric-label">Utilization</div><div class="metric-value">N/A</div></div>'}
+                            ${metrics.leads > 0 ? `
+                            <div class="metric-card compact">
+                                <div class="metric-label">Total Leads</div>
+                                <div class="metric-value">${formatNumber(metrics.leads)}</div>
+                                <div class="metric-subtext">${metrics.intros} intros</div>
+                            </div>
+                            ` : '<div class="metric-card compact"><div class="metric-label">Leads</div><div class="metric-value">N/A</div></div>'}
+                        </div>
+                        
+                        ${metrics.leads > 0 ? `
+                        <div class="metrics-grid" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 20px;">
+                            <div class="metric-card">
+                                <div class="metric-label">Lead → Intro Conversion</div>
+                                <div class="metric-value">${metrics.leadToIntroRate.toFixed(1)}%</div>
+                                <div class="metric-subtext">${metrics.intros} of ${metrics.leads} leads</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-label">Intro → Paid Conversion</div>
+                                <div class="metric-value">${metrics.introToPaidRate.toFixed(1)}%</div>
+                                <div class="metric-subtext">${metrics.paid} of ${metrics.intros} intros</div>
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        <div class="charts-grid">
+                            ${avgUtilization !== null ? `
+                            <div class="chart-container">
+                                <h3>Monthly Utilization Trend</h3>
+                                <div class="chart-wrapper">
+                                    <canvas id="studioUtilization${location.replace(/\s+/g, '')}Chart"></canvas>
+                                </div>
+                            </div>
+                            ` : ''}
+                            
+                            ${metrics.leads > 0 ? `
+                            <div class="chart-container">
+                                <h3>Monthly Conversion Rates</h3>
+                                <div class="chart-wrapper">
+                                    <canvas id="studioConversion${location.replace(/\s+/g, '')}Chart"></canvas>
+                                </div>
+                            </div>
+                            ` : ''}
+                            
+                            <div class="chart-container">
+                                <h3>Monthly Revenue</h3>
+                                <div class="chart-wrapper">
+                                    <canvas id="studioRevenue${location.replace(/\s+/g, '')}Chart"></canvas>
+                                </div>
+                            </div>
+                            
+                            <div class="chart-container">
+                                <h3>Monthly Appointments</h3>
+                                <div class="chart-wrapper">
+                                    <canvas id="studioAppointments${location.replace(/\s+/g, '')}Chart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            document.getElementById('studios').innerHTML = html;
+            
+            // Render charts
+            setTimeout(() => {
+                sortedLocations.forEach(location => {
+                    const metrics = studioMetrics[location];
+                    const months = Object.keys(metrics.monthlyData).sort();
+                    const locationId = location.replace(/\s+/g, '');
+                    
+                    // Format month labels
+                    const monthLabels = months.map(m => {
+                        const [year, month] = m.split('-');
+                        const date = new Date(year, parseInt(month) - 1);
+                        return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+                    });
+                    
+                    // Utilization chart
+                    const utilizationCanvas = document.getElementById(`studioUtilization${locationId}Chart`);
+                    if (utilizationCanvas) {
+                        const utilizationData = months.map(month => {
+                            const data = metrics.monthlyData[month];
+                            return data.clockedHours > 0 ? ((data.hours / data.clockedHours) * 100).toFixed(1) : null;
+                        });
+                        
+                        destroyChart(`studioUtilization${locationId}`);
+                        const ctx = utilizationCanvas.getContext('2d');
+                        allCharts[`studioUtilization${locationId}`] = new Chart(ctx, {
+                            type: 'line',
+                            data: {
+                                labels: monthLabels,
+                                datasets: [{
+                                    label: 'Utilization %',
+                                    data: utilizationData,
+                                    borderColor: '#28a745',
+                                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                                    borderWidth: 3,
+                                    fill: true,
+                                    tension: 0.4
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: { legend: { display: false } },
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        max: 100,
+                                        ticks: {
+                                            callback: function(value) { return value + '%'; }
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    }
+                    
+                    // Conversion rates chart
+                    const conversionCanvas = document.getElementById(`studioConversion${locationId}Chart`);
+                    if (conversionCanvas && metrics.leads > 0) {
+                        destroyChart(`studioConversion${locationId}`);
+                        const ctx = conversionCanvas.getContext('2d');
+                        allCharts[`studioConversion${locationId}`] = new Chart(ctx, {
+                            type: 'bar',
+                            data: {
+                                labels: ['Lead → Intro', 'Intro → Paid'],
+                                datasets: [{
+                                    label: 'Conversion Rate %',
+                                    data: [metrics.leadToIntroRate, metrics.introToPaidRate],
+                                    backgroundColor: ['#71BED2', '#FBB514'],
+                                    borderWidth: 0
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: { legend: { display: false } },
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        max: 100,
+                                        ticks: {
+                                            callback: function(value) { return value + '%'; }
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    }
+                    
+                    // Revenue chart
+                    const revenueCanvas = document.getElementById(`studioRevenue${locationId}Chart`);
+                    if (revenueCanvas) {
+                        const revenueData = months.map(month => metrics.monthlyData[month].revenue);
+                        
+                        destroyChart(`studioRevenue${locationId}`);
+                        const ctx = revenueCanvas.getContext('2d');
+                        allCharts[`studioRevenue${locationId}`] = new Chart(ctx, {
+                            type: 'bar',
+                            data: {
+                                labels: monthLabels,
+                                datasets: [{
+                                    label: 'Revenue',
+                                    data: revenueData,
+                                    backgroundColor: '#71BED2',
+                                    borderWidth: 0
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: { display: false },
+                                    tooltip: {
+                                        callbacks: {
+                                            label: function(context) {
+                                                return formatCurrency(context.parsed.y);
+                                            }
+                                        }
+                                    }
+                                },
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        ticks: {
+                                            callback: function(value) {
+                                                return formatCurrency(value);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    }
+                    
+                    // Appointments chart
+                    const appointmentsCanvas = document.getElementById(`studioAppointments${locationId}Chart`);
+                    if (appointmentsCanvas) {
+                        const appointmentsData = months.map(month => metrics.monthlyData[month].appointments);
+                        
+                        destroyChart(`studioAppointments${locationId}`);
+                        const ctx = appointmentsCanvas.getContext('2d');
+                        allCharts[`studioAppointments${locationId}`] = new Chart(ctx, {
+                            type: 'line',
+                            data: {
+                                labels: monthLabels,
+                                datasets: [{
+                                    label: 'Appointments',
+                                    data: appointmentsData,
+                                    borderColor: '#013160',
+                                    backgroundColor: 'rgba(1, 49, 96, 0.1)',
+                                    borderWidth: 3,
+                                    fill: true,
+                                    tension: 0.4
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: { legend: { display: false } },
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        ticks: { stepSize: 1 }
+                                    }
+                                }
+                            }
+                        });
+                    }
+                });
+            }, 100);
+        }
+        
         // SCHEDULE OPTIMIZATION TAB
         function renderScheduleTab() {
             const data = filteredAppointments;
@@ -5146,6 +5986,10 @@
                 inactivePaidMember: []
             };
             
+            // Get current VIP threshold from LTV tier configuration
+            const currentTierConfig = LTV_TIERS[CONFIG.ltvTiers];
+            const vipMin = currentTierConfig.vipMin;
+            
             // Create a map of customer data with visit information
             const customerMap = {};
             
@@ -5158,7 +6002,7 @@
                         lastName: lead['Last name'],
                         email: email,
                         type: lead.Type,
-                        ltv: parseFloat(lead.LTV || 0),
+                        ltv: parseLTV(lead.LTV),
                         joinDate: lead['Join date'],
                         visits: [],
                         totalVisits: 0,
@@ -5200,8 +6044,8 @@
             
             // Categorize customers into segments
             Object.values(customerMap).forEach(customer => {
-                // VIP tier (>$2000 LTV)
-                if (customer.ltv > 2000) {
+                // VIP tier (use dynamic vipMin from tier configuration)
+                if (customer.ltv > vipMin) {
                     segments.vip.push({...customer, segment: 'VIP'});
                 }
                 
@@ -5393,6 +6237,10 @@
         function renderClientSegmentation() {
             const segments = calculateClientSegments();
             
+            // Get current VIP threshold from LTV tier configuration
+            const currentTierConfig = LTV_TIERS[CONFIG.ltvTiers];
+            const vipMin = currentTierConfig.vipMin;
+            
             // Calculate summary stats
             const totalSegmented = segments.vip.length + segments.atRisk.length + 
                                    segments.newClient.length + segments.highFrequency.length +
@@ -5400,7 +6248,7 @@
             const vipRevenue = segments.vip.reduce((sum, c) => sum + c.ltv, 0);
             const atRiskRevenue = segments.atRisk.reduce((sum, c) => sum + c.ltv, 0);
             const inactiveMemberRevenue = segments.inactivePaidMember.reduce((sum, c) => sum + c.membershipAmount, 0);
-            const newClientPotential = segments.newClient.length * (filteredLeads.reduce((sum, l) => sum + parseFloat(l.LTV || 0), 0) / filteredLeads.length);
+            const newClientPotential = segments.newClient.length * (filteredLeads.reduce((sum, l) => sum + parseLTV(l.LTV), 0) / filteredLeads.length);
             
             return `
                 <div class="segmentation-container">
@@ -5414,7 +6262,7 @@
                         <div class="segment-card vip">
                             <div class="segment-icon">👑</div>
                             <div class="segment-title">VIP Clients</div>
-                            <div class="segment-description">High-value clients with >$2,000 lifetime value</div>
+                            <div class="segment-description">High-value clients with >${formatCurrency(vipMin)} lifetime value</div>
                             <div class="segment-count">${formatNumber(segments.vip.length)}</div>
                             <div class="segment-stats">
                                 <div class="segment-stats-row">
@@ -5586,7 +6434,7 @@
             window.currentSegments = calculateClientSegments();
             
             // Calculate LTV metrics
-            const ltvs = filteredLeads.map(row => parseFloat(row.LTV || 0));
+            const ltvs = filteredLeads.map(row => parseLTV(row.LTV));
             const totalLTV = ltvs.reduce((sum, ltv) => sum + ltv, 0);
             const avgLTV = totalLTV / ltvs.length;
             const maxLTV = Math.max(...ltvs);
@@ -5595,17 +6443,79 @@
             const leads = filteredLeads.filter(row => row.Type === 'Lead').length;
             const conversionRate = ((customers / (customers + leads)) * 100).toFixed(1);
             
-            const zeroLTV = ltvs.filter(ltv => ltv === 0).length;
-            const tier1 = ltvs.filter(ltv => ltv > 0 && ltv <= 100).length;
-            const tier2 = ltvs.filter(ltv => ltv > 100 && ltv <= 250).length;
-            const tier3 = ltvs.filter(ltv => ltv > 250 && ltv <= 500).length;
-            const tier4 = ltvs.filter(ltv => ltv > 500 && ltv <= 1000).length;
-            const tier5 = ltvs.filter(ltv => ltv > 1000 && ltv <= 2000).length;
-            const tier6 = ltvs.filter(ltv => ltv > 2000).length;
+            // Get current LTV tier configuration
+            const currentTierConfig = LTV_TIERS[CONFIG.ltvTiers];
+            const ranges = currentTierConfig.ranges;
+            const vipMin = currentTierConfig.vipMin;
             
+            const zeroLTV = ltvs.filter(ltv => ltv === 0).length;
+            const tier1 = ltvs.filter(ltv => ltv > 0 && ltv <= ranges[0]).length;
+            const tier2 = ltvs.filter(ltv => ltv > ranges[0] && ltv <= ranges[1]).length;
+            const tier3 = ltvs.filter(ltv => ltv > ranges[1] && ltv <= ranges[2]).length;
+            const tier4 = ltvs.filter(ltv => ltv > ranges[2] && ltv <= ranges[3]).length;
+            const tier5 = ltvs.filter(ltv => ltv > ranges[3] && ltv <= ranges[4]).length;
+            const tier6 = ltvs.filter(ltv => ltv > ranges[4]).length;
+            
+            // 🐛 DEBUG: Log detailed LTV information
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            // Find Chris Dahl specifically
+            const chrisDahl = filteredLeads.find(lead => 
+                lead['E-mail'] && lead['E-mail'].toLowerCase().includes('cdahl@aquali.com')
+            );
+
+            if (chrisDahl) {
+                const chrisLTV = parseLTV(chrisDahl.LTV);
+
+
+
+
+
+
+
+
+            } else {
+
+            }
+            
+            // Show top 10 LTV values
+
+            const top10 = [...filteredLeads]
+                .map(lead => ({
+                    name: `${lead['First name']} ${lead['Last name']}`,
+                    email: lead['E-mail'],
+                    rawLTV: lead.LTV,
+                    parsedLTV: parseLTV(lead.LTV)
+                }))
+                .sort((a, b) => b.parsedLTV - a.parsedLTV)
+                .slice(0, 10);
+            top10.forEach((lead, i) => {
+
+            });
+            
+            // Show tier 6 members (VIP)
+            const tier6Members = filteredLeads.filter(lead => parseLTV(lead.LTV) > ranges[4]);
+
+            tier6Members.slice(0, 20).forEach(lead => {
+
+            });
+
             // Top customers
             const sortedByLTV = [...filteredLeads]
-                .sort((a, b) => parseFloat(b.LTV || 0) - parseFloat(a.LTV || 0))
+                .sort((a, b) => parseLTV(b.LTV) - parseLTV(a.LTV))
                 .slice(0, 10);
             
             let html = `
@@ -5636,7 +6546,7 @@
                     <div class="metric-card">
                         <div class="metric-label">VIP Customers</div>
                         <div class="metric-value">${formatNumber(tier6)}</div>
-                        <div class="metric-subtext">>$2,000 LTV</div>
+                        <div class="metric-subtext">>${formatCurrency(vipMin)} LTV</div>
                     </div>
                 </div>
                 
@@ -5670,6 +6580,122 @@
                     </div>
                 </div>
                 
+                <!-- Retention Analysis Section -->
+                ${(() => {
+                    // Analyze client visits for retention metrics
+                    const data = filteredAppointments;
+                    const activeMemberEmails = getActiveMemberEmails();
+                    const clientVisits = {};
+                    const clientFirstVisit = {};
+                    const clientLastVisit = {};
+                    const clientRevenue = {};
+                    
+                    data.forEach(row => {
+                        const email = (row['Customer Email'] || '').toLowerCase().trim();
+                        if (!email) return;
+                        
+                        const date = parseDate(row['Appointment Date']);
+                        const revenue = parseFloat(row.Revenue || 0);
+                        const revenueToAdd = activeMemberEmails.has(email) ? 0 : revenue;
+                        
+                        if (!clientVisits[email]) {
+                            clientVisits[email] = 0;
+                            clientFirstVisit[email] = date;
+                            clientLastVisit[email] = date;
+                            clientRevenue[email] = 0;
+                        }
+                        
+                        clientVisits[email]++;
+                        clientRevenue[email] += revenueToAdd;
+                        
+                        if (date < clientFirstVisit[email]) clientFirstVisit[email] = date;
+                        if (date > clientLastVisit[email]) clientLastVisit[email] = date;
+                    });
+                    
+                    const uniqueClients = Object.keys(clientVisits).length;
+                    const returningClients = Object.values(clientVisits).filter(count => count > 1).length;
+                    const retentionRate = uniqueClients > 0 ? (returningClients / uniqueClients * 100) : 0;
+                    const avgVisitsPerClient = uniqueClients > 0 ? data.length / uniqueClients : 0;
+                    
+                    const visitDist = { '1 visit': 0, '2-3 visits': 0, '4-6 visits': 0, '7-10 visits': 0, '11+ visits': 0 };
+                    Object.values(clientVisits).forEach(count => {
+                        if (count === 1) visitDist['1 visit']++;
+                        else if (count <= 3) visitDist['2-3 visits']++;
+                        else if (count <= 6) visitDist['4-6 visits']++;
+                        else if (count <= 10) visitDist['7-10 visits']++;
+                        else visitDist['11+ visits']++;
+                    });
+                    
+                    let totalDaysBetween = 0;
+                    let visitPairs = 0;
+                    Object.keys(clientVisits).forEach(email => {
+                        if (clientVisits[email] > 1) {
+                            const daysBetween = (clientLastVisit[email] - clientFirstVisit[email]) / (1000 * 60 * 60 * 24);
+                            const avgDaysForClient = daysBetween / (clientVisits[email] - 1);
+                            totalDaysBetween += avgDaysForClient;
+                            visitPairs++;
+                        }
+                    });
+                    const avgDaysBetweenVisits = visitPairs > 0 ? totalDaysBetween / visitPairs : 0;
+                    
+                    return `
+                        <div style="margin: 30px 0;">
+                            <h2 style="margin-bottom: 20px;">🔄 Retention Analysis</h2>
+                            <div class="metrics-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 20px;">
+                                <div class="metric-card">
+                                    <div class="metric-label">Total Clients</div>
+                                    <div class="metric-value">${formatNumber(uniqueClients)}</div>
+                                    <div class="metric-subtext">Unique individuals</div>
+                                </div>
+                                <div class="metric-card ${retentionRate >= 50 ? 'success' : retentionRate >= 30 ? 'warning' : 'danger'}">
+                                    <div class="metric-label">Retention Rate</div>
+                                    <div class="metric-value">${retentionRate.toFixed(1)}%</div>
+                                    <div class="metric-subtext">${formatNumber(returningClients)} returning clients</div>
+                                </div>
+                                <div class="metric-card">
+                                    <div class="metric-label">Avg Visits</div>
+                                    <div class="metric-value">${avgVisitsPerClient.toFixed(1)}</div>
+                                    <div class="metric-subtext">Per client</div>
+                                </div>
+                                <div class="metric-card">
+                                    <div class="metric-label">Avg Days Between</div>
+                                    <div class="metric-value">${avgDaysBetweenVisits.toFixed(0)}</div>
+                                    <div class="metric-subtext">Days between visits</div>
+                                </div>
+                            </div>
+                            
+                            <div class="alert ${retentionRate >= 50 ? 'success' : 'warning'}">
+                                <h4>🔄 Retention Status</h4>
+                                <p><strong>Current Status:</strong> ${retentionRate.toFixed(0)}% of clients return for additional appointments.</p>
+                                <ul style="margin: 10px 0 0 20px; line-height: 1.8;">
+                                    <li>${visitDist['1 visit']} clients (${((visitDist['1 visit']/uniqueClients)*100).toFixed(0)}%) visited only once</li>
+                                    <li>Average ${avgDaysBetweenVisits.toFixed(0)} days between visits for returning clients</li>
+                                    <li>${returningClients} loyal clients generating repeat business</li>
+                                </ul>
+                                <p style="margin-top: 15px;"><strong>💡 Recommendations:</strong></p>
+                                <ul style="margin: 5px 0 0 20px; line-height: 1.8;">
+                                    <li>Follow up with one-time visitors within ${Math.ceil(avgDaysBetweenVisits/2)} days</li>
+                                    <li>Create membership packages for ${visitDist['4-6 visits'] + visitDist['7-10 visits'] + visitDist['11+ visits']} frequent visitors</li>
+                                    <li>Send rebooking reminders every ${Math.floor(avgDaysBetweenVisits * 0.8)} days</li>
+                                </ul>
+                            </div>
+                            
+                            <div style="margin: 20px 0;">
+                                <h3>Visit Frequency Distribution</h3>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                                    ${Object.entries(visitDist).map(([range, count]) => `
+                                        <div style="background: var(--gray-light); padding: 20px; border-radius: 8px; text-align: center; border-left: 4px solid var(--accent);">
+                                            <div style="font-size: 2.5em; font-weight: bold; color: var(--primary);">${formatNumber(count)}</div>
+                                            <div style="color: #666; font-size: 14px; margin-top: 5px;">${range}</div>
+                                            <div style="color: var(--accent); font-size: 12px; margin-top: 3px;">${((count/uniqueClients)*100).toFixed(1)}%</div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                })()}
+                
                 <div class="table-container">
                     <h2>Top 10 Customers by Lifetime Value</h2>
                     <table>
@@ -5691,7 +6717,7 @@
                                     <td>${c['E-mail']}</td>
                                     <td>${c.Type}</td>
                                     <td>${c['First purchase'] || 'N/A'}</td>
-                                    <td><strong>${formatCurrency(parseFloat(c.LTV || 0))}</strong></td>
+                                    <td><strong>${formatCurrency(parseLTV(c.LTV))}</strong></td>
                                 </tr>
                             `).join('')}
                         </tbody>
@@ -6278,25 +7304,6 @@
                     </div>
                 </div>
             `;
-            
-            // Add appointment heatmaps by location
-            const locations = [...new Set(data.map(row => row.Location).filter(l => l))].sort();
-            if (locations.length > 0) {
-                locations.forEach(location => {
-                    const locationAppts = data.filter(row => row.Location === location);
-                    html += `
-                        <div class="section">
-                            <h2>📅 Appointment Heatmap - ${location}</h2>
-                            <p style="color: #666; margin-bottom: 15px;">
-                                <strong>${locationAppts.length}</strong> appointments at ${location} location
-                            </p>
-                            <div id="apptHeatmapContainer-${location.replace(/\s+/g, '-')}" style="overflow-x: auto;">
-                                <div id="apptHeatmap-${location.replace(/\s+/g, '-')}"></div>
-                            </div>
-                        </div>
-                    `;
-                });
-            }
             
             document.getElementById('timeline').innerHTML = html;
             
@@ -7449,16 +8456,9 @@
             
             // Render charts
             setTimeout(() => {
-                console.log('Rendering membership charts...');
-                console.log('Canvas elements check:', {
-                    typeCount: document.getElementById('membershipTypeCountChart'),
-                    typeRevenue: document.getElementById('membershipTypeRevenueChart')
-                });
-                console.log('Data check:', {
-                    sortedTypes: sortedTypes.length,
-                    filteredMemberships: filteredMemberships.length
-                });
-                
+
+
+
                 // Sales Mix Chart - REMOVED
                 // Revenue Mix Chart - REMOVED
                 // Cumulative Revenue Chart - REMOVED
@@ -7467,7 +8467,7 @@
                 // Membership type count chart
                 const typeCountCanvas = document.getElementById('membershipTypeCountChart');
                 if (typeCountCanvas) {
-                    console.log('Creating membershipTypeCount chart...');
+
                     destroyChart('membershipTypeCount');
                     const ctx = typeCountCanvas.getContext('2d');
                     allCharts.membershipTypeCount = new Chart(ctx, {
@@ -7541,7 +8541,7 @@
                             }
                         }
                     });
-                    console.log('membershipTypeCount chart created:', allCharts.membershipTypeCount);
+
                 } else {
                     console.error('membershipTypeCountChart canvas not found!');
                 }
@@ -7549,7 +8549,7 @@
                 // Membership type revenue chart (DOUGHNUT with drilldown)
                 const typeRevenueCanvas = document.getElementById('membershipTypeRevenueChart');
                 if (typeRevenueCanvas) {
-                    console.log('Creating membershipTypeRevenue chart...');
+
                     destroyChart('membershipTypeRevenue');
                     const ctx = typeRevenueCanvas.getContext('2d');
                     allCharts.membershipTypeRevenue = new Chart(ctx, {
@@ -8367,7 +9367,7 @@
                         source = 'Unknown';
                     }
                     location = lead['Home location'] || 'Unknown';
-                    ltv = parseFloat(lead['LTV']) || 0;
+                    ltv = parseLTV(lead['LTV']);
                     convertedTo = (lead['Converted to'] || '').trim();
                     isConverted = convertedTo && convertedTo !== 'N/A' && convertedTo !== '';
                 } else {
@@ -8379,7 +9379,7 @@
                     }
                     const type = (lead['Type'] || '').toLowerCase();
                     isConverted = type === 'customer';
-                    ltv = parseFloat(lead['LTV']) || 0;
+                    ltv = parseLTV(lead['LTV']);
                 }
                 
                 // Count by source
@@ -8655,7 +9655,7 @@
                 </div>
                 
                 <div class="section">
-                    <h2>🔥 Lead Generation Heatmap</h2>
+                    <h2>🔥 Lead Generation Heatmap (01/10/25)</h2>
                     <p style="color: #666; margin-bottom: 15px;">Click any cell to see detailed lead information for that day and hour</p>
                     <div id="leadsHeatmapContainer" style="overflow-x: auto;">
                         <div id="leadsHeatmap"></div>
@@ -8685,7 +9685,7 @@
                     Object.keys(locationMap).sort().forEach(location => {
                         const locationLeads = locationMap[location];
                         html += `
-                            <div class="section">
+                            <div class="section" style="margin-bottom: 50px; padding: 20px; background: white; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
                                 <h2>🔥 SocialFitness Heatmap - ${location}</h2>
                                 <p style="color: #666; margin-bottom: 15px;">
                                     <strong>${locationLeads.length}</strong> leads from SocialFitness at ${location} location
@@ -9322,16 +10322,19 @@
             
             html += '<div class="table-container" style="max-height: 400px; overflow-y: auto;">';
             html += '<table><thead><tr>';
-            html += '<th>Name</th><th>Source</th><th>Converted To</th><th>LTV</th>';
+            html += '<th>Name</th><th>Date</th><th>Source</th><th>Converted To</th><th>LTV</th>';
             html += '</tr></thead><tbody>';
             
             leadsInCell.forEach(lead => {
                 const convertedTo = lead['Converted to'] || 'N/A';
                 const isConverted = convertedTo !== 'N/A';
-                const ltv = parseFloat(lead['LTV']) || 0;
+                const ltv = parseLTV(lead['LTV']);
+                const dateField = parseDate(lead['Converted']);
+                const dateStr = dateField ? `${String(dateField.getMonth() + 1).padStart(2, '0')}/${String(dateField.getDate()).padStart(2, '0')}/${String(dateField.getFullYear()).slice(-2)}` : 'N/A';
                 
                 html += '<tr>';
                 html += `<td>${lead['First Name']} ${lead['Last Name']}</td>`;
+                html += `<td>${dateStr}</td>`;
                 html += `<td>${lead['Lead source'] || 'Unknown'}</td>`;
                 html += `<td><span style="padding: 4px 8px; border-radius: 4px; background: ${isConverted ? '#d4edda' : '#f8d7da'}; color: ${isConverted ? '#155724' : '#721c24'};">${convertedTo}</span></td>`;
                 html += `<td>${formatCurrency(ltv)}</td>`;
@@ -9341,7 +10344,7 @@
             html += '</tbody></table></div>';
             
             // Add summary stats
-            const totalLTV = leadsInCell.reduce((sum, l) => sum + (parseFloat(l['LTV']) || 0), 0);
+            const totalLTV = leadsInCell.reduce((sum, l) => sum + (parseLTV(l['LTV'])), 0);
             const avgLTV = converted > 0 ? totalLTV / converted : 0;
             
             html += `<div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">`;
@@ -9544,7 +10547,7 @@
                     dateField = parseDate(lead['Join date']);
                 }
                 
-                const formattedDate = dateField ? `${String(dateField.getMonth() + 1).padStart(2, '0')}/${String(dateField.getDate()).padStart(2, '0')}/${dateField.getFullYear()}` : 'N/A';
+                const formattedDate = dateField ? `${String(dateField.getMonth() + 1).padStart(2, '0')}/${String(dateField.getDate()).padStart(2, '0')}/${String(dateField.getFullYear()).slice(-2)}` : 'N/A';
                 html += `<td>${formattedDate}</td>`;
                 
                 if (hasConvertedData) {
@@ -9552,7 +10555,7 @@
                     const convertedTo = lead['Converted to'] || 'N/A';
                     const isConverted = convertedTo !== 'N/A';
                     html += `<td><span style="padding: 4px 8px; border-radius: 4px; background: ${isConverted ? '#d4edda' : '#f8d7da'}; color: ${isConverted ? '#155724' : '#721c24'};">${convertedTo}</span></td>`;
-                    html += `<td>${formatCurrency(parseFloat(lead['LTV']) || 0)}</td>`;
+                    html += `<td>${formatCurrency(parseLTV(lead['LTV']))}</td>`;
                 } else {
                     html += `<td>${lead['Aggregator'] || 'Unknown'}</td>`;
                     html += `<td>${lead['Type'] || 'N/A'}</td>`;
@@ -9567,12 +10570,11 @@
         
         // MEMBERSHIP CANCELLATIONS - Appended to Memberships Tab
         function appendCancellationsToMemberships() {
-            console.log('renderCancellationsTab called');
-            console.log('membershipCancellationsData length:', membershipCancellationsData ? membershipCancellationsData.length : 0);
-            console.log('filteredCancellations length:', filteredCancellations ? filteredCancellations.length : 0);
-            
+
+
+
             if (!membershipCancellationsData || membershipCancellationsData.length === 0) {
-                console.log('No cancellation data, skipping cancellations section');
+
                 return;
             }
             
@@ -9820,15 +10822,13 @@
             if (mostRecentCancellation && oldestCancellation) {
                 timeSpanDays = Math.floor((mostRecentCancellation - oldestCancellation) / (1000 * 60 * 60 * 24));
             }
-            
-            console.log('Cancellations data processed:');
-            console.log('- Total cancellations:', totalCancellations);
-            console.log('- With reasons:', withReasons);
-            console.log('- Churn rate:', churnRateText);
-            console.log('- By type:', sortedTypes);
-            console.log('- By location:', sortedLocations);
-            console.log('- Most common day:', mostCommonDay);
-            
+
+
+
+
+
+
+
             let html = `
                 <!-- Cancellations Section Divider -->
                 <div style="margin: 60px 0 40px 0; border-top: 3px solid var(--accent); padding-top: 40px;">
@@ -10966,8 +11966,7 @@
                     }
                 });
             }
-            
-            console.log('Cancellations tab rendering complete!');
+
         }
         
         // Show Cancellation Reason Details Modal
@@ -11548,7 +12547,7 @@
                     <div class="metric-card">
                         <div class="metric-label">Revenue Rate</div>
                         <div class="metric-value">${(() => {
-                            const ltvs = leadsData.map(row => parseFloat(row.LTV || 0));
+                            const ltvs = leadsData.map(row => parseLTV(row.LTV));
                             const hasRevenue = ltvs.filter(ltv => ltv > 0).length;
                             return (hasRevenue / totalPeople * 100).toFixed(1);
                         })()}%</div>
@@ -12095,11 +13094,26 @@
             
             destroyChart('ltvDistribution');
             
+            // Get current tier configuration
+            const currentTierConfig = LTV_TIERS[CONFIG.ltvTiers];
+            const ranges = currentTierConfig.ranges;
+            
+            // Format labels
+            const formatK = (num) => num >= 1000 ? `$${(num/1000).toFixed(num % 1000 === 0 ? 0 : 1)}K` : `$${num}`;
+            const labels = [
+                `$1-${formatK(ranges[0])}`,
+                `${formatK(ranges[0])}-${formatK(ranges[1])}`,
+                `${formatK(ranges[1])}-${formatK(ranges[2])}`,
+                `${formatK(ranges[2])}-${formatK(ranges[3])}`,
+                `${formatK(ranges[3])}-${formatK(ranges[4])}`,
+                ranges[5] === Infinity ? `${formatK(ranges[4])}+` : `${formatK(ranges[4])}-${formatK(ranges[5])}+`
+            ];
+            
             const ctx = canvas.getContext('2d');
             allCharts.ltvDistribution = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: ['$1-$100', '$100-$250', '$250-$500', '$500-$1K', '$1K-$2K', '$2K+'],
+                    labels: labels,
                     datasets: [{
                         label: 'Customers',
                         data: [tier1, tier2, tier3, tier4, tier5, tier6],
@@ -12112,7 +13126,6 @@
                     onClick: (event, elements) => {
                         if (elements.length > 0) {
                             const index = elements[0].index;
-                            const labels = ['$1-$100', '$100-$250', '$250-$500', '$500-$1000', '$1000-$2000', '$2000+'];
                             const values = [tier1, tier2, tier3, tier4, tier5, tier6];
                             showLTVDetails(labels[index], values[index]);
                         }
@@ -13269,7 +14282,7 @@
             leads.forEach(lead => {
                 const convertedTo = lead['Converted to'] || 'N/A';
                 const isConverted = convertedTo !== 'N/A';
-                const ltv = parseFloat(lead['LTV']) || 0;
+                const ltv = parseLTV(lead['LTV']);
                 
                 html += '<tr>';
                 html += `<td>${lead['First Name']} ${lead['Last Name']}</td>`;
@@ -13282,7 +14295,7 @@
             html += '</tbody></table></div>';
             
             // Add summary stats
-            const totalLTV = leads.reduce((sum, l) => sum + (parseFloat(l['LTV']) || 0), 0);
+            const totalLTV = leads.reduce((sum, l) => sum + (parseLTV(l['LTV'])), 0);
             const avgLTV = converted > 0 ? totalLTV / converted : 0;
             
             html += `<div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">`;
@@ -13333,7 +14346,7 @@
             sortedLeads.forEach(lead => {
                 const convertedTo = lead['Converted to'] || (lead['Type'] === 'Customer' ? 'Customer' : 'Lead');
                 const isConverted = lead['Type'] === 'Customer' || (convertedTo !== 'N/A' && convertedTo !== 'Lead');
-                const ltv = parseFloat(lead['LTV']) || 0;
+                const ltv = parseLTV(lead['LTV']);
                 const date = parseDate(lead['Converted'] || lead['Join date']);
                 const dateStr = date ? `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}/${date.getFullYear()}` : 'N/A';
                 
@@ -13348,7 +14361,7 @@
             html += '</tbody></table></div>';
             
             // Add summary stats with location breakdown
-            const totalLTV = leads.reduce((sum, l) => sum + (parseFloat(l['LTV']) || 0), 0);
+            const totalLTV = leads.reduce((sum, l) => sum + (parseLTV(l['LTV'])), 0);
             const avgLTV = converted > 0 ? totalLTV / converted : 0;
             
             // Sort locations by count descending
@@ -13418,7 +14431,7 @@
     <!-- Footer -->
     <div class="dashboard-footer">
         <div class="footer-content">
-            <span class="footer-version">v6.20251105.09</span>
+            <span class="footer-version">v7.20251105.16</span>
             <span class="footer-separator">|</span>
             <span class="footer-credits">Made by bonJoeV with ❤️</span>
         </div>
