@@ -91,16 +91,55 @@ window.addEventListener('DOMContentLoaded', function () {
     // Show empty state initially
     showEmptyState();
 
-    // Set up tab switching
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.addEventListener('click', function () {
+    // Set up UI event listeners
+    setupEventListeners();
+});
+
+// Setup all event listeners for UI elements
+function setupEventListeners() {
+    // Upload modal buttons
+    document.getElementById('uploadBtn')?.addEventListener('click', openUploadModal);
+    document.getElementById('emptyStateUploadBtn')?.addEventListener('click', openUploadModal);
+    document.getElementById('closeUploadModalBtn')?.addEventListener('click', closeUploadModal);
+
+    // Settings modal buttons
+    document.getElementById('settingsBtn')?.addEventListener('click', openSettingsModal);
+    document.getElementById('closeSettingsModalBtn')?.addEventListener('click', closeSettingsModal);
+    document.getElementById('saveFranchiseSettingsBtn')?.addEventListener('click', () => saveFranchiseSettings(renderAllTabs));
+
+    // Data modal
+    const dataModal = document.getElementById('dataModal');
+    const dataModalContent = document.getElementById('dataModalContent');
+    document.getElementById('closeDataModalBtn')?.addEventListener('click', closeModal);
+    dataModal?.addEventListener('click', (e) => {
+        if (e.target === dataModal) closeModal();
+    });
+    dataModalContent?.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+
+    // Filters
+    document.getElementById('filtersHeader')?.addEventListener('click', () => toggleCollapse('filtersContent', 'filtersIcon'));
+    document.getElementById('refreshDataBtn')?.addEventListener('click', () => refreshData(renderAllTabs));
+
+    // Quick filter buttons
+    document.querySelectorAll('.quick-filter-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const filter = this.getAttribute('data-filter');
+            setQuickFilter(filter, () => applyFilters(renderAllTabs));
+        });
+    });
+
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', function() {
             const tabName = this.getAttribute('data-tab');
             if (tabName) {
                 switchTab(tabName);
             }
         });
     });
-});
+}
 
 // Make functions globally accessible for inline onclick handlers
 window.toggleCollapse = toggleCollapse;
