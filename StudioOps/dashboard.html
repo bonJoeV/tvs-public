@@ -6105,6 +6105,36 @@ function setQuickFilter(filter, applyFiltersCallback) {
 // SETTINGS.JS
 ================================================================================
 
+// Safe localStorage wrapper (handles privacy blocking)
+const safeLocalStorage = {
+    getItem(key) {
+        try {
+            return localStorage.getItem(key);
+        } catch (e) {
+            console.warn('localStorage access blocked:', e);
+            return null;
+        }
+    },
+    setItem(key, value) {
+        try {
+            localStorage.setItem(key, value);
+            return true;
+        } catch (e) {
+            console.warn('localStorage access blocked:', e);
+            return false;
+        }
+    }
+};
+// Settings Modal Controls
+function openSettingsModal() {
+    document.getElementById('settingsModal').classList.add('show');
+    document.body.style.overflow = 'hidden';
+}
+function closeSettingsModal() {
+    document.getElementById('settingsModal').classList.remove('show');
+    document.body.style.overflow = 'auto';
+    document.getElementById('franchiseSettingsStatus').innerHTML = '';
+}
 // Franchise Settings Management
 function saveFranchiseSettings(renderAllTabsCallback) {
     const settings = {
@@ -6167,7 +6197,7 @@ function saveFranchiseSettings(renderAllTabsCallback) {
     CONFIG.ltvTiers = settings.ltvTiers;
     CONFIG.salariedEmployees = settings.salariedEmployees;
     // Save to localStorage
-    localStorage.setItem('vitalStretchFranchiseSettings', JSON.stringify(settings));
+    safeLocalStorage.setItem('vitalStretchFranchiseSettings', JSON.stringify(settings));
     // Show success message
     showFranchiseSettingsStatus('✅ Settings saved successfully!', 'success');
     // Re-render tabs if data is loaded
@@ -6184,7 +6214,7 @@ function showFranchiseSettingsStatus(message, type) {
     }, 3000);
 }
 function loadFranchiseSettingsFromStorage() {
-    const saved = localStorage.getItem('vitalStretchFranchiseSettings');
+    const saved = safeLocalStorage.getItem('vitalStretchFranchiseSettings');
     if (saved) {
         try {
             const settings = JSON.parse(saved);
@@ -6274,6 +6304,15 @@ function initializeSettings() {
  * 4. Updates global data stores
  * 5. Triggers dashboard refresh
  */
+// Upload Modal Controls
+function openUploadModal() {
+    document.getElementById('uploadModal').classList.add('show');
+    document.body.style.overflow = 'hidden';
+}
+function closeUploadModal() {
+    document.getElementById('uploadModal').classList.remove('show');
+    document.body.style.overflow = 'auto';
+}
 // Leads File Upload Handler
 function initializeLeadsFileUpload(applyFiltersCallback, renderAllTabsCallback, hideEmptyStateCallback) {
     document.getElementById('leadsFile').addEventListener('change', function (e) {
@@ -11847,6 +11886,15 @@ window.addEventListener('DOMContentLoaded', function () {
 // Make functions globally accessible for inline onclick handlers
 window.toggleCollapse = toggleCollapse;
 window.initializeDashboard = initializeDashboard;
+window.openUploadModal = openUploadModal;
+window.closeUploadModal = closeUploadModal;
+window.openSettingsModal = openSettingsModal;
+window.closeSettingsModal = closeSettingsModal;
+window.saveFranchiseSettings = saveFranchiseSettings;
+window.closeModal = closeModal;
+window.setQuickFilter = setQuickFilter;
+window.refreshData = refreshData;
+window.switchTab = switchTab;
 // Export for use in other modules
     </script>
 </body>
