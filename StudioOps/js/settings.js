@@ -1,6 +1,39 @@
 import { CONFIG } from './config.js';
 import { appointmentsData } from './data.js';
 
+// Safe localStorage wrapper (handles privacy blocking)
+const safeLocalStorage = {
+    getItem(key) {
+        try {
+            return localStorage.getItem(key);
+        } catch (e) {
+            console.warn('localStorage access blocked:', e);
+            return null;
+        }
+    },
+    setItem(key, value) {
+        try {
+            localStorage.setItem(key, value);
+            return true;
+        } catch (e) {
+            console.warn('localStorage access blocked:', e);
+            return false;
+        }
+    }
+};
+
+// Settings Modal Controls
+export function openSettingsModal() {
+    document.getElementById('settingsModal').classList.add('show');
+    document.body.style.overflow = 'hidden';
+}
+
+export function closeSettingsModal() {
+    document.getElementById('settingsModal').classList.remove('show');
+    document.body.style.overflow = 'auto';
+    document.getElementById('franchiseSettingsStatus').innerHTML = '';
+}
+
 // Franchise Settings Management
 export function saveFranchiseSettings(renderAllTabsCallback) {
     const settings = {
@@ -67,7 +100,7 @@ export function saveFranchiseSettings(renderAllTabsCallback) {
     CONFIG.salariedEmployees = settings.salariedEmployees;
 
     // Save to localStorage
-    localStorage.setItem('vitalStretchFranchiseSettings', JSON.stringify(settings));
+    safeLocalStorage.setItem('vitalStretchFranchiseSettings', JSON.stringify(settings));
 
     // Show success message
     showFranchiseSettingsStatus('✅ Settings saved successfully!', 'success');
@@ -89,7 +122,7 @@ export function showFranchiseSettingsStatus(message, type) {
 }
 
 export function loadFranchiseSettingsFromStorage() {
-    const saved = localStorage.getItem('vitalStretchFranchiseSettings');
+    const saved = safeLocalStorage.getItem('vitalStretchFranchiseSettings');
     if (saved) {
         try {
             const settings = JSON.parse(saved);

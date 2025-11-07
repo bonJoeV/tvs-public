@@ -26,6 +26,17 @@ import {
     staffEmailToName
 } from './data.js';
 
+// Upload Modal Controls
+export function openUploadModal() {
+    document.getElementById('uploadModal').classList.add('show');
+    document.body.style.overflow = 'hidden';
+}
+
+export function closeUploadModal() {
+    document.getElementById('uploadModal').classList.remove('show');
+    document.body.style.overflow = 'auto';
+}
+
 // Leads File Upload Handler
 export function initializeLeadsFileUpload(applyFiltersCallback, renderAllTabsCallback, hideEmptyStateCallback) {
     document.getElementById('leadsFile').addEventListener('change', function (e) {

@@ -11,14 +11,16 @@
  * - DOMContentLoaded handler - Setup on page load
  */
 
-import { initializeSettings } from './settings.js';
-import { initializeModalListeners } from './modals.js';
-import { populateFilters, applyFilters } from './filters.js';
+import { initializeSettings, openSettingsModal, closeSettingsModal, saveFranchiseSettings } from './settings.js';
+import { initializeModalListeners, closeModal } from './modals.js';
+import { populateFilters, applyFilters, setQuickFilter, refreshData } from './filters.js';
 import { renderAllTabs, switchTab } from './tabs.js';
 import {
     initializeLeadsFileUpload,
     initializeLeadsConvertedFileUpload,
-    initializeMembershipsFileUpload
+    initializeMembershipsFileUpload,
+    openUploadModal,
+    closeUploadModal
 } from './upload.js';
 import { appointmentsData } from './data.js';
 
@@ -103,6 +105,15 @@ window.addEventListener('DOMContentLoaded', function () {
 // Make functions globally accessible for inline onclick handlers
 window.toggleCollapse = toggleCollapse;
 window.initializeDashboard = initializeDashboard;
+window.openUploadModal = openUploadModal;
+window.closeUploadModal = closeUploadModal;
+window.openSettingsModal = openSettingsModal;
+window.closeSettingsModal = closeSettingsModal;
+window.saveFranchiseSettings = saveFranchiseSettings;
+window.closeModal = closeModal;
+window.setQuickFilter = setQuickFilter;
+window.refreshData = refreshData;
+window.switchTab = switchTab;
 
 // Export for use in other modules
 export { renderAllTabs, applyFilters };
