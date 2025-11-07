@@ -1787,11 +1787,11 @@
 <body>
     <!-- Header Icons -->
     <div class="header-icons">
-        <button class="icon-btn" id="uploadBtn" onclick="openUploadModal()" title="Upload Data">
+        <button class="icon-btn" id="uploadBtn" title="Upload Data">
             📁
             <span class="badge" id="uploadBadge" style="display: none;">!</span>
         </button>
-        <button class="icon-btn" onclick="openSettingsModal()" title="Settings">
+        <button class="icon-btn" id="settingsBtn" title="Settings">
             ⚙️
         </button>
     </div>
@@ -1813,7 +1813,7 @@
             <div class="empty-state-icon">📊</div>
             <h2>Welcome to The Vital Stretch Dashboard</h2>
             <p>Get started by uploading your Momence data files</p>
-            <button class="icon-btn highlight" onclick="openUploadModal()" style="position: relative; width: auto; height: auto; padding: 15px 30px; border-radius: 25px; font-size: 16px; font-weight: 600;">
+            <button class="icon-btn highlight" id="emptyStateUploadBtn" style="position: relative; width: auto; height: auto; padding: 15px 30px; border-radius: 25px; font-size: 16px; font-weight: 600;">
                 📁 Upload Data to Get Started
             </button>
         </div>
@@ -1826,7 +1826,7 @@
         
         <!-- Filters -->
         <div class="filters" id="filtersSection" style="display: none;">
-            <div class="collapsible-header" onclick="toggleCollapse('filtersContent', 'filtersIcon')">
+            <div class="collapsible-header" id="filtersHeader">
                 <h2>🔍 Filters</h2>
                 <span class="collapse-icon collapsed" id="filtersIcon">▼</span>
             </div>
@@ -1876,31 +1876,31 @@
                     </div>
                 </div>
                 <div class="quick-filters">
-                    <button class="quick-filter-btn" onclick="setQuickFilter('7days')">Last 7 Days</button>
-                    <button class="quick-filter-btn" onclick="setQuickFilter('30days')">Last 30 Days</button>
-                    <button class="quick-filter-btn" onclick="setQuickFilter('90days')">Last 90 Days</button>
-                    <button class="quick-filter-btn" onclick="setQuickFilter('thisMonth')">This Month</button>
-                    <button class="quick-filter-btn" onclick="setQuickFilter('lastMonth')">Last Month</button>
-                    <button class="quick-filter-btn" onclick="setQuickFilter('reset')" style="background: #dc3545; color: white; font-weight: bold; border: 2px solid #fff;">🔄 RESET ALL FILTERS</button>
+                    <button class="quick-filter-btn" data-filter="7days">Last 7 Days</button>
+                    <button class="quick-filter-btn" data-filter="30days">Last 30 Days</button>
+                    <button class="quick-filter-btn" data-filter="90days">Last 90 Days</button>
+                    <button class="quick-filter-btn" data-filter="thisMonth">This Month</button>
+                    <button class="quick-filter-btn" data-filter="lastMonth">Last Month</button>
+                    <button class="quick-filter-btn" data-filter="reset" style="background: #dc3545; color: white; font-weight: bold; border: 2px solid #fff;">🔄 RESET ALL FILTERS</button>
                 </div>
                 <div style="text-align: center;">
-                    <button class="refresh-filter-btn" onclick="refreshData()">🔄 Refresh Data</button>
+                    <button class="refresh-filter-btn" id="refreshDataBtn">🔄 Refresh Data</button>
                 </div>
             </div>
         </div>
         
         <!-- Main Tabs -->
         <div class="tabs" id="mainTabs" style="display: none;">
-            <div class="tab active" onclick="switchTab('overview')">Overview</div>
-            <div class="tab" onclick="switchTab('timeline')">Timeline</div>
-            <div class="tab" onclick="switchTab('practitioners')">VSP</div>
-            <div class="tab" onclick="switchTab('customers')">Customers</div>
-            <div class="tab" onclick="switchTab('leads')">Leads</div>
-            <div class="tab" onclick="switchTab('studios')">Studios</div>
-            <div class="tab" onclick="switchTab('journey')">Journey</div>
-            <div class="tab" onclick="switchTab('memberships')">Memberships</div>
-            <div class="tab" onclick="switchTab('schedule')">Schedule</div>
-            <div class="tab" onclick="switchTab('insights')">Insights</div>
+            <div class="tab active" data-tab="overview">Overview</div>
+            <div class="tab" data-tab="timeline">Timeline</div>
+            <div class="tab" data-tab="practitioners">VSP</div>
+            <div class="tab" data-tab="customers">Customers</div>
+            <div class="tab" data-tab="leads">Leads</div>
+            <div class="tab" data-tab="studios">Studios</div>
+            <div class="tab" data-tab="journey">Journey</div>
+            <div class="tab" data-tab="memberships">Memberships</div>
+            <div class="tab" data-tab="schedule">Schedule</div>
+            <div class="tab" data-tab="insights">Insights</div>
         </div>
         
         <!-- Tab Contents -->
@@ -1922,7 +1922,7 @@
         <div class="upload-modal-content">
             <div class="modal-header-custom">
                 <h3>📁 Upload Data Files</h3>
-                <button class="modal-close-custom" onclick="closeUploadModal()">×</button>
+                <button class="modal-close-custom" id="closeUploadModalBtn">×</button>
             </div>
             <div class="modal-body-custom">
                 <p style="text-align: center; margin-bottom: 25px; color: #666;">
@@ -1986,7 +1986,7 @@
         <div class="settings-modal-content">
             <div class="modal-header-custom">
                 <h3>⚙️ Franchise Settings</h3>
-                <button class="modal-close-custom" onclick="closeSettingsModal()">×</button>
+                <button class="modal-close-custom" id="closeSettingsModalBtn">×</button>
             </div>
             <div class="modal-body-custom">
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 20px;">
@@ -2192,7 +2192,7 @@
                 </div>
                 
                 <div style="text-align: center; margin-top: 20px;">
-                    <button onclick="saveFranchiseSettings()" class="upload-btn" style="min-width: 250px; font-size: 16px;">
+                    <button id="saveFranchiseSettingsBtn" class="upload-btn" style="min-width: 250px; font-size: 16px;">
                         💾 Save Settings
                     </button>
                     <div id="franchiseSettingsStatus" style="margin-top: 15px; min-height: 20px; font-weight: 600;"></div>
@@ -2202,11 +2202,11 @@
     </div>
     
     <!-- Data Detail Modal -->
-    <div class="modal-overlay" id="dataModal" onclick="closeModal()">
-        <div class="modal-content" onclick="event.stopPropagation()">
+    <div class="modal-overlay" id="dataModal">
+        <div class="modal-content" id="dataModalContent">
             <div class="modal-header">
                 <h3 id="modalTitle">Data Details</h3>
-                <button class="modal-close" onclick="closeModal()">×</button>
+                <button class="modal-close" id="closeDataModalBtn">×</button>
             </div>
             <div class="modal-body" id="modalBody">
                 <!-- Dynamic content will be inserted here -->
@@ -11873,16 +11873,49 @@ window.addEventListener('DOMContentLoaded', function () {
     // TODO: Initialize payroll and attendance zip handlers
     // Show empty state initially
     showEmptyState();
-    // Set up tab switching
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.addEventListener('click', function () {
+    // Set up UI event listeners
+    setupEventListeners();
+});
+// Setup all event listeners for UI elements
+function setupEventListeners() {
+    // Upload modal buttons
+    document.getElementById('uploadBtn')?.addEventListener('click', openUploadModal);
+    document.getElementById('emptyStateUploadBtn')?.addEventListener('click', openUploadModal);
+    document.getElementById('closeUploadModalBtn')?.addEventListener('click', closeUploadModal);
+    // Settings modal buttons
+    document.getElementById('settingsBtn')?.addEventListener('click', openSettingsModal);
+    document.getElementById('closeSettingsModalBtn')?.addEventListener('click', closeSettingsModal);
+    document.getElementById('saveFranchiseSettingsBtn')?.addEventListener('click', () => saveFranchiseSettings(renderAllTabs));
+    // Data modal
+    const dataModal = document.getElementById('dataModal');
+    const dataModalContent = document.getElementById('dataModalContent');
+    document.getElementById('closeDataModalBtn')?.addEventListener('click', closeModal);
+    dataModal?.addEventListener('click', (e) => {
+        if (e.target === dataModal) closeModal();
+    });
+    dataModalContent?.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+    // Filters
+    document.getElementById('filtersHeader')?.addEventListener('click', () => toggleCollapse('filtersContent', 'filtersIcon'));
+    document.getElementById('refreshDataBtn')?.addEventListener('click', () => refreshData(renderAllTabs));
+    // Quick filter buttons
+    document.querySelectorAll('.quick-filter-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const filter = this.getAttribute('data-filter');
+            setQuickFilter(filter, () => applyFilters(renderAllTabs));
+        });
+    });
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', function() {
             const tabName = this.getAttribute('data-tab');
             if (tabName) {
                 switchTab(tabName);
             }
         });
     });
-});
+}
 // Make functions globally accessible for inline onclick handlers
 window.toggleCollapse = toggleCollapse;
 window.initializeDashboard = initializeDashboard;
