@@ -788,6 +788,101 @@
             margin-top: 40px;
             border-top: 3px solid var(--highlight);
         }
+        
+        /* VSP Exclusion Dual-List Picker */
+        .dual-list-container {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 20px;
+            align-items: center;
+            margin-top: 15px;
+        }
+        
+        .dual-list-box {
+            background: white;
+            border: 2px solid var(--accent);
+            border-radius: 10px;
+            padding: 15px;
+            height: 300px;
+            overflow-y: auto;
+        }
+        
+        .dual-list-box h5 {
+            color: var(--primary);
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--accent);
+        }
+        
+        .dual-list-item {
+            padding: 10px 12px;
+            margin: 5px 0;
+            background: var(--gray-light);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+        
+        .dual-list-item:hover {
+            background: var(--accent);
+            color: white;
+            transform: translateX(5px);
+        }
+        
+        .dual-list-item.selected {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .dual-list-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        
+        .dual-list-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .dual-list-btn {
+            padding: 12px 20px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(113, 190, 210, 0.3);
+        }
+        
+        .dual-list-btn:hover:not(:disabled) {
+            background: var(--primary);
+            transform: scale(1.1);
+        }
+        
+        .dual-list-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+        
+        .dual-list-counter {
+            text-align: center;
+            font-size: 13px;
+            color: #666;
+            margin-top: 10px;
+            font-weight: 600;
+        }
 
         .footer-content {
             display: flex;
@@ -2244,6 +2339,42 @@
                     </div>
                 </div>
                 
+                <!-- VSP Exclusions Section -->
+                <div style="margin-top: 30px; padding: 25px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px; border: 2px solid var(--accent);">
+                    <h4 style="color: var(--primary); margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 24px;">👥</span> VSP Exclusions
+                    </h4>
+                    <p style="font-size: 13px; color: #666; margin-bottom: 20px;">
+                        Select practitioners to exclude from VSP reports (e.g., managers, former employees, non-practitioners). Move VSPs between lists using the arrow buttons.
+                    </p>
+                    
+                    <div class="dual-list-container">
+                        <!-- Active VSPs List -->
+                        <div class="dual-list-box">
+                            <h5>✅ Active VSPs (Included in Reports)</h5>
+                            <div id="activeVSPsList"></div>
+                            <div class="dual-list-counter" id="activeCounter">0 active</div>
+                        </div>
+                        
+                        <!-- Control Buttons -->
+                        <div class="dual-list-controls">
+                            <button type="button" id="moveToExcludedBtn" class="dual-list-btn" onclick="moveVSPsToExcluded()" title="Move selected VSPs to excluded list">
+                                →
+                            </button>
+                            <button type="button" id="moveToActiveBtn" class="dual-list-btn" onclick="moveVSPsToActive()" title="Move selected VSPs back to active list">
+                                ←
+                            </button>
+                        </div>
+                        
+                        <!-- Excluded VSPs List -->
+                        <div class="dual-list-box">
+                            <h5>🚫 Excluded VSPs (Hidden from Reports)</h5>
+                            <div id="excludedVSPsList"></div>
+                            <div class="dual-list-counter" id="excludedCounter">0 excluded</div>
+                        </div>
+                    </div>
+                </div>
+                
                 <div style="text-align: center; margin-top: 20px;">
                     <button onclick="saveFranchiseSettings()" class="upload-btn" style="min-width: 250px; font-size: 16px;">
                         💾 Save Settings
@@ -3147,7 +3278,8 @@
                 { name: '', annualSalary: 0, startDate: '' },
                 { name: '', annualSalary: 0, startDate: '' },
                 { name: '', annualSalary: 0, startDate: '' }
-            ]
+            ],
+            excludedVSPEmails: [] // Array of practitioner emails to exclude from VSP reports
         };
         
         // LTV Tier definitions
@@ -3207,13 +3339,14 @@
                         annualSalary: parseFloat(document.getElementById('salaryEmp3Salary').value) || 0,
                         startDate: document.getElementById('salaryEmp3StartDate').value
                     }
-                ]
+                ],
+                excludedVSPEmails: CONFIG.excludedVSPEmails // Save current exclusions
             };
             
             // Validate (skip string fields and special objects)
             for (const [key, value] of Object.entries(settings)) {
                 if (key === 'timezone' || key === 'ltvTiers' || key === 'salariedEmployees' || 
-                    key === 'momenceHostId' || key === 'notBeforeDate') continue;
+                    key === 'momenceHostId' || key === 'notBeforeDate' || key === 'excludedVSPEmails') continue;
                 if (isNaN(value) || value < 0) {
                     showFranchiseSettingsStatus('❌ Please enter valid numbers (0 or greater) for all fields', 'error');
                     return;
@@ -3246,6 +3379,7 @@
             CONFIG.baseHourlyRate = settings.baseHourlyRate;
             CONFIG.ltvTiers = settings.ltvTiers;
             CONFIG.salariedEmployees = settings.salariedEmployees;
+            CONFIG.excludedVSPEmails = settings.excludedVSPEmails || [];
             
             // Save to localStorage
             localStorage.setItem('vitalStretchFranchiseSettings', JSON.stringify(settings));
@@ -3305,6 +3439,7 @@
                         { name: '', annualSalary: 0, startDate: '' },
                         { name: '', annualSalary: 0, startDate: '' }
                     ];
+                    CONFIG.excludedVSPEmails = settings.excludedVSPEmails || [];
                     
                     // Update form fields
                     document.getElementById('timezoneSelect').value = CONFIG.timezone;
@@ -3330,6 +3465,143 @@
                     console.error('Error loading settings:', e);
                 }
             }
+        }
+        
+        // VSP Exclusion Dual-List Picker Functions
+        function populateVSPLists() {
+            // Get all unique VSPs from appointments data
+            const vspMap = new Map(); // identifier -> {name, identifier}
+            
+            appointmentsData.forEach(appt => {
+                // Try to get email from various possible fields
+                let identifier = (appt['Practitioner Email'] || appt['Employee Email'] || appt['Employee Name'] || '').trim().toLowerCase();
+                
+                const firstName = (appt['Practitioner First Name'] || '').trim();
+                const lastName = (appt['Practitioner Last Name'] || '').trim();
+                const name = `${firstName} ${lastName}`.trim();
+                
+                // If no identifier found, create one from the name
+                if (!identifier && name) {
+                    identifier = name.toLowerCase().replace(/\s+/g, '_');
+                }
+                
+                if (identifier && name && !name.toLowerCase().includes('sauna')) {
+                    if (!vspMap.has(identifier)) {
+                        vspMap.set(identifier, { name, identifier });
+                    }
+                }
+            });
+            
+            // Convert to array and sort by name
+            const allVSPs = Array.from(vspMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+            
+            // Split into active and excluded based on CONFIG
+            const excludedSet = new Set(CONFIG.excludedVSPEmails.map(e => e.toLowerCase()));
+            const activeVSPs = allVSPs.filter(vsp => !excludedSet.has(vsp.identifier.toLowerCase()));
+            const excludedVSPs = allVSPs.filter(vsp => excludedSet.has(vsp.identifier.toLowerCase()));
+            
+            // Render active list
+            const activeList = document.getElementById('activeVSPsList');
+            if (!activeList) {
+                console.error('❌ activeVSPsList element not found!');
+                return;
+            }
+            
+            if (activeVSPs.length === 0 && excludedVSPs.length === 0) {
+                activeList.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No VSPs found. Upload your appointments data first.</div>';
+            } else {
+                activeList.innerHTML = activeVSPs.map(vsp => `
+                    <div class="dual-list-item" data-email="${vsp.identifier}" onclick="toggleVSPSelection(this)">
+                        <input type="checkbox" onclick="event.stopPropagation(); toggleVSPSelection(this.parentElement);">
+                        <span>${vsp.name}</span>
+                    </div>
+                `).join('');
+            }
+            
+            // Render excluded list
+            const excludedList = document.getElementById('excludedVSPsList');
+            if (!excludedList) {
+                console.error('❌ excludedVSPsList element not found!');
+                return;
+            }
+            
+            if (activeVSPs.length === 0 && excludedVSPs.length === 0) {
+                excludedList.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No excluded VSPs</div>';
+            } else {
+                excludedList.innerHTML = excludedVSPs.map(vsp => `
+                    <div class="dual-list-item" data-email="${vsp.identifier}" onclick="toggleVSPSelection(this)">
+                        <input type="checkbox" onclick="event.stopPropagation(); toggleVSPSelection(this.parentElement);">
+                        <span>${vsp.name}</span>
+                    </div>
+                `).join('');
+            }
+            
+            // Update counters
+            updateVSPCounters();
+        }
+        
+        function toggleVSPSelection(item) {
+            const checkbox = item.querySelector('input[type="checkbox"]');
+            checkbox.checked = !checkbox.checked;
+            
+            if (checkbox.checked) {
+                item.classList.add('selected');
+            } else {
+                item.classList.remove('selected');
+            }
+        }
+        
+        function moveVSPsToExcluded() {
+            const activeList = document.getElementById('activeVSPsList');
+            const selectedItems = activeList.querySelectorAll('.dual-list-item input[type="checkbox"]:checked');
+            
+            if (selectedItems.length === 0) {
+                alert('Please select at least one VSP to exclude');
+                return;
+            }
+            
+            // Add selected emails to exclusion list
+            selectedItems.forEach(checkbox => {
+                const item = checkbox.parentElement;
+                const email = item.dataset.email;
+                if (!CONFIG.excludedVSPEmails.includes(email)) {
+                    CONFIG.excludedVSPEmails.push(email);
+                }
+            });
+            
+            // Re-populate lists
+            populateVSPLists();
+        }
+        
+        function moveVSPsToActive() {
+            const excludedList = document.getElementById('excludedVSPsList');
+            const selectedItems = excludedList.querySelectorAll('.dual-list-item input[type="checkbox"]:checked');
+            
+            if (selectedItems.length === 0) {
+                alert('Please select at least one VSP to include');
+                return;
+            }
+            
+            // Remove selected emails from exclusion list (case-insensitive)
+            selectedItems.forEach(checkbox => {
+                const item = checkbox.parentElement;
+                const email = item.dataset.email.toLowerCase();
+                const index = CONFIG.excludedVSPEmails.findIndex(e => e.toLowerCase() === email);
+                if (index > -1) {
+                    CONFIG.excludedVSPEmails.splice(index, 1);
+                }
+            });
+            
+            // Re-populate lists
+            populateVSPLists();
+        }
+        
+        function updateVSPCounters() {
+            const activeCount = document.getElementById('activeVSPsList').querySelectorAll('.dual-list-item').length;
+            const excludedCount = document.getElementById('excludedVSPsList').querySelectorAll('.dual-list-item').length;
+            
+            document.getElementById('activeCounter').textContent = `${activeCount} active`;
+            document.getElementById('excludedCounter').textContent = `${excludedCount} excluded`;
         }
         
         // Update LTV tier preview text
@@ -3364,6 +3636,7 @@
         
         // Utility Functions
         function formatNumber(num) {
+            if (num === null || num === undefined || isNaN(num)) return '0';
             return num.toLocaleString('en-US', {
                 minimumFractionDigits: 0,
                 maximumFractionDigits: 2
@@ -3371,6 +3644,7 @@
         }
         
         function formatCurrency(num) {
+            if (num === null || num === undefined || isNaN(num)) return CONFIG.currencySymbol + '0';
             // Only round to nearest dollar if >= 1000, otherwise show cents
             if (Math.abs(num) >= 1000) {
                 return CONFIG.currencySymbol + formatNumber(Math.round(num));
@@ -3621,11 +3895,6 @@
                 
                 // Return true if dataDate is in the future (should be filtered out)
                 const isFuture = dataDate > today;
-                
-                // Debug logging for December dates
-                if (dataDate.getMonth() === 11) { // December is month 11
-                    console.log(`🔮 Future date check: ${dateStr} -> ${dataDate.toLocaleDateString()} is ${isFuture ? 'FUTURE (filtered)' : 'NOT FUTURE (kept)'}, today end: ${today.toLocaleString()}`);
-                }
                 
                 return isFuture;
             } catch (error) {
@@ -4197,15 +4466,6 @@
                             
                             if (currentStatus.length > 0) {
                                 document.getElementById('membershipsStatus').innerHTML = currentStatus.join('<br>');
-                                
-                                // Log filtering statistics if date filter is active
-                                if (CONFIG.notBeforeDate) {
-                                    console.log(`📅 Membership Data - Date Filter Active: Excluding data before ${CONFIG.notBeforeDate}`);
-                                    if (membershipsData.length > 0) console.log(`✅ ${membershipsData.length} memberships after filtering`);
-                                    if (membershipCancellationsData.length > 0) console.log(`✅ ${membershipCancellationsData.length} cancellations after filtering`);
-                                    if (window.frozenMembershipsData?.length > 0) console.log(`✅ ${window.frozenMembershipsData.length} frozen memberships after filtering`);
-                                    if (membershipRenewalsData.length > 0) console.log(`✅ ${membershipRenewalsData.length} renewals after filtering`);
-                                }
                             } else {
                                 document.getElementById('membershipsStatus').innerHTML = 
                                     '<span style="color: var(--danger);">❌ No valid data found</span>';
@@ -4421,20 +4681,6 @@
                 // Set appointments data
                 appointmentsData = allAppointments;
                 filteredAppointments = [...appointmentsData];
-                
-                // Log filtering statistics if date filter is active
-                if (CONFIG.notBeforeDate) {
-                    console.log(`📅 Date Filter Active: Excluding data before ${CONFIG.notBeforeDate}`);
-                    console.log(`🔮 Future appointments also excluded (today is ${new Date().toLocaleDateString()})`);
-                    console.log(`✅ Loaded ${allAppointments.length} appointments after filtering`);
-                    console.log(`✅ Loaded ${allTimeTracking.length} time tracking records after filtering`);
-                    console.log(`✅ Loaded ${allCommissions.length} commission records after filtering`);
-                } else {
-                    console.log(`🔮 Future appointments excluded (today is ${new Date().toLocaleDateString()})`);
-                    console.log(`✅ Loaded ${allAppointments.length} appointments`);
-                    console.log(`✅ Loaded ${allTimeTracking.length} time tracking records`);
-                    console.log(`✅ Loaded ${allCommissions.length} commission records`);
-                }
                 
                 const totalAppts = allAppointments.length;
                 const totalEmployees = Object.keys(employeeStats).length;
@@ -7406,10 +7652,22 @@
             
             data.forEach(row => {
                 const name = `${row['Practitioner First Name']} ${row['Practitioner Last Name']}`.trim();
-                if (!name) return;
+                // Get identifier (email or Employee Name or constructed from name)
+                let practitionerIdentifier = (row['Practitioner Email'] || row['Employee Email'] || row['Employee Name'] || '').trim().toLowerCase();
+                if (!practitionerIdentifier && name) {
+                    practitionerIdentifier = name.toLowerCase().replace(/\s+/g, '_');
+                }
+                
+                if (!name || !practitionerIdentifier) return;
+                
+                // Skip excluded VSPs
+                if (CONFIG.excludedVSPEmails.map(e => e.toLowerCase()).includes(practitionerIdentifier)) {
+                    return;
+                }
                 
                 if (!practitionerStats[name]) {
                     practitionerStats[name] = {
+                        identifier: practitionerIdentifier,
                         revenue: 0,
                         appointments: 0,
                         clients: new Set(),
@@ -7535,69 +7793,70 @@
             // Add Performance Analytics tables at the top (before metrics grid and leaderboard)
             html += renderVSPConversionAndUtilization(data, filteredPractitioners);
             
-            // Continue with metrics grid
-            html += `
-                <div class="metrics-grid" style="margin-top: 40px; grid-template-columns: repeat(${filteredPractitioners.some(p => p.utilization !== null) ? (filteredPractitioners.some(p => p.commissions > 0) ? '6' : '5') : (filteredPractitioners.some(p => p.commissions > 0) ? '5' : '4')}, 1fr);">
-                    <div class="metric-card">
-                        <div class="metric-label">Top Performer</div>
-                        <div class="metric-value" style="font-size: 1.5em;">${filteredPractitioners[0]?.name || 'N/A'}</div>
-                        <div class="metric-subtext">${filteredPractitioners[0] ? formatNumber(filteredPractitioners[0].score) + ' points' : ''}</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-label">Highest Revenue</div>
-                        <div class="metric-value">${formatCurrency(Math.max(...filteredPractitioners.map(p => p.revenue)))}</div>
-                        <div class="metric-subtext">${filteredPractitioners.sort((a,b) => b.revenue - a.revenue)[0]?.name || 'N/A'}</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-label">Best Efficiency</div>
-                        <div class="metric-value">${formatCurrency(Math.max(...filteredPractitioners.map(p => p.revenuePerHour)))}/hr</div>
-                        <div class="metric-subtext">${filteredPractitioners.sort((a,b) => b.revenuePerHour - a.revenuePerHour)[0]?.name || 'N/A'}</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-label">Most Clients</div>
-                        <div class="metric-value">${Math.max(...filteredPractitioners.map(p => p.clients))}</div>
-                        <div class="metric-subtext">${filteredPractitioners.sort((a,b) => b.clients - a.clients)[0]?.name || 'N/A'}</div>
-                    </div>
-                    ${filteredPractitioners.some(p => p.utilization !== null) ? `
-                    <div class="metric-card success">
-                        <div class="metric-label">Avg Utilization</div>
-                        <div class="metric-value">${(filteredPractitioners.filter(p => p.utilization !== null).reduce((sum, p) => sum + p.utilization, 0) / filteredPractitioners.filter(p => p.utilization !== null).length).toFixed(1)}%</div>
-                        <div class="metric-subtext">Table time efficiency</div>
-                    </div>
-                    ` : ''}
-                    ${filteredPractitioners.some(p => p.commissions > 0) ? `
-                    <div class="metric-card" style="background: linear-gradient(135deg, rgba(40, 167, 69, 0.1), rgba(32, 201, 151, 0.05)); border-left: 4px solid #28a745;">
-                        <div class="metric-label">Total Commissions</div>
-                        <div class="metric-value">${formatCurrency(filteredPractitioners.reduce((sum, p) => sum + p.commissions, 0))}</div>
-                        <div class="metric-subtext">Memberships & Products</div>
-                    </div>
-                    ` : ''}
-                </div>
-                
-                <div class="charts-grid">
-                    <div class="chart-container">
-                        <div class="interactive-badge" title="Click on any VSP to see full details"></div>
-                        <h3>Revenue by VSP</h3>
-                        <div class="chart-wrapper">
-                            <canvas id="practitionerRevenueChart"></canvas>
+            // Continue with metrics grid and leaderboard only if we have practitioners
+            if (filteredPractitioners.length > 0) {
+                html += `
+                    <div class="metrics-grid" style="margin-top: 40px; grid-template-columns: repeat(${filteredPractitioners.some(p => p.utilization !== null) ? (filteredPractitioners.some(p => p.commissions > 0) ? '6' : '5') : (filteredPractitioners.some(p => p.commissions > 0) ? '5' : '4')}, 1fr);">
+                        <div class="metric-card">
+                            <div class="metric-label">Top Performer</div>
+                            <div class="metric-value" style="font-size: 1.5em;">${filteredPractitioners[0]?.name || 'N/A'}</div>
+                            <div class="metric-subtext">${filteredPractitioners[0] ? formatNumber(filteredPractitioners[0].score) + ' points' : ''}</div>
                         </div>
+                        <div class="metric-card">
+                            <div class="metric-label">Highest Revenue</div>
+                            <div class="metric-value">${formatCurrency(Math.max(...filteredPractitioners.map(p => p.revenue)))}</div>
+                            <div class="metric-subtext">${filteredPractitioners.sort((a,b) => b.revenue - a.revenue)[0]?.name || 'N/A'}</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">Best Efficiency</div>
+                            <div class="metric-value">${formatCurrency(Math.max(...filteredPractitioners.map(p => p.revenuePerHour)))}/hr</div>
+                            <div class="metric-subtext">${filteredPractitioners.sort((a,b) => b.revenuePerHour - a.revenuePerHour)[0]?.name || 'N/A'}</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">Most Clients</div>
+                            <div class="metric-value">${Math.max(...filteredPractitioners.map(p => p.clients))}</div>
+                            <div class="metric-subtext">${filteredPractitioners.sort((a,b) => b.clients - a.clients)[0]?.name || 'N/A'}</div>
+                        </div>
+                        ${filteredPractitioners.some(p => p.utilization !== null) ? `
+                        <div class="metric-card success">
+                            <div class="metric-label">Avg Utilization</div>
+                            <div class="metric-value">${(filteredPractitioners.filter(p => p.utilization !== null).reduce((sum, p) => sum + p.utilization, 0) / filteredPractitioners.filter(p => p.utilization !== null).length).toFixed(1)}%</div>
+                            <div class="metric-subtext">Table time efficiency</div>
+                        </div>
+                        ` : ''}
+                        ${filteredPractitioners.some(p => p.commissions > 0) ? `
+                        <div class="metric-card" style="background: linear-gradient(135deg, rgba(40, 167, 69, 0.1), rgba(32, 201, 151, 0.05)); border-left: 4px solid #28a745;">
+                            <div class="metric-label">Total Commissions</div>
+                            <div class="metric-value">${formatCurrency(filteredPractitioners.reduce((sum, p) => sum + p.commissions, 0))}</div>
+                            <div class="metric-subtext">Memberships & Products</div>
+                        </div>
+                        ` : ''}
                     </div>
                     
-                    <div class="chart-container">
-                        <div class="interactive-badge" title="Click on any VSP to see full details"></div>
-                        <h3>Appointments by VSP</h3>
-                        <div class="chart-wrapper">
-                            <canvas id="practitionerApptsChart"></canvas>
+                    <div class="charts-grid">
+                        <div class="chart-container">
+                            <div class="interactive-badge" title="Click on any VSP to see full details"></div>
+                            <h3>Revenue by VSP</h3>
+                            <div class="chart-wrapper">
+                                <canvas id="practitionerRevenueChart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-container">
+                            <div class="interactive-badge" title="Click on any VSP to see full details"></div>
+                            <h3>Appointments by VSP</h3>
+                            <div class="chart-wrapper">
+                                <canvas id="practitionerApptsChart"></canvas>
+                            </div>
                         </div>
                     </div>
-                </div>
-            `;
-            
-            // Re-sort by score for leaderboard display
-            filteredPractitioners.sort((a, b) => b.score - a.score);
-            
-            // Add leaderboard cards
-            filteredPractitioners.forEach((p, index) => {
+                `;
+                
+                // Re-sort by score for leaderboard display
+                filteredPractitioners.sort((a, b) => b.score - a.score);
+                
+                // Add leaderboard cards
+                filteredPractitioners.forEach((p, index) => {
                 const rank = index + 1;
                 const rankClass = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : 'other';
                 const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
@@ -7656,44 +7915,6 @@
             });
             
             html += `
-                <div class="table-container">
-                    <h2>Detailed Performance Metrics</h2>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Rank</th>
-                                <th>VSP</th>
-                                <th>Score</th>
-                                <th>Revenue</th>
-                                <th>Appts</th>
-                                <th>$/Hour</th>
-                                <th>$/Appt</th>
-                                <th>Clients</th>
-                                ${filteredPractitioners.some(p => p.utilization !== null) ? '<th>Utilization</th>' : ''}
-                                ${filteredPractitioners.some(p => p.commissions > 0) ? '<th>Commissions</th>' : ''}
-                                <th>Profit %</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${filteredPractitioners.map((p, i) => `
-                                <tr>
-                                    <td><strong>${i + 1}</strong></td>
-                                    <td>${p.name}</td>
-                                    <td><strong>${formatNumber(p.score)}</strong></td>
-                                    <td>${formatCurrency(p.revenue)}</td>
-                                    <td>${formatNumber(p.appointments)}</td>
-                                    <td>${formatCurrency(p.revenuePerHour)}</td>
-                                    <td>${formatCurrency(p.revenuePerAppt)}</td>
-                                    <td>${formatNumber(p.clients)}</td>
-                                    ${p.utilization !== null ? `<td>${p.utilization.toFixed(1)}%</td>` : (filteredPractitioners.some(pr => pr.utilization !== null) ? '<td>-</td>' : '')}
-                                    ${p.commissions > 0 ? `<td>${formatCurrency(p.commissions)}</td>` : (filteredPractitioners.some(pr => pr.commissions > 0) ? '<td>-</td>' : '')}
-                                    <td>${p.profitMargin.toFixed(1)}%</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-                
                 <div class="alert success">
                     <h4>🎯 Performance Insights</h4>
                     <ul style="margin: 10px 0 0 20px; line-height: 1.8;">
@@ -7704,13 +7925,49 @@
                     </ul>
                 </div>
             `;
+        } else {
+            html += `
+                <div class="alert warning">
+                    <h4>👥 No VSPs to Display</h4>
+                    <p>All practitioners have been excluded from VSP reports. Go to Settings (⚙️) to manage VSP exclusions.</p>
+                </div>
+            `;
+        }
             
             document.getElementById('practitioners').innerHTML = html;
             
-            // Render charts
-            setTimeout(() => {
-                renderPractitionerCharts(practitionerData);
-            }, 100);
+            // Render charts only if we have practitioners
+            if (filteredPractitioners.length > 0) {
+                setTimeout(() => {
+                    renderPractitionerCharts(practitionerData);
+                }, 100);
+            }
+        }
+        
+        // Helper function to check if a VSP is excluded
+        function isVSPExcluded(vspName) {
+            if (!vspName) return false;
+            
+            // Check if any identifier in the exclusion list matches this VSP
+            for (const excludedIdentifier of CONFIG.excludedVSPEmails) {
+                const excludedLower = excludedIdentifier.toLowerCase();
+                const vspNameLower = vspName.toLowerCase();
+                
+                // Check if it's a direct name match (after converting underscores to spaces)
+                const normalizedExcluded = excludedLower.replace(/_/g, ' ');
+                const normalizedVSP = vspNameLower.replace(/\s+/g, ' ').trim();
+                
+                if (normalizedExcluded === normalizedVSP) {
+                    return true;
+                }
+                
+                // Check if the excluded identifier is embedded in the name
+                if (normalizedVSP.includes(normalizedExcluded) || normalizedExcluded.includes(normalizedVSP)) {
+                    return true;
+                }
+            }
+            
+            return false;
         }
         
         // Helper function to render VSP Conversion and Utilization tables
@@ -7738,8 +7995,18 @@
                     
                     const monthKey = `${apptDate.getFullYear()}-${String(apptDate.getMonth() + 1).padStart(2, '0')}`;
                     const vspName = `${appt['Practitioner First Name']} ${appt['Practitioner Last Name']}`.trim();
+                    // Get identifier
+                    let vspIdentifier = (appt['Practitioner Email'] || appt['Employee Email'] || appt['Employee Name'] || '').trim().toLowerCase();
+                    if (!vspIdentifier && vspName) {
+                        vspIdentifier = vspName.toLowerCase().replace(/\s+/g, '_');
+                    }
                     
                     if (!vspName || vspName.toLowerCase().includes('sauna')) return;
+                    
+                    // Skip excluded VSPs
+                    if (CONFIG.excludedVSPEmails.map(e => e.toLowerCase()).includes(vspIdentifier)) {
+                        return;
+                    }
                     
                     if (!utilizationByVSPMonth[vspName]) {
                         utilizationByVSPMonth[vspName] = {};
@@ -7756,9 +8023,6 @@
                     console.error('Error processing appointment for utilization:', e);
                 }
             });
-            
-            // Log filtering results
-            console.log(`🔮 VSP Analytics: Filtered ${futureApptsFiltered} future appointments out of ${totalApptsProcessed} total`);
             
             // Add clocked hours from time tracking data (use actual hours worked)
             if (window.timeTrackingData && window.timeTrackingData.length > 0) {
@@ -7948,6 +8212,18 @@
             Object.values(utilizationByVSPMonth).forEach(vspData => {
                 Object.keys(vspData).forEach(month => allMonths.add(month));
             });
+            // Also include months from profit data (calculated later but using same appointments)
+            appointmentsData.forEach(appt => {
+                try {
+                    const apptDate = parseDate(appt['Appointment Date']);
+                    if (!shouldFilterFutureDate(appt['Appointment Date'])) {
+                        const monthKey = `${apptDate.getFullYear()}-${String(apptDate.getMonth() + 1).padStart(2, '0')}`;
+                        allMonths.add(monthKey);
+                    }
+                } catch (e) {
+                    // Skip invalid dates
+                }
+            });
             
             const sortedMonths = Array.from(allMonths).sort();
             
@@ -8021,16 +8297,17 @@
             });
             
             const monthNames = filteredMonths.map(m => {
-                const [year, month] = m.split('-');
-                const date = new Date(parseInt(year), parseInt(month) - 1);
-                return date.toLocaleString('default', { month: 'short' });
+                try {
+                    const [year, month] = m.split('-');
+                    if (!year || !month) return 'N/A';
+                    const date = new Date(parseInt(year), parseInt(month) - 1);
+                    if (isNaN(date.getTime())) return 'N/A';
+                    return date.toLocaleString('default', { month: 'short' });
+                } catch (e) {
+                    console.error('Error formatting month:', m, e);
+                    return 'N/A';
+                }
             });
-            
-            // Log which months are being displayed (for debugging)
-            console.log(`📊 VSP Analytics: All months found: ${sortedMonths.join(', ')}`);
-            console.log(`📊 VSP Analytics: Displaying months (filtered): ${filteredMonths.join(', ')}`);
-            console.log(`📅 Current month: ${currentMonthKey}`);
-            console.log(`📊 Quarter structure:`, quarterStructure);
             
             // Show status message if no data
             if (filteredMonths.length === 0) {
@@ -8082,10 +8359,17 @@
                                 <tr>
                                     ${quarterStructure.map(q => {
                                         const monthCells = q.months.map(monthKey => {
-                                            const [year, month] = monthKey.split('-');
-                                            const date = new Date(parseInt(year), parseInt(month) - 1);
-                                            const monthName = date.toLocaleString('default', { month: 'short' });
-                                            return `<th style="background: var(--primary); color: white; text-align: center;">${monthName}</th>`;
+                                            try {
+                                                const [year, month] = monthKey.split('-');
+                                                if (!year || !month) return '<th>-</th>';
+                                                const date = new Date(parseInt(year), parseInt(month) - 1);
+                                                if (isNaN(date.getTime())) return '<th>-</th>';
+                                                const monthName = date.toLocaleString('default', { month: 'short' });
+                                                return `<th style="background: var(--primary); color: white; text-align: center;">${monthName}</th>`;
+                                            } catch (e) {
+                                                console.error('Error creating month header:', monthKey, e);
+                                                return '<th>-</th>';
+                                            }
                                         }).join('');
                                         const totalCell = `<th style="background: var(--accent); color: white; text-align: center; font-weight: bold;">Total</th>`;
                                         return monthCells + totalCell;
@@ -8095,8 +8379,11 @@
                             <tbody>
                 `;
                 
-                // Sort VSPs alphabetically
-                const sortedVSPs = Object.keys(conversionByVSPMonth).filter(vsp => !vsp.toLowerCase().includes('sauna')).sort();
+                // Sort VSPs alphabetically and filter out excluded ones
+                const sortedVSPs = Object.keys(conversionByVSPMonth)
+                    .filter(vsp => !vsp.toLowerCase().includes('sauna'))
+                    .filter(vsp => !isVSPExcluded(vsp))
+                    .sort();
                 
                 sortedVSPs.forEach(vsp => {
                     html += `<tr><td style="font-weight: bold; background: var(--gray-light);">${vsp}</td>`;
@@ -8281,10 +8568,17 @@
                                 <tr>
                                     ${quarterStructure.map(q => {
                                         const monthCells = q.months.map(monthKey => {
-                                            const [year, month] = monthKey.split('-');
-                                            const date = new Date(parseInt(year), parseInt(month) - 1);
-                                            const monthName = date.toLocaleString('default', { month: 'short' });
-                                            return `<th style="background: var(--primary); color: white; text-align: center;">${monthName}</th>`;
+                                            try {
+                                                const [year, month] = monthKey.split('-');
+                                                if (!year || !month) return '<th>-</th>';
+                                                const date = new Date(parseInt(year), parseInt(month) - 1);
+                                                if (isNaN(date.getTime())) return '<th>-</th>';
+                                                const monthName = date.toLocaleString('default', { month: 'short' });
+                                                return `<th style="background: var(--primary); color: white; text-align: center;">${monthName}</th>`;
+                                            } catch (e) {
+                                                console.error('Error creating month header:', monthKey, e);
+                                                return '<th>-</th>';
+                                            }
                                         }).join('');
                                         const totalCell = `<th style="background: var(--accent); color: white; text-align: center; font-weight: bold;">Total</th>`;
                                         return monthCells + totalCell;
@@ -8294,13 +8588,19 @@
                             <tbody>
                 `;
                 
-                // Sort VSPs alphabetically - use all VSPs from appointments data
+                // Sort VSPs alphabetically - use all VSPs from appointments data and filter excluded ones
                 let sortedVSPs;
                 if (Object.keys(utilizationByVSPMonth).length > 0) {
-                    sortedVSPs = Object.keys(utilizationByVSPMonth).filter(vsp => !vsp.toLowerCase().includes('sauna')).sort();
+                    sortedVSPs = Object.keys(utilizationByVSPMonth)
+                        .filter(vsp => !vsp.toLowerCase().includes('sauna'))
+                        .filter(vsp => !isVSPExcluded(vsp))
+                        .sort();
                 } else {
                     // If no utilization data, get VSPs from practitionersList
-                    sortedVSPs = practitionersList.map(p => p.name).filter(vsp => !vsp.toLowerCase().includes('sauna')).sort();
+                    sortedVSPs = practitionersList.map(p => p.name)
+                        .filter(vsp => !vsp.toLowerCase().includes('sauna'))
+                        .filter(vsp => !isVSPExcluded(vsp))
+                        .sort();
                 }
                 
                 sortedVSPs.forEach(vsp => {
@@ -8419,6 +8719,232 @@
                                 <li><strong>Excellent:</strong> 60%+ (Blue shading)</li>
                                 <li><strong>Good:</strong> 40-59% (Orange shading)</li>
                                 <li><strong>Needs Improvement:</strong> Below 40% (Purple shading)</li>
+                            </ul>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Calculate Profit % by VSP and Month
+            const profitByVSPMonth = {};
+            
+            // Process appointments to get revenue and payout by VSP and month
+            appointmentsData.forEach(appt => {
+                try {
+                    const apptDate = parseDate(appt['Appointment Date']);
+                    
+                    // Skip future appointments
+                    if (shouldFilterFutureDate(appt['Appointment Date'])) {
+                        return;
+                    }
+                    
+                    const monthKey = `${apptDate.getFullYear()}-${String(apptDate.getMonth() + 1).padStart(2, '0')}`;
+                    const vspName = `${appt['Practitioner First Name']} ${appt['Practitioner Last Name']}`.trim();
+                    // Get identifier
+                    let vspIdentifier = (appt['Practitioner Email'] || appt['Employee Email'] || appt['Employee Name'] || '').trim().toLowerCase();
+                    if (!vspIdentifier && vspName) {
+                        vspIdentifier = vspName.toLowerCase().replace(/\s+/g, '_');
+                    }
+                    
+                    if (!vspName || vspName.toLowerCase().includes('sauna')) return;
+                    
+                    // Skip excluded VSPs
+                    if (CONFIG.excludedVSPEmails.map(e => e.toLowerCase()).includes(vspIdentifier)) {
+                        return;
+                    }
+                    
+                    if (!profitByVSPMonth[vspName]) {
+                        profitByVSPMonth[vspName] = {};
+                    }
+                    if (!profitByVSPMonth[vspName][monthKey]) {
+                        profitByVSPMonth[vspName][monthKey] = {
+                            revenue: 0,
+                            payout: 0
+                        };
+                    }
+                    
+                    const revenue = parseFloat(appt['Revenue'] || 0);
+                    const payout = parseFloat(appt['Total Payout'] || 0);
+                    
+                    profitByVSPMonth[vspName][monthKey].revenue += revenue;
+                    profitByVSPMonth[vspName][monthKey].payout += payout;
+                } catch (e) {
+                    console.error('Error processing appointment for profit:', e);
+                }
+            });
+            
+            // Render Profit % Table
+            if (Object.keys(profitByVSPMonth).length > 0 && filteredMonths.length > 0) {
+                html += `
+                    <div class="table-container" style="margin-top: 40px;">
+                        <h2>💰 Profit %</h2>
+                        <p style="font-size: 14px; color: #666; margin: 10px 0;">By VSP and Quarter (Profit Margin)</p>
+                        <table class="vsp-table">
+                            <thead>
+                                <!-- Quarter grouping row -->
+                                <tr>
+                                    <th rowspan="2" style="background: var(--primary); color: white; vertical-align: middle;">VSP</th>
+                                    ${quarterStructure.map(q => 
+                                        `<th colspan="${q.months.length + 1}" style="background: var(--primary); color: white; text-align: center;">${q.label} Total</th>`
+                                    ).join('')}
+                                    <th rowspan="2" style="background: var(--primary); color: white; font-weight: bold; text-align: center; vertical-align: middle;">Overall</th>
+                                </tr>
+                                <!-- Month row -->
+                                <tr>
+                                    ${quarterStructure.map(q => {
+                                        const monthCells = q.months.map(monthKey => {
+                                            try {
+                                                const [year, month] = monthKey.split('-');
+                                                if (!year || !month) return '<th>-</th>';
+                                                const date = new Date(parseInt(year), parseInt(month) - 1);
+                                                if (isNaN(date.getTime())) return '<th>-</th>';
+                                                const monthName = date.toLocaleString('default', { month: 'short' });
+                                                return `<th style="background: var(--primary); color: white; text-align: center;">${monthName}</th>`;
+                                            } catch (e) {
+                                                console.error('Error creating month header:', monthKey, e);
+                                                return '<th>-</th>';
+                                            }
+                                        }).join('');
+                                        const totalCell = `<th style="background: var(--accent); color: white; text-align: center; font-weight: bold;">Total</th>`;
+                                        return monthCells + totalCell;
+                                    }).join('')}
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                // Sort VSPs alphabetically and filter out excluded ones
+                const sortedVSPs = Object.keys(profitByVSPMonth)
+                    .filter(vsp => !vsp.toLowerCase().includes('sauna'))
+                    .filter(vsp => !isVSPExcluded(vsp))
+                    .sort();
+                
+                sortedVSPs.forEach(vsp => {
+                    html += `<tr><td style="font-weight: bold; background: var(--gray-light);">${vsp}</td>`;
+                    
+                    let overallRevenue = 0;
+                    let overallPayout = 0;
+                    
+                    // Output months grouped by quarter with quarter total immediately after
+                    quarterStructure.forEach(quarter => {
+                        let quarterRevenue = 0;
+                        let quarterPayout = 0;
+                        
+                        quarter.months.forEach(monthKey => {
+                            const data = profitByVSPMonth[vsp] && profitByVSPMonth[vsp][monthKey];
+                            if (data && data.revenue > 0) {
+                                const profit = data.revenue - data.payout;
+                                const profitMargin = (profit / data.revenue) * 100;
+                                
+                                quarterRevenue += data.revenue;
+                                quarterPayout += data.payout;
+                                
+                                // Color code based on profit margin
+                                let cellStyle = 'text-align: center;';
+                                if (profitMargin >= 40) cellStyle += ' background: rgba(40, 167, 69, 0.3);'; // Green for excellent margin
+                                else if (profitMargin >= 30) cellStyle += ' background: rgba(40, 167, 69, 0.15);'; // Light green for good margin
+                                else if (profitMargin >= 20) cellStyle += ' background: rgba(255, 193, 7, 0.2);'; // Yellow for moderate
+                                else if (profitMargin < 0) cellStyle += ' background: rgba(220, 53, 69, 0.3); color: #dc3545;'; // Red for negative
+                                
+                                const debugInfo = `Revenue: ${formatCurrency(data.revenue)} - Payout: ${formatCurrency(data.payout)} = ${formatCurrency(profit)} (${profitMargin.toFixed(1)}%)`;
+                                html += `<td style="${cellStyle}" title="${debugInfo}">${profitMargin.toFixed(1)}%</td>`;
+                            } else {
+                                html += `<td style="text-align: center; color: #ccc;">-</td>`;
+                            }
+                        });
+                        
+                        overallRevenue += quarterRevenue;
+                        overallPayout += quarterPayout;
+                        
+                        // Output quarter total immediately after months
+                        const qProfit = quarterRevenue - quarterPayout;
+                        const qMargin = quarterRevenue > 0 ? (qProfit / quarterRevenue) * 100 : 0;
+                        let qCellStyle = 'text-align: center; font-weight: bold; background: rgba(113, 190, 210, 0.2);';
+                        if (qMargin >= 40) {
+                            qCellStyle = 'text-align: center; font-weight: bold; background: rgba(40, 167, 69, 0.4);';
+                        } else if (qMargin >= 30) {
+                            qCellStyle = 'text-align: center; font-weight: bold; background: rgba(40, 167, 69, 0.2);';
+                        } else if (qMargin >= 20) {
+                            qCellStyle = 'text-align: center; font-weight: bold; background: rgba(255, 193, 7, 0.3);';
+                        } else if (qMargin < 0) {
+                            qCellStyle = 'text-align: center; font-weight: bold; background: rgba(220, 53, 69, 0.4); color: #dc3545;';
+                        }
+                        const qTooltip = `Quarter: ${formatCurrency(quarterRevenue)} - ${formatCurrency(quarterPayout)} = ${formatCurrency(qProfit)} (${qMargin.toFixed(1)}%)`;
+                        html += `<td style="${qCellStyle}" title="${qTooltip}">${qMargin.toFixed(1)}%</td>`;
+                    });
+                    
+                    // Output overall total
+                    const overallProfit = overallRevenue - overallPayout;
+                    const overallMargin = overallRevenue > 0 ? (overallProfit / overallRevenue) * 100 : 0;
+                    let overallCellStyle = 'text-align: center; font-weight: bold; background: var(--gray-light);';
+                    if (overallMargin >= 40) {
+                        overallCellStyle = 'text-align: center; font-weight: bold; background: rgba(40, 167, 69, 0.3);';
+                    } else if (overallMargin >= 30) {
+                        overallCellStyle = 'text-align: center; font-weight: bold; background: rgba(40, 167, 69, 0.15);';
+                    } else if (overallMargin >= 20) {
+                        overallCellStyle = 'text-align: center; font-weight: bold; background: rgba(255, 193, 7, 0.2);';
+                    } else if (overallMargin < 0) {
+                        overallCellStyle = 'text-align: center; font-weight: bold; background: rgba(220, 53, 69, 0.3); color: #dc3545;';
+                    }
+                    const overallTooltip = `Overall: ${formatCurrency(overallRevenue)} - ${formatCurrency(overallPayout)} = ${formatCurrency(overallProfit)} (${overallMargin.toFixed(1)}%)`;
+                    html += `<td style="${overallCellStyle}" title="${overallTooltip}">${overallMargin.toFixed(1)}%</td>`;
+                    html += `</tr>`;
+                });
+                
+                // Add Grand Total row
+                html += `<tr style="background: var(--accent); font-weight: bold;">
+                    <td style="color: var(--primary);">Grand Total</td>`;
+                
+                let grandOverallRevenue = 0;
+                let grandOverallPayout = 0;
+                
+                // Output months grouped by quarter with quarter total immediately after
+                quarterStructure.forEach(quarter => {
+                    let qRevenue = 0;
+                    let qPayout = 0;
+                    
+                    quarter.months.forEach(monthKey => {
+                        let monthRevenue = 0;
+                        let monthPayout = 0;
+                        
+                        sortedVSPs.forEach(vsp => {
+                            const data = profitByVSPMonth[vsp] && profitByVSPMonth[vsp][monthKey];
+                            if (data) {
+                                monthRevenue += data.revenue;
+                                monthPayout += data.payout;
+                            }
+                        });
+                        
+                        qRevenue += monthRevenue;
+                        qPayout += monthPayout;
+                        
+                        const monthMargin = monthRevenue > 0 ? ((monthRevenue - monthPayout) / monthRevenue) * 100 : 0;
+                        html += `<td style="text-align: center; color: var(--primary);">${monthMargin.toFixed(1)}%</td>`;
+                    });
+                    
+                    grandOverallRevenue += qRevenue;
+                    grandOverallPayout += qPayout;
+                    
+                    // Output quarter total immediately after months
+                    const qMargin = qRevenue > 0 ? ((qRevenue - qPayout) / qRevenue) * 100 : 0;
+                    html += `<td style="text-align: center; color: var(--primary);">${qMargin.toFixed(1)}%</td>`;
+                });
+                
+                // Overall total
+                const grandMargin = grandOverallRevenue > 0 ? ((grandOverallRevenue - grandOverallPayout) / grandOverallRevenue) * 100 : 0;
+                html += `<td style="text-align: center; color: var(--primary);">${grandMargin.toFixed(1)}%</td>`;
+                html += `</tr>`;
+                
+                html += `
+                            </tbody>
+                        </table>
+                        <div class="alert info" style="margin-top: 20px;">
+                            <p><strong>Note:</strong> Profit % (margin) is calculated as (Revenue - Payout) / Revenue × 100. Higher percentages indicate better profitability.</p>
+                            <ul style="margin: 10px 0 0 20px;">
+                                <li><strong>Excellent:</strong> 40%+ margin (Dark green shading)</li>
+                                <li><strong>Good:</strong> 30-39% margin (Light green shading)</li>
+                                <li><strong>Moderate:</strong> 20-29% margin (Yellow shading)</li>
+                                <li><strong>Loss:</strong> Negative margin (Red shading)</li>
                             </ul>
                         </div>
                     </div>
@@ -17402,6 +17928,23 @@
         function openSettingsModal() {
             document.getElementById('settingsModal').classList.add('show');
             document.body.style.overflow = 'hidden';
+            
+            // Populate VSP lists if data is loaded
+            if (appointmentsData && appointmentsData.length > 0) {
+                populateVSPLists();
+            } else {
+                // Show empty state message
+                const activeList = document.getElementById('activeVSPsList');
+                const excludedList = document.getElementById('excludedVSPsList');
+                if (activeList) {
+                    activeList.innerHTML = '<div style="padding: 20px; text-align: center; color: #666; font-size: 14px;"><strong>No data loaded</strong><br>Upload your appointments CSV to see VSPs here.</div>';
+                }
+                if (excludedList) {
+                    excludedList.innerHTML = '<div style="padding: 20px; text-align: center; color: #666; font-size: 14px;">No excluded VSPs</div>';
+                }
+                document.getElementById('activeCounter').textContent = '0 active';
+                document.getElementById('excludedCounter').textContent = '0 excluded';
+            }
         }
 
         function closeSettingsModal() {
@@ -17458,7 +18001,7 @@
     <!-- Footer -->
     <div class="dashboard-footer">
         <div class="footer-content">
-            <span class="footer-version">v2.20251114.11</span>
+            <span class="footer-version">v2.20251114.21</span>
             <span class="footer-separator">|</span>
             <span class="footer-credits">Made by bonJoeV with ❤️</span>
         </div>
