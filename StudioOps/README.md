@@ -1,294 +1,297 @@
 # The Vital Stretch Analytics Dashboard
 
-**Version:** v2.20251113.04 | **Updated:** November 13, 2025 | **Created by:** bonJoeV with ❤️
+**Version:** v2.20251113.04 | **Single-page HTML dashboard for franchise analytics**
 
 ---
 
-## What Is This?
+## 🎯 What Is This?
 
-A powerful, single-page analytics dashboard for The Vital Stretch franchises. Run it entirely in your browser—no server, no installation, complete privacy.
+A powerful analytics dashboard for The Vital Stretch franchises that runs entirely in your browser. No installation, no servers, complete privacy.
 
 ### Key Features
-- 📊 8 interactive analytical tabs + VSP Performance Analytics
+- 📊 8 comprehensive analytical tabs
 - 💰 Complete financial tracking (revenue, labor, profitability)
 - 👥 Advanced client segmentation with downloadable lists
-- 📈 Goal tracking & period comparisons
-- 🎯 VSP conversion rates & utilization metrics by month
-- 🗓️ Booking pipeline & attendance analytics
+- 📈 Goal tracking & performance monitoring
+- 🎯 VSP conversion rates & utilization metrics
 - 🗺️ Location-specific appointment heatmaps
 - 🎨 Colorblind-friendly performance indicators
-- 📥 CSV exports for any data
-- 🔒 Your data never leaves your computer
+- 📥 CSV exports for any data view
+- 🔒 Complete privacy - your data never leaves your computer
 
 ---
 
-## Quick Start
+## 🚀 Quick Start
 
 ### Step 1: Export Data from Momence
 
-You need **9 data files** (some required, some optional):
+You need **8 data files** from your Momence account:
 
-#### Required Files (6)
+#### Required Files
 
-1. **Membership Sales**
+1. **Membership Sales** → `momence--membership-sales-export.csv`
    - Report: "Membership sales - A report on membership purchases history"
-   - Download: Summary
-   - Save as: `momence--membership-sales-export.csv`
 
-2. **Membership Cancellations**
+2. **Membership Cancellations** → `momence--membership-sales-export__1_.csv`
    - Report: "Membership sales" → Cancellations tab
-   - Download: Summary
-   - Save as: `momence--membership-sales-export__1_.csv`
 
-3. **New Leads & Customers**
+3. **New Leads & Customers** → `momence-new-leads-and-customers.csv`
    - Report: "New Leads & Customers by join date"
-   - Download: Summary
-   - Save as: `momence-new-leads-and-customers.csv`
 
-4. **Practitioner Payroll ZIP**
-   - Report: "Practitioner Payroll - Multiple practitioners payroll details"
-   - Download: ZIP (includes appointments, time tracking, commissions)
-   - Save as: `momence-payroll-report-summary.zip`
+4. **Practitioner Payroll ZIP** → `momence-payroll-report-summary.zip`
+   - Report: "Practitioner Payroll" (includes appointments, time tracking, commissions)
 
-5. **Leads Converted Report**
+5. **Leads Converted Report** → `momence-leads-converted-report.csv`
    - Report: "Leads converted" or "Lead Conversion Report"
-   - Download: Summary
-   - Save as: `momence-leads-converted-report.csv`
 
-6. **Appointments Attendance Report**
+6. **Appointments Attendance Report** → `momence-appointments-attendance-report-combined.csv`
    - Report: "Appointments attendance report"
-   - Download: CSV (combined/summary export)
-   - Save as: `momence-appointments-attendance-report-combined.csv`
 
-7. **Membership Renewals**
+7. **Membership Renewals** → `momence-membership-renewals-report.csv`
    - Report: "Membership renewals report"
-   - Download: Summary
-   - Save as: `momence-membership-renewals-report.csv`
-   - Shows upcoming renewal dates for planning
 
-8. **Frozen Memberships**)
+8. **Frozen Memberships** → `frozen-memberships-report.csv`
    - Report: "Frozen memberships report"
-   - Download: Summary
-   - Save as: `frozen-memberships-report.csv`
-   - Tracks paused memberships
 
-**💡 Tip:** Select **LAST 365 Days** for all date ranges to get comprehensive historical data.
+💡 **Tip:** Select **LAST 365 Days** for all exports to get comprehensive historical data.
 
 ---
 
-### Step 2: Upload Data to Dashboard
+### Step 2: Open & Upload Data
 
-1. **Open** the dashboard HTML file in your browser
-2. Click the **📤 Upload Data** button
-3. Upload your files in any order (drag & drop or click to browse)
+1. **Open** `vital-stretch-dashboard.html` in your browser
+2. Click **📤 Upload Data** button
+3. Upload your 8 files (drag & drop or click to browse)
 4. Wait for green checkmarks (✅) for each file
 5. Dashboard automatically processes and displays your data
 
-**⚠️ IMPORTANT: Clear Browser Cache**
-If you've used an older version:
-- **Windows/Linux:** Press `Ctrl + Shift + R`
-- **Mac:** Press `Cmd + Shift + R`
+⚠️ **First Time Users:** If you've used an older version, clear your browser cache:
+- **Windows/Linux:** `Ctrl + Shift + R`
+- **Mac:** `Cmd + Shift + R`
 
-**Verify Latest Version:** Check footer shows `v2.20251113.04`
+**Verify Version:** Check footer shows `v2.20251113.04`
 
 ---
 
 ### Step 3: Configure Settings
 
-Click the **⚙️ Settings** button to configure:
+Click **⚙️ Settings** to configure:
 
-#### Business Settings
-- **Timezone** - Select your local timezone
-- **Franchise Fee** - Default: 6%
-- **Brand Fund** - Default: 2%
-- **Credit Card Fees** - Default: 3%
+**Business Settings:**
+- Timezone (for accurate date/time calculations)
+- Franchise Fee (default: 6%)
+- Brand Fund (default: 2%)
+- Credit Card Fees (default: 3%)
 
-#### Monthly Goals
-- **Revenue Goal** - Default: $20,000
-- **Paid Appointments Goal** - Default: 300
-- **Intro Appointments Goal** - Default: 50
+**Monthly Goals:**
+- Revenue Goal (default: $20,000)
+- Paid Appointments Goal (default: 300)
+- Intro Appointments Goal (default: 50)
 
-#### Labor Settings
-- **Base Hourly Rate** - Default: $13.00
+**Labor Settings:**
+- Base Hourly Rate (default: $13.00)
 
 Click **Save Settings** - stored locally in your browser.
 
 ---
 
-## Dashboard Overview
+## 📊 Dashboard Tabs
 
-### Main Tabs
+### 1. Overview
+Key metrics at a glance: revenue, appointments, memberships, goals progress, and top-level KPIs.
 
-1. **📊 Overview** - Key metrics, goals, financial performance
-2. **📈 Timeline** - Trends over time (revenue, appointments, MRR)
-3. **👥 VSP Performance** - Individual practitioner metrics & analytics
-4. **🧑‍🤝‍🧑 Customers** - Client demographics & visit patterns
-5. **📄 Retention** - Churn analysis & cohort retention
-6. **🚀 Journey** - Customer lifecycle funnel
-7. **💳 Memberships** - Subscription tracking & growth
-8. **❌ Cancellations** - Churn reasons & lost revenue
+### 2. Timeline
+Historical trends: revenue over time, appointment volume, MRR growth, weekly/monthly comparisons.
 
-### VSP Performance Analytics (NEW!)
+### 3. VSP Performance
+**Includes Advanced Analytics:**
+- **Conversion Rates Table** - Intro stretch → paid member conversion by VSP/month
+- **Utilization Rates Table** - Table time efficiency (appointment hours / clocked hours)
+- Revenue by VSP, appointments breakdown, unique clients served
+- Color-coded performance indicators (Blue = Excellent, Orange = Good, Purple = Needs Improvement)
 
-Located at the top of the VSP tab, includes:
+### 4. Customers
+Client demographics, visit patterns, customer lifetime value, and advanced segmentation.
 
-**📊 Conversion Rates Table**
-- Tracks intro stretch → paid member conversion by VSP and month
-- Color-coded performance (Blue = Excellent 50%+, Orange = Good 30-49%, Purple = Needs Improvement <30%)
-- Hover tooltips show detailed breakdown (conversions/intro stretches)
+**Advanced Client Segmentation:**
+- 💎 VIP Clients (>$2,500 LTV)
+- ⚠️ At-Risk Clients (45+ days inactive)
+- ❌ Inactive Paid Members
+- 🌱 New Clients (<3 visits)
+- ⚡ High-Frequency Non-Members
 
-**⏱️ Utilization Rates Table**
-- Measures table time efficiency (appointment hours / clocked hours)
-- Color-coded performance (Blue = Excellent 60%+, Orange = Good 40-59%, Purple = Needs Improvement <40%)
-- Hover tooltips show hour breakdown
+Each segment includes downloadable contact lists for targeted campaigns.
 
-**🎨 Colorblind-Friendly Design**
-- Uses Blue-Orange-Purple color scheme
-- Maximum distinction for all types of colorblindness
-- Clear visual indicators for performance levels
+### 5. Retention
+Churn analysis, cohort retention tracking, membership lifecycle, and retention rate trends.
 
-### Advanced Features
+### 6. Journey
+Customer lifecycle funnel from lead → customer → member, with conversion metrics at each stage.
 
-**Client Segmentation** (Customers tab)
-- 5 strategic segments with downloadable contact lists
-- VIP Clients, New Clients, At-Risk, Inactive Paid Members, High-Frequency Non-Members
-- Export any segment as CSV for outreach campaigns
+### 7. Memberships
+Subscription tracking, MRR analysis, membership growth trends, and active member counts.
 
-**Lead Tracking** (Leads tab)
-- Conversion rate tracking by source
-- Lead timeline visualization
-- LTV analysis for converted leads
-- Source effectiveness comparison
+### 8. Cancellations
+Churn reasons analysis, lost revenue tracking, cancellation trends, and reactivation opportunities.
 
-**Booking Pipeline** (Insights tab)
-- Upcoming appointments count
-- Top 10 most frequent clients
-- Top VSPs by appointments booked
-- Paid vs unpaid reservation tracking
+### 9. Leads
+Lead generation tracking, source effectiveness, conversion rates, and lead value analysis.
 
-**Location Heatmaps** (Schedule tab)
-- Separate heatmap for each location
-- Shows busiest times by day and hour
-- Click any day or hour for detailed breakdown
+### 10. Schedule
+Appointment timing analysis with **location-specific heatmaps** showing busiest times by day/hour.
 
 ---
 
-## Key Metrics Explained
+## 📈 Key Metrics Explained
 
-### Financial Metrics
+**Financial Metrics:**
 - **Total Revenue** - All income from appointments and memberships
-- **Labor Costs** - Appointment pay + non-appointment hours × base rate
-- **Gross Profit** - Revenue minus labor costs
-- **Net Profit** - Gross profit minus franchise fees, brand fund, CC fees
+- **Labor Costs** - VSP pay + non-appointment hours × base rate
+- **Gross Profit** - Revenue - Labor Costs
+- **Net Profit** - Gross Profit - Franchise Fees - Brand Fund - CC Fees
+- **MRR** - Monthly Recurring Revenue from active subscriptions
 
-### Customer Metrics
-- **MRR (Monthly Recurring Revenue)** - Active membership subscriptions
-- **Churn Rate** - Percentage of members who cancel
+**Customer Metrics:**
 - **Customer LTV** - Lifetime value per customer
-- **Retention Rate** - Percentage of customers retained period-over-period
+- **Churn Rate** - % of members who cancel
+- **Retention Rate** - % of customers retained period-over-period
+- **Conversion Rate** - % of leads who become customers
 
-### VSP Metrics
-- **Conversion Rate** - Intro stretches that become paid members
-- **Utilization Rate** - Appointment time / total clocked time
+**VSP Metrics:**
+- **Conversion Rate** - % of intro stretches that become paid members (Target: 50%+)
+- **Utilization Rate** - Appointment hours / clocked hours (Target: 60%+)
 - **Revenue per Hour** - Efficiency metric
 - **Appointments per VSP** - Workload distribution
 
 ---
 
-## Best Practices
+## 🎯 Best Practices
 
 ### Weekly Routine (15 minutes)
 1. Export fresh data from Momence
 2. Upload to dashboard
-3. Review goal progress
+3. Review goal progress in Overview tab
 4. Check VSP Performance Analytics
-5. Identify at-risk clients
-6. Plan outreach campaigns
+5. Review At-Risk clients segment
+6. Export segments for outreach campaigns
 
 ### Monthly Review (1 hour)
-1. Analyze full month trends
+1. Analyze full month trends in Timeline
 2. Review VSP conversion & utilization rates
-3. Check retention & churn
+3. Check Retention & Cancellations tabs
 4. Compare to previous periods
-5. Export segments for campaigns
-6. Adjust strategies and goals
+5. Export all client segments for campaigns
+6. Adjust next month's goals in Settings
+
+### Quarterly Planning
+1. Identify seasonal patterns in Timeline
+2. Review location performance in Schedule heatmaps
+3. Analyze customer journey funnel
+4. Plan marketing campaigns based on lead sources
+5. Set strategic goals for next quarter
 
 ---
 
-## Troubleshooting
+## 🛠️ Troubleshooting
 
-**"Dashboard not updating"**
+**Dashboard not updating?**
 - Force reload: `Ctrl + Shift + R` (Windows/Linux) or `Cmd + Shift + R` (Mac)
-- Check footer shows version `v2.20251113.04`
+- Verify footer shows `v2.20251113.04`
+- Clear browser cache completely
 
-**"No data showing"**
-- Verify at least 6 required files are uploaded
-- Check for green checkmarks (✅) on each file
-- Refresh page and re-upload if needed
+**No data showing?**
+- Verify all 8 required files uploaded successfully
+- Look for green checkmarks (✅) on each file
+- Check browser console (F12) for error messages
+- Try refreshing page and re-uploading
 
-**"VSP Analytics showing December dates"**
-- Dashboard filters future dates automatically
-- Check browser console (F12) for debug messages
-- Ensure Momence data doesn't include test/future appointments
+**VSP Analytics showing weird dates?**
+- Dashboard automatically filters future dates
+- Check that Momence exports don't include test data
+- Verify appointment dates are in correct format
 
-**"Colors hard to distinguish"**
-- Current scheme is designed for colorblind accessibility
-- Blue = Excellent, Orange = Good, Purple = Needs Improvement
-- If still difficult, contact support for alternative schemes
+**Can't export segments?**
+- Disable pop-up blocker for this page
+- Check browser's download settings
+- Try different browser (Chrome recommended)
+
+**Performance issues?**
+- Reduce date range to smaller period
+- Filter to single location
+- Close other browser tabs
+- Use Chrome or Edge for best performance
 
 ---
 
-## Privacy & Security
+## 🔒 Privacy & Security
 
-✅ **Your data never leaves your computer** - All processing in browser  
-✅ **No server connection** - Works completely offline  
+✅ **Your data never leaves your computer** - All processing happens in your browser  
+✅ **No server connection required** - Works completely offline  
 ✅ **No login required** - Just open and use  
-✅ **No tracking** - Zero analytics or data collection  
+✅ **No tracking or analytics** - Zero data collection  
 ✅ **Local storage only** - Settings saved in your browser  
 
 ---
 
-## System Requirements
+## 💻 System Requirements
 
-- **Browser:** Chrome 90+, Firefox 88+, Safari 14+, Edge 90+
-- **Operating System:** Windows, macOS, Linux
-- **Internet:** Only needed to download dashboard (once)
-- **Storage:** ~2MB for dashboard, plus your data files
+**Browser:** Chrome 90+, Firefox 88+, Safari 14+, Edge 90+  
+**Operating System:** Windows, macOS, Linux  
+**Internet:** Only needed to download dashboard file (once)  
+**Storage:** ~2MB for dashboard file + your CSV files  
+
+**Not Supported:**
+- Internet Explorer (any version)
+- Very old mobile browsers
 
 ---
 
-## What's New in v2.20251113.04
+## 🆕 What's New in v2.20251113.04
 
 ### VSP Performance Analytics
-- 📊 Moved to top of VSP tab for prominence
-- 📊 Added conversion rate tracking (intro → member by month)
+- 📊 Moved to prominent position at top of VSP tab
+- 📊 Added conversion rate tracking (intro → paid member by month)
 - ⏱️ Added utilization rate tracking (table time efficiency by month)
-- 🎨 Implemented colorblind-friendly Blue-Orange-Purple color scheme
-- 💡 Added detailed tooltips on hover for all metrics
-- 🔮 Automatic filtering of future dates from analytics
+- 🎨 Implemented colorblind-friendly color scheme (Blue-Orange-Purple)
+- 💡 Added detailed hover tooltips for all metrics
+- 🔮 Automatic filtering of future dates
 
 ### Design Improvements
-- Color coding: Blue (excellent), Orange (good), Purple (needs improvement)
-- Maximum visual distinction for colorblind users
-- Clean legends explaining thresholds
-- Professional appearance
+- Color-coded performance levels with maximum distinction
+- Professional table layouts with clear legends
+- Enhanced mobile responsiveness
+- Improved chart readability
 
 ### Bug Fixes
-- Fixed future date filtering in VSP analytics
+- Fixed future date filtering in analytics
 - Improved conversion rate calculations
 - Enhanced utilization rate accuracy
-- Better handling of edge cases
+- Better handling of missing data
 
 ---
 
-## Getting Help
+## 📖 Need More Details?
 
-For complete documentation, see **README-Detailed.md**
+For comprehensive documentation including:
+- Detailed data requirements and field mappings
+- In-depth metric calculations and formulas
+- Advanced use cases and workflows
+- Marketing campaign templates
+- Data validation tips
 
-For technical support or questions, contact your franchise administrator.
+See **README-Detailed.md**
+
+---
+
+## 📞 Support
+
+For questions or support:
+- Contact your franchise administrator
+- Check README-Detailed.md for technical details
+- Review browser console (F12) for error messages
 
 ---
 
 **Thank you for using The Vital Stretch Analytics Dashboard!**
 
-*Created with ❤️ by bonJoeV for The Vital Stretch Franchise*
+*Version v2.20251113.04 | Created with ❤️ by bonJoeV for The Vital Stretch Franchise*
