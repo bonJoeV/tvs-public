@@ -1036,6 +1036,22 @@
             background: var(--gray-light);
         }
 
+        /* Borderless VSP Tables */
+        .vsp-table {
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+        
+        .vsp-table th,
+        .vsp-table td {
+            border: none !important;
+            border-bottom: none !important;
+        }
+        
+        .vsp-table thead tr th {
+            border-bottom: none !important;
+        }
+
         /* Alerts */
         .alert {
             padding: 20px;
@@ -1908,23 +1924,24 @@
                 <button class="modal-close-custom" onclick="closeUploadModal()">×</button>
             </div>
             <div class="modal-body-custom">
-                <p style="text-align: center; margin-bottom: 17px; color: #666;">
+                <p style="text-align: center; margin-bottom: 10px; color: #666; font-size: 13px;">
                     Upload your Momence exports to start analyzing your franchise performance
                 </p>
                 
-                <!-- Future Date Filter Notice (Always Shown) -->
-                <div style="text-align: center; margin-bottom: 10px; padding: 8px; background: #f0f9ff; border-radius: 6px; border: 1px solid #bae6fd;">
-                    <span style="color: #0369a1; font-size: 13px;">🔮 Future bookings are automatically excluded from appointments & VSP stats</span>
+                <!-- Notices Side-by-Side -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+                    <!-- Future Date Filter Notice -->
+                    <div style="padding: 6px; background: #f0f9ff; border-radius: 6px; border: 1px solid #bae6fd; text-align: center;">
+                        <span style="color: #0369a1; font-size: 11px;">🔮 Future bookings excluded from appointments & VSP stats</span>
+                    </div>
+                    
+                    <!-- Date Filter Status Indicator -->
+                    <div id="dateFilterStatus" style="padding: 6px; background: var(--gray-light); border-radius: 6px; text-align: center; display: none;">
+                        <span style="color: var(--warning); font-weight: 600; font-size: 11px;">⚠️ Date Filter: Excluding data before <span id="dateFilterDisplay"></span></span>
+                    </div>
                 </div>
                 
-                <!-- Date Filter Status Indicator -->
-                <div id="dateFilterStatus" style="text-align: center; margin-bottom: 15px; padding: 10px; background: var(--gray-light); border-radius: 8px; display: none;">
-                    <span style="color: var(--warning); font-weight: 600;">⚠️ Date Filter Active: Excluding data before <span id="dateFilterDisplay"></span></span>
-                    <br>
-                    <span style="font-size: 12px; color: #666;">(Leads data is NOT filtered. Future bookings are also excluded.)</span>
-                </div>
-                
-                <div class="upload-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 14px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 14px; margin-bottom: 14px;">
                     <div class="upload-box">
                         <h3>📦 Payroll Zip</h3>
                         <p style="font-size: 8px; color: #666; margin: 7px 0;">All employee payroll files</p>
@@ -1951,42 +1968,39 @@
                     
                     <div class="upload-box">
                         <h3>👥 Leads</h3>
-                        <p style="font-size: 8px; color: #666; margin: 7px 0;">Leads & customers</p>
-                        <input type="file" id="leadsFile" accept=".csv" style="display: none;">
-                        <label for="leadsFile" class="upload-btn">Choose File</label>
+                        <p style="font-size: 8px; color: #666; margin: 7px 0;">Leads, customers & conversions</p>
+                        <input type="file" id="leadsFile" accept=".csv" multiple style="display: none;">
+                        <label for="leadsFile" class="upload-btn">Choose File(s)</label>
                         <div class="upload-status" id="leadsStatus"></div>
-                    </div>
-                    
-                    <div class="upload-box">
-                        <h3>🎯 Leads Converted Report</h3>
-                        <p style="font-size: 8px; color: #666; margin: 7px 0;">Detailed lead sources & conversions</p>
                         <input type="file" id="leadsConvertedFile" accept=".csv" style="display: none;">
-                        <label for="leadsConvertedFile" class="upload-btn">Choose File</label>
                         <div class="upload-status" id="leadsConvertedStatus"></div>
                     </div>
                 </div>
                 
-                <!-- Magic Upload Section -->
-                <div style="margin-top: 21px; padding: 14px; background: linear-gradient(135deg, rgba(251, 181, 20, 0.1), rgba(251, 181, 20, 0.05)); border: 2px dashed var(--highlight); border-radius: 7px;">
-                    <h3 style="margin: 0 0 7px 0; color: var(--highlight);">✨ Experimental Magic Upload</h3>
-                    <p style="font-size: 9px; color: #666; margin: 0 0 10px 0;">
-                        Upload multiple files at once and let the dashboard automatically detect and load them!
-                    </p>
-                    <input type="file" id="magicUploadFile" accept=".csv,.zip" multiple style="display: none;">
-                    <label for="magicUploadFile" class="upload-btn" style="background: var(--highlight); color: var(--primary); font-weight: bold;">
-                        🪄 Choose Files (Magic Mode)
-                    </label>
-                    <div class="upload-status" id="magicUploadStatus" style="margin-top: 7px;"></div>
+                <!-- Second Row: Magic Upload (can expand down) -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 14px;">
+                    <div style="grid-column: span 4;">
+                        <!-- Magic Upload Section -->
+                        <div style="padding: 12px; background: linear-gradient(135deg, rgba(251, 181, 20, 0.1), rgba(251, 181, 20, 0.05)); border: 2px dashed var(--highlight); border-radius: 7px;">
+                            <h3 style="margin: 0 0 5px 0; color: var(--highlight); font-size: 14px;">✨ Experimental Magic Upload</h3>
+                            <p style="font-size: 10px; color: #666; margin: 0 0 8px 0;">
+                                Upload multiple files at once and let the dashboard automatically detect and load them!
+                            </p>
+                            <input type="file" id="magicUploadFile" accept=".csv,.zip" multiple style="display: none;">
+                            <label for="magicUploadFile" class="upload-btn" style="background: var(--highlight); color: var(--primary); font-weight: bold; padding: 8px 16px; font-size: 13px;">
+                                🪄 Choose Files (Magic Mode)
+                            </label>
+                            <div class="upload-status" id="magicUploadStatus" style="margin-top: 7px;"></div>
+                        </div>
+                    </div>
                 </div>
                 
-                <div style="margin-top: 17px; padding: 10px; background: var(--gray-light); border-radius: 5px;">
-                    <p style="font-size: 9px; color: #666; margin: 0 0 5px 0;">
-                        <strong>💡 Tip:</strong> For memberships, you can upload both sales and cancellations files together. 
-                        The dashboard will automatically detect and process them correctly.
+                <div style="margin-top: 15px; padding: 8px; background: var(--gray-light); border-radius: 5px;">
+                    <p style="font-size: 9px; color: #666; margin: 0 0 4px 0;">
+                        <strong>💡 Tip:</strong> For memberships & leads, you can upload multiple files together. The dashboard will automatically detect and process them correctly.
                     </p>
                     <p style="font-size: 9px; color: #666; margin: 0;">
-                        <strong>📝 Note:</strong> Memberships are identified by having "Hours/Month" in the membership name (e.g., "1 Hour/Month", "2 Hours/Month"). 
-                        Renewals are automatically credited to the original seller.
+                        <strong>📝 Note:</strong> Memberships are identified by having "Hours/Month" in the name. Renewals are automatically credited to the original seller.
                     </p>
                 </div>
             </div>
@@ -3584,7 +3598,7 @@
                     }
                     // Handle other date formats
                     else if (dateStrTrimmed.includes('-') || dateStrTrimmed.includes('/')) {
-                        dataDate = parseDateSafely(dateStrTrimmed);
+                        dataDate = parseDate(dateStrTrimmed);
                     }
                     // Fallback to standard Date parsing
                     else {
@@ -3645,9 +3659,9 @@
                     if (dateStrTrimmed.includes('GMT') || dateStrTrimmed.includes('T') || dateStrTrimmed.includes('Z')) {
                         dataDate = new Date(dateStrTrimmed);
                     }
-                    // Handle dates that parseDateSafely can handle
+                    // Handle dates that parseDate can handle
                     else if (dateStrTrimmed.includes('-') || dateStrTrimmed.includes('/')) {
-                        dataDate = parseDateSafely(dateStrTrimmed);
+                        dataDate = parseDate(dateStrTrimmed);
                     }
                     // Fallback to standard Date parsing
                     else {
@@ -3684,91 +3698,126 @@
         
         // File Upload Handlers
         document.getElementById('leadsFile').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
             
             document.getElementById('leadsStatus').innerHTML = '<span class="spinner"></span> Processing...';
             
-            Papa.parse(file, {
-                header: true,
-                skipEmptyLines: true,
-                complete: function(results) {
-                    leadsData = results.data;
-                    
-                    // 🐛 DEBUG: Log CSV load
+            // Process multiple files if provided
+            let processedFiles = 0;
+            const totalFiles = files.length;
+            
+            files.forEach(file => {
+                Papa.parse(file, {
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        // Auto-detect file type based on columns
+                        const columns = results.meta.fields || [];
+                        const hasConvertedTo = columns.some(col => col.toLowerCase().includes('converted to'));
+                        const hasLeadSource = columns.some(col => col.toLowerCase().includes('lead source'));
+                        
+                        if (hasConvertedTo && hasLeadSource) {
+                            // This is the Leads Converted Report
+                            leadsConvertedData = results.data;
+                            window.leadsConvertedData = leadsConvertedData;
+                            
+                            // Update converted status
+                            const converted = leadsConvertedData.filter(row => {
+                                const convertedTo = (row['Converted to'] || '').trim();
+                                return convertedTo && convertedTo !== 'N/A' && convertedTo !== '';
+                            }).length;
+                            
+                            const sources = new Set(leadsConvertedData.map(r => r['Lead source'] || 'Unknown')).size;
+                            document.getElementById('leadsConvertedStatus').innerHTML = 
+                                `<span style="color: var(--success); font-weight: 600;">✅ ${formatNumber(leadsConvertedData.length)} leads, ${converted} converted, ${sources} sources</span>`;
+                        } else {
+                            // This is the regular Leads file
+                            leadsData = results.data;
+                        }
+                        
+                        processedFiles++;
+                        
+                        // After all files are processed, merge data
+                        if (processedFiles === totalFiles) {
+                            // Merge lead source data if both files were uploaded
+                            if (leadsConvertedData.length > 0 && leadsData.length > 0) {
+                                const leadSourceMap = new Map();
+                                leadsConvertedData.forEach(row => {
+                                    const email = (row['E-mail'] || row['Email'] || '').toLowerCase().trim();
+                                    const leadSource = row['Lead source'] || '';
+                                    if (email && leadSource) {
+                                        leadSourceMap.set(email, leadSource);
+                                    }
+                                });
 
-
-                    // If leads converted was already loaded, merge lead source data
-                    if (leadsConvertedData.length > 0) {
-
-                        // Create a map of email -> lead source from converted data
-                        const leadSourceMap = new Map();
-                        leadsConvertedData.forEach(row => {
-                            const email = (row['E-mail'] || row['Email'] || '').toLowerCase().trim();
-                            const leadSource = row['Lead source'] || '';
-                            if (email && leadSource) {
-                                leadSourceMap.set(email, leadSource);
+                                leadsData = leadsData.map(customer => {
+                                    const email = (customer['E-mail'] || '').toLowerCase().trim();
+                                    if (email && leadSourceMap.has(email)) {
+                                        return {
+                                            ...customer,
+                                            'Aggregator': leadSourceMap.get(email),
+                                            'Lead source': leadSourceMap.get(email)
+                                        };
+                                    }
+                                    return customer;
+                                });
+                            } else if (leadsConvertedData.length > 0 && leadsData.length === 0) {
+                                // Use converted data as primary if main leads not loaded
+                                leadsData = leadsConvertedData.map(row => {
+                                    let type = row['Type'] || '';
+                                    if (!type || type.toLowerCase() === 'lead') {
+                                        type = (row['Converted to'] && row['Converted to'] !== 'N/A' && row['Converted to'] !== '') ? 'Customer' : 'Lead';
+                                    }
+                                    
+                                    return {
+                                        'First name': row['First Name'] || row['First name'] || '',
+                                        'Last name': row['Last Name'] || row['Last name'] || '',
+                                        'E-mail': row['E-mail'] || row['Email'] || '',
+                                        'Type': type,
+                                        'Join date': row['Join date'] || row['Converted'] || '',
+                                        'First purchase': row['First purchase'] || row['Converted'] || '',
+                                        'Aggregator': row['Lead source'] || 'Unknown',
+                                        'LTV': row['LTV'] || '0',
+                                        'Home location': row['Home location'] || '',
+                                        'Converted to': row['Converted to'] || '',
+                                        'Converted': row['Converted'] || '',
+                                        'Lead source': row['Lead source'] || ''
+                                    };
+                                });
                             }
-                        });
-
-                        // Merge lead sources into newly loaded leadsData
-                        let mergedCount = 0;
-                        leadsData = leadsData.map(customer => {
-                            const email = (customer['E-mail'] || '').toLowerCase().trim();
-                            if (email && leadSourceMap.has(email)) {
-                                mergedCount++;
-                                return {
-                                    ...customer,
-                                    'Aggregator': leadSourceMap.get(email),
-                                    'Lead source': leadSourceMap.get(email)
-                                };
+                            
+                            // Count customers vs leads
+                            const customers = leadsData.filter(row => (row['Type'] || '').toLowerCase() === 'customer').length;
+                            const leads = leadsData.filter(row => (row['Type'] || '').toLowerCase() === 'lead').length;
+                            
+                            let statusHTML = '<span style="color: var(--success); font-weight: 600;">✅ ';
+                            if (customers > 0 && leads > 0) {
+                                statusHTML += `${formatNumber(customers)} customers, ${formatNumber(leads)} leads loaded`;
+                            } else if (customers > 0) {
+                                statusHTML += `${formatNumber(customers)} customers loaded`;
+                            } else if (leads > 0) {
+                                statusHTML += `${formatNumber(leads)} leads loaded`;
+                            } else {
+                                statusHTML += `${formatNumber(leadsData.length)} records loaded`;
                             }
-                            return customer;
-                        });
+                            statusHTML += '</span>';
+                            
+                            document.getElementById('leadsStatus').innerHTML = statusHTML;
 
+                            if (appointmentsData.length > 0) {
+                                hideEmptyState();
+                                applyFilters(); // Re-filter with actual CSV data
+                                renderAllTabs();
+                            }
+                        }
+                    },
+                    error: function(error) {
+                        document.getElementById('leadsStatus').innerHTML = 
+                            '<span style="color: var(--danger);">❌ Error loading file</span>';
+                        console.error('Parse error:', error);
                     }
-                    
-                    // Check for Chris Dahl
-                    const chris = leadsData.find(row => row['E-mail'] && row['E-mail'].toLowerCase().includes('cdahl'));
-                    if (chris) {
-
-
-
-                    } else {
-
-
-
-                    }
-                    
-                    // Count customers vs leads
-                    const customers = leadsData.filter(row => (row['Type'] || '').toLowerCase() === 'customer').length;
-                    const leads = leadsData.filter(row => (row['Type'] || '').toLowerCase() === 'lead').length;
-                    
-                    let statusHTML = '<span style="color: var(--success); font-weight: 600;">✅ ';
-                    if (customers > 0 && leads > 0) {
-                        statusHTML += `${formatNumber(customers)} customers, ${formatNumber(leads)} leads loaded`;
-                    } else if (customers > 0) {
-                        statusHTML += `${formatNumber(customers)} customers loaded`;
-                    } else if (leads > 0) {
-                        statusHTML += `${formatNumber(leads)} leads loaded`;
-                    } else {
-                        statusHTML += `${formatNumber(leadsData.length)} records loaded`;
-                    }
-                    statusHTML += '</span>';
-                    
-                    document.getElementById('leadsStatus').innerHTML = statusHTML;
-
-                    if (appointmentsData.length > 0) {
-                        hideEmptyState();
-                        applyFilters(); // Re-filter with actual CSV data
-                        renderAllTabs();
-                    }
-                },
-                error: function(error) {
-                    document.getElementById('leadsStatus').innerHTML = 
-                        '<span style="color: var(--danger);">❌ Error loading file</span>';
-                    console.error('Parse error:', error);
-                }
+                });
             });
         });
         
@@ -7373,10 +7422,8 @@
                 
                 const email = (row['Customer Email'] || '').toLowerCase().trim();
                 const revenue = parseFloat(row.Revenue || 0);
-                // Only count revenue if customer is NOT an active member
-                const revenueToAdd = activeMemberEmails.has(email) ? 0 : revenue;
                 
-                practitionerStats[name].revenue += revenueToAdd;
+                practitionerStats[name].revenue += revenue;
                 practitionerStats[name].appointments++;
                 practitionerStats[name].clients.add(email);
                 practitionerStats[name].hours += parseFloat(row['Time (h)'] || 0);
@@ -7904,10 +7951,74 @@
             
             const sortedMonths = Array.from(allMonths).sort();
             
-            // Filter out future months (months beyond current month)
+            // Determine quarters to show: last 2 full quarters + any months in current quarter
             const today = new Date();
-            const currentMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-            const filteredMonths = sortedMonths.filter(monthKey => monthKey <= currentMonthKey);
+            const currentYear = today.getFullYear();
+            const currentMonth = today.getMonth() + 1; // 1-12
+            const currentMonthKey = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+            
+            // Determine current quarter (1-4)
+            const currentQuarter = Math.ceil(currentMonth / 3);
+            
+            // Calculate which quarters to show
+            let quartersToShow = [];
+            
+            // Add last 2 full quarters
+            for (let i = 2; i >= 1; i--) {
+                let targetQuarter = currentQuarter - i;
+                let targetYear = currentYear;
+                
+                if (targetQuarter <= 0) {
+                    targetQuarter += 4;
+                    targetYear -= 1;
+                }
+                
+                quartersToShow.push({ year: targetYear, quarter: targetQuarter });
+            }
+            
+            // Add current quarter (partial)
+            quartersToShow.push({ year: currentYear, quarter: currentQuarter });
+            
+            // Build list of months to include
+            const monthsToInclude = new Set();
+            quartersToShow.forEach(q => {
+                const startMonth = (q.quarter - 1) * 3 + 1; // 1, 4, 7, 10
+                const endMonth = q.quarter * 3; // 3, 6, 9, 12
+                
+                for (let m = startMonth; m <= endMonth; m++) {
+                    const monthKey = `${q.year}-${String(m).padStart(2, '0')}`;
+                    // Only include if we have data and it's not in the future
+                    if (monthKey <= currentMonthKey && sortedMonths.includes(monthKey)) {
+                        monthsToInclude.add(monthKey);
+                    }
+                }
+            });
+            
+            const filteredMonths = Array.from(monthsToInclude).sort();
+            
+            // Build quarter structure for headers
+            const quarterStructure = [];
+            quartersToShow.forEach(q => {
+                const startMonth = (q.quarter - 1) * 3 + 1;
+                const endMonth = q.quarter * 3;
+                const quarterMonths = [];
+                
+                for (let m = startMonth; m <= endMonth; m++) {
+                    const monthKey = `${q.year}-${String(m).padStart(2, '0')}`;
+                    if (filteredMonths.includes(monthKey)) {
+                        quarterMonths.push(monthKey);
+                    }
+                }
+                
+                if (quarterMonths.length > 0) {
+                    quarterStructure.push({
+                        label: `Q${q.quarter} ${q.year}`,
+                        months: quarterMonths,
+                        year: q.year,
+                        quarter: q.quarter
+                    });
+                }
+            });
             
             const monthNames = filteredMonths.map(m => {
                 const [year, month] = m.split('-');
@@ -7919,6 +8030,7 @@
             console.log(`📊 VSP Analytics: All months found: ${sortedMonths.join(', ')}`);
             console.log(`📊 VSP Analytics: Displaying months (filtered): ${filteredMonths.join(', ')}`);
             console.log(`📅 Current month: ${currentMonthKey}`);
+            console.log(`📊 Quarter structure:`, quarterStructure);
             
             // Show status message if no data
             if (filteredMonths.length === 0) {
@@ -7955,13 +8067,29 @@
                 html += `
                     <div class="table-container" style="margin-top: 30px;">
                         <h2>📊 Conversion of Introductory Stretch to Paid Member</h2>
-                        <p style="font-size: 14px; color: #666; margin: 10px 0;">By VSP and Month</p>
-                        <table>
+                        <p style="font-size: 14px; color: #666; margin: 10px 0;">By VSP and Quarter</p>
+                        <table class="vsp-table">
                             <thead>
+                                <!-- Quarter grouping row -->
                                 <tr>
-                                    <th style="background: var(--primary); color: white;">VSP</th>
-                                    ${monthNames.map(month => `<th style="background: var(--primary); color: white;">${month}</th>`).join('')}
-                                    <th style="background: var(--primary); color: white; font-weight: bold;">Total</th>
+                                    <th rowspan="2" style="background: var(--primary); color: white; vertical-align: middle;">VSP</th>
+                                    ${quarterStructure.map(q => 
+                                        `<th colspan="${q.months.length + 1}" style="background: var(--primary); color: white; text-align: center;">${q.label} Total</th>`
+                                    ).join('')}
+                                    <th rowspan="2" style="background: var(--primary); color: white; font-weight: bold; text-align: center; vertical-align: middle;">Overall</th>
+                                </tr>
+                                <!-- Month row -->
+                                <tr>
+                                    ${quarterStructure.map(q => {
+                                        const monthCells = q.months.map(monthKey => {
+                                            const [year, month] = monthKey.split('-');
+                                            const date = new Date(parseInt(year), parseInt(month) - 1);
+                                            const monthName = date.toLocaleString('default', { month: 'short' });
+                                            return `<th style="background: var(--primary); color: white; text-align: center;">${monthName}</th>`;
+                                        }).join('');
+                                        const totalCell = `<th style="background: var(--accent); color: white; text-align: center; font-weight: bold;">Total</th>`;
+                                        return monthCells + totalCell;
+                                    }).join('')}
                                 </tr>
                             </thead>
                             <tbody>
@@ -7971,51 +8099,78 @@
                 const sortedVSPs = Object.keys(conversionByVSPMonth).filter(vsp => !vsp.toLowerCase().includes('sauna')).sort();
                 
                 sortedVSPs.forEach(vsp => {
-                    let totalIntros = 0;
-                    let totalConversions = 0;
-                    
                     html += `<tr><td style="font-weight: bold; background: var(--gray-light);">${vsp}</td>`;
                     
-                    filteredMonths.forEach(monthKey => {
-                        const data = conversionByVSPMonth[vsp] && conversionByVSPMonth[vsp][monthKey];
-                        if (data && data.introStretches > 0) {
-                            const rate = ((data.conversions / data.introStretches) * 100).toFixed(0);
-                            totalIntros += data.introStretches;
-                            totalConversions += data.conversions;
-                            
-                            // Add color shading based on conversion rate
-                            let cellStyle = 'text-align: center;';
-                            if (rate >= 50) {
-                                cellStyle = 'text-align: center; background: rgba(0, 102, 204, 0.3);'; // Blue for 50%+
-                            } else if (rate >= 30) {
-                                cellStyle = 'text-align: center; background: rgba(255, 140, 0, 0.3);'; // Orange for 30-49%
-                            } else if (rate > 0) {
-                                cellStyle = 'text-align: center; background: rgba(139, 0, 139, 0.3);'; // Purple for <30%
+                    let overallIntros = 0;
+                    let overallConversions = 0;
+                    
+                    // Output months grouped by quarter with quarter total immediately after
+                    quarterStructure.forEach(quarter => {
+                        let quarterIntros = 0;
+                        let quarterConversions = 0;
+                        
+                        quarter.months.forEach(monthKey => {
+                            const data = conversionByVSPMonth[vsp] && conversionByVSPMonth[vsp][monthKey];
+                            if (data && data.introStretches > 0) {
+                                const rate = ((data.conversions / data.introStretches) * 100).toFixed(0);
+                                quarterIntros += data.introStretches;
+                                quarterConversions += data.conversions;
+                                
+                                // Add color shading based on conversion rate
+                                let cellStyle = 'text-align: center;';
+                                if (rate >= 50) {
+                                    cellStyle = 'text-align: center; background: rgba(0, 102, 204, 0.3);';
+                                } else if (rate >= 30) {
+                                    cellStyle = 'text-align: center; background: rgba(255, 140, 0, 0.3);';
+                                } else if (rate > 0) {
+                                    cellStyle = 'text-align: center; background: rgba(139, 0, 139, 0.3);';
+                                }
+                                
+                                const tooltip = `Conversions: ${data.conversions} / Intro Stretches: ${data.introStretches} = ${rate}%`;
+                                html += `<td style="${cellStyle}" title="${tooltip}">
+                                    <div style="font-weight: bold;">${rate}%</div>
+                                    <div style="font-size: 0.7em; color: #666; margin-top: 2px;">${data.conversions}/${data.introStretches}</div>
+                                </td>`;
+                            } else {
+                                html += `<td style="text-align: center; color: #ccc;">-</td>`;
                             }
-                            
-                            // Add tooltip with breakdown
-                            const tooltip = `Conversions: ${data.conversions} / Intro Stretches: ${data.introStretches} = ${rate}%`;
-                            html += `<td style="${cellStyle}" title="${tooltip}">${rate}%</td>`;
-                        } else {
-                            html += `<td style="text-align: center; color: #ccc;">-</td>`;
+                        });
+                        
+                        overallIntros += quarterIntros;
+                        overallConversions += quarterConversions;
+                        
+                        // Output quarter total immediately after months
+                        const qRate = quarterIntros > 0 ? ((quarterConversions / quarterIntros) * 100).toFixed(0) : 0;
+                        let qCellStyle = 'text-align: center; font-weight: bold; background: rgba(113, 190, 210, 0.2);';
+                        if (qRate >= 50) {
+                            qCellStyle = 'text-align: center; font-weight: bold; background: rgba(0, 102, 204, 0.4);';
+                        } else if (qRate >= 30) {
+                            qCellStyle = 'text-align: center; font-weight: bold; background: rgba(255, 140, 0, 0.4);';
+                        } else if (qRate > 0) {
+                            qCellStyle = 'text-align: center; font-weight: bold; background: rgba(139, 0, 139, 0.4);';
                         }
+                        const qTooltip = `Quarter Total: ${quarterConversions} / ${quarterIntros} = ${qRate}%`;
+                        html += `<td style="${qCellStyle}" title="${qTooltip}">
+                            <div style="font-weight: bold;">${qRate}%</div>
+                            <div style="font-size: 0.7em; color: #666; margin-top: 2px;">${quarterConversions}/${quarterIntros}</div>
+                        </td>`;
                     });
                     
-                    const totalRate = totalIntros > 0 ? ((totalConversions / totalIntros) * 100).toFixed(0) : 0;
-                    
-                    // Add color shading to total based on conversion rate
-                    let totalCellStyle = 'text-align: center; font-weight: bold; background: var(--gray-light);';
-                    if (totalRate >= 50) {
-                        totalCellStyle = 'text-align: center; font-weight: bold; background: rgba(0, 102, 204, 0.3);'; // Blue
-                    } else if (totalRate >= 30) {
-                        totalCellStyle = 'text-align: center; font-weight: bold; background: rgba(255, 140, 0, 0.3);'; // Orange
-                    } else if (totalRate > 0) {
-                        totalCellStyle = 'text-align: center; font-weight: bold; background: rgba(139, 0, 139, 0.3);'; // Purple
+                    // Output overall total
+                    const overallRate = overallIntros > 0 ? ((overallConversions / overallIntros) * 100).toFixed(0) : 0;
+                    let overallCellStyle = 'text-align: center; font-weight: bold; background: var(--gray-light);';
+                    if (overallRate >= 50) {
+                        overallCellStyle = 'text-align: center; font-weight: bold; background: rgba(0, 102, 204, 0.3);';
+                    } else if (overallRate >= 30) {
+                        overallCellStyle = 'text-align: center; font-weight: bold; background: rgba(255, 140, 0, 0.3);';
+                    } else if (overallRate > 0) {
+                        overallCellStyle = 'text-align: center; font-weight: bold; background: rgba(139, 0, 139, 0.3);';
                     }
-                    
-                    // Add tooltip with breakdown
-                    const totalTooltip = `Total Conversions: ${totalConversions} / Total Intro Stretches: ${totalIntros} = ${totalRate}%`;
-                    html += `<td style="${totalCellStyle}" title="${totalTooltip}">${totalRate}%</td>`;
+                    const overallTooltip = `Overall: ${overallConversions} / ${overallIntros} = ${overallRate}%`;
+                    html += `<td style="${overallCellStyle}" title="${overallTooltip}">
+                        <div style="font-weight: bold;">${overallRate}%</div>
+                        <div style="font-size: 0.7em; color: #666; margin-top: 2px;">${overallConversions}/${overallIntros}</div>
+                    </td>`;
                     html += `</tr>`;
                 });
                 
@@ -8023,33 +8178,53 @@
                 html += `<tr style="background: var(--accent); font-weight: bold;">
                     <td style="color: var(--primary);">Grand Total</td>`;
                 
-                filteredMonths.forEach(monthKey => {
-                    let monthIntros = 0;
-                    let monthConversions = 0;
+                let grandOverallIntros = 0;
+                let grandOverallConversions = 0;
+                
+                // Output months grouped by quarter with quarter total immediately after
+                quarterStructure.forEach(quarter => {
+                    let qIntros = 0;
+                    let qConversions = 0;
                     
-                    sortedVSPs.forEach(vsp => {
-                        const data = conversionByVSPMonth[vsp] && conversionByVSPMonth[vsp][monthKey];
-                        if (data) {
-                            monthIntros += data.introStretches;
-                            monthConversions += data.conversions;
-                        }
+                    quarter.months.forEach(monthKey => {
+                        let monthIntros = 0;
+                        let monthConversions = 0;
+                        
+                        sortedVSPs.forEach(vsp => {
+                            const data = conversionByVSPMonth[vsp] && conversionByVSPMonth[vsp][monthKey];
+                            if (data) {
+                                monthIntros += data.introStretches;
+                                monthConversions += data.conversions;
+                            }
+                        });
+                        
+                        qIntros += monthIntros;
+                        qConversions += monthConversions;
+                        
+                        const monthRate = monthIntros > 0 ? ((monthConversions / monthIntros) * 100).toFixed(0) : 0;
+                        html += `<td style="text-align: center; color: var(--primary);">
+                            <div style="font-weight: bold;">${monthRate}%</div>
+                            <div style="font-size: 0.7em; color: #666; margin-top: 2px;">${monthConversions}/${monthIntros}</div>
+                        </td>`;
                     });
                     
-                    const monthRate = monthIntros > 0 ? ((monthConversions / monthIntros) * 100).toFixed(0) : 0;
-                    html += `<td style="text-align: center; color: var(--primary);">${monthRate}%</td>`;
+                    grandOverallIntros += qIntros;
+                    grandOverallConversions += qConversions;
+                    
+                    // Output quarter total immediately after months
+                    const qRate = qIntros > 0 ? ((qConversions / qIntros) * 100).toFixed(0) : 0;
+                    html += `<td style="text-align: center; color: var(--primary);">
+                        <div style="font-weight: bold;">${qRate}%</div>
+                        <div style="font-size: 0.7em; color: #666; margin-top: 2px;">${qConversions}/${qIntros}</div>
+                    </td>`;
                 });
                 
                 // Overall total
-                let overallIntros = 0;
-                let overallConversions = 0;
-                sortedVSPs.forEach(vsp => {
-                    Object.values(conversionByVSPMonth[vsp] || {}).forEach(data => {
-                        overallIntros += data.introStretches;
-                        overallConversions += data.conversions;
-                    });
-                });
-                const overallRate = overallIntros > 0 ? ((overallConversions / overallIntros) * 100).toFixed(0) : 0;
-                html += `<td style="text-align: center; color: var(--primary);">${overallRate}%</td>`;
+                const grandOverallRate = grandOverallIntros > 0 ? ((grandOverallConversions / grandOverallIntros) * 100).toFixed(0) : 0;
+                html += `<td style="text-align: center; color: var(--primary);">
+                    <div style="font-weight: bold;">${grandOverallRate}%</div>
+                    <div style="font-size: 0.7em; color: #666; margin-top: 2px;">${grandOverallConversions}/${grandOverallIntros}</div>
+                </td>`;
                 html += `</tr>`;
                 
                 html += `
@@ -8077,7 +8252,7 @@
                 html += `
                     <div class="table-container" style="margin-top: 40px;">
                         <h2>⏱️ Utilization Rates</h2>
-                        <p style="font-size: 14px; color: #666; margin: 10px 0;">By VSP and Month (Table Time Efficiency)</p>
+                        <p style="font-size: 14px; color: #666; margin: 10px 0;">By VSP and Quarter (Table Time Efficiency)</p>
                 `;
                 
                 // Add debug info if no data
@@ -8092,12 +8267,28 @@
                 }
                 
                 html += `
-                        <table>
+                        <table class="vsp-table">
                             <thead>
+                                <!-- Quarter grouping row -->
                                 <tr>
-                                    <th style="background: var(--primary); color: white;">VSP</th>
-                                    ${monthNames.map(month => `<th style="background: var(--primary); color: white;">${month}</th>`).join('')}
-                                    <th style="background: var(--primary); color: white; font-weight: bold;">Total</th>
+                                    <th rowspan="2" style="background: var(--primary); color: white; vertical-align: middle;">VSP</th>
+                                    ${quarterStructure.map(q => 
+                                        `<th colspan="${q.months.length + 1}" style="background: var(--primary); color: white; text-align: center;">${q.label} Total</th>`
+                                    ).join('')}
+                                    <th rowspan="2" style="background: var(--primary); color: white; font-weight: bold; text-align: center; vertical-align: middle;">Overall</th>
+                                </tr>
+                                <!-- Month row -->
+                                <tr>
+                                    ${quarterStructure.map(q => {
+                                        const monthCells = q.months.map(monthKey => {
+                                            const [year, month] = monthKey.split('-');
+                                            const date = new Date(parseInt(year), parseInt(month) - 1);
+                                            const monthName = date.toLocaleString('default', { month: 'short' });
+                                            return `<th style="background: var(--primary); color: white; text-align: center;">${monthName}</th>`;
+                                        }).join('');
+                                        const totalCell = `<th style="background: var(--accent); color: white; text-align: center; font-weight: bold;">Total</th>`;
+                                        return monthCells + totalCell;
+                                    }).join('')}
                                 </tr>
                             </thead>
                             <tbody>
@@ -8113,41 +8304,65 @@
                 }
                 
                 sortedVSPs.forEach(vsp => {
-                    let totalApptHours = 0;
-                    let totalClockedHours = 0;
-                    
                     html += `<tr><td style="font-weight: bold; background: var(--gray-light);">${vsp}</td>`;
                     
-                    filteredMonths.forEach(monthKey => {
-                        const data = utilizationByVSPMonth[vsp] && utilizationByVSPMonth[vsp][monthKey];
-                        if (data && data.clockedHours > 0) {
-                            const rate = ((data.appointmentHours / data.clockedHours) * 100).toFixed(0);
-                            totalApptHours += data.appointmentHours;
-                            totalClockedHours += data.clockedHours;
-                            
-                            // Color code based on utilization rate
-                            let cellStyle = 'text-align: center;';
-                            if (rate >= 60) cellStyle += ' background: rgba(0, 102, 204, 0.3);'; // Blue for 60%+
-                            else if (rate >= 40) cellStyle += ' background: rgba(255, 140, 0, 0.3);'; // Orange for 40-59%
-                            else if (rate < 40 && rate > 0) cellStyle += ' background: rgba(139, 0, 139, 0.3);'; // Purple for <40%
-                            
-                            // Add tooltip with breakdown
-                            const debugInfo = `Appt: ${data.appointmentHours.toFixed(1)}h / Clocked: ${data.clockedHours.toFixed(1)}h = ${rate}%`;
-                            html += `<td style="${cellStyle}" title="${debugInfo}">${rate}%</td>`;
-                        } else {
-                            html += `<td style="text-align: center; color: #ccc;">-</td>`;
+                    let overallApptHours = 0;
+                    let overallClockedHours = 0;
+                    
+                    // Output months grouped by quarter with quarter total immediately after
+                    quarterStructure.forEach(quarter => {
+                        let quarterApptHours = 0;
+                        let quarterClockedHours = 0;
+                        
+                        quarter.months.forEach(monthKey => {
+                            const data = utilizationByVSPMonth[vsp] && utilizationByVSPMonth[vsp][monthKey];
+                            if (data && data.clockedHours > 0) {
+                                const rate = ((data.appointmentHours / data.clockedHours) * 100).toFixed(0);
+                                quarterApptHours += data.appointmentHours;
+                                quarterClockedHours += data.clockedHours;
+                                
+                                // Color code based on utilization rate
+                                let cellStyle = 'text-align: center;';
+                                if (rate >= 60) cellStyle += ' background: rgba(0, 102, 204, 0.3);';
+                                else if (rate >= 40) cellStyle += ' background: rgba(255, 140, 0, 0.3);';
+                                else if (rate < 40 && rate > 0) cellStyle += ' background: rgba(139, 0, 139, 0.3);';
+                                
+                                const debugInfo = `Appt: ${data.appointmentHours.toFixed(1)}h / Clocked: ${data.clockedHours.toFixed(1)}h = ${rate}%`;
+                                html += `<td style="${cellStyle}" title="${debugInfo}">${rate}%</td>`;
+                            } else {
+                                html += `<td style="text-align: center; color: #ccc;">-</td>`;
+                            }
+                        });
+                        
+                        overallApptHours += quarterApptHours;
+                        overallClockedHours += quarterClockedHours;
+                        
+                        // Output quarter total immediately after months
+                        const qRate = quarterClockedHours > 0 ? ((quarterApptHours / quarterClockedHours) * 100).toFixed(0) : 0;
+                        let qCellStyle = 'text-align: center; font-weight: bold; background: rgba(113, 190, 210, 0.2);';
+                        if (qRate >= 60) {
+                            qCellStyle = 'text-align: center; font-weight: bold; background: rgba(0, 102, 204, 0.4);';
+                        } else if (qRate >= 40) {
+                            qCellStyle = 'text-align: center; font-weight: bold; background: rgba(255, 140, 0, 0.4);';
+                        } else if (qRate < 40 && qRate > 0) {
+                            qCellStyle = 'text-align: center; font-weight: bold; background: rgba(139, 0, 139, 0.4);';
                         }
+                        const qTooltip = `Quarter: ${quarterApptHours.toFixed(1)}h / ${quarterClockedHours.toFixed(1)}h = ${qRate}%`;
+                        html += `<td style="${qCellStyle}" title="${qTooltip}">${qRate}%</td>`;
                     });
                     
-                    const totalRate = totalClockedHours > 0 ? ((totalApptHours / totalClockedHours) * 100).toFixed(0) : 0;
-                    
-                    let totalCellStyle = 'text-align: center; font-weight: bold; background: var(--gray-light);';
-                    if (totalRate >= 60) totalCellStyle = 'text-align: center; font-weight: bold; background: rgba(0, 102, 204, 0.3);'; // Blue
-                    else if (totalRate >= 40) totalCellStyle = 'text-align: center; font-weight: bold; background: rgba(255, 140, 0, 0.3);'; // Orange
-                    else if (totalRate < 40 && totalRate > 0) totalCellStyle = 'text-align: center; font-weight: bold; background: rgba(139, 0, 139, 0.3);'; // Purple
-                    
-                    const totalDebugInfo = `Total Appt: ${totalApptHours.toFixed(1)}h / Total Clocked: ${totalClockedHours.toFixed(1)}h = ${totalRate}%`;
-                    html += `<td style="${totalCellStyle}" title="${totalDebugInfo}">${totalRate}%</td>`;
+                    // Output overall total
+                    const overallRate = overallClockedHours > 0 ? ((overallApptHours / overallClockedHours) * 100).toFixed(0) : 0;
+                    let overallCellStyle = 'text-align: center; font-weight: bold; background: var(--gray-light);';
+                    if (overallRate >= 60) {
+                        overallCellStyle = 'text-align: center; font-weight: bold; background: rgba(0, 102, 204, 0.3);';
+                    } else if (overallRate >= 40) {
+                        overallCellStyle = 'text-align: center; font-weight: bold; background: rgba(255, 140, 0, 0.3);';
+                    } else if (overallRate < 40 && overallRate > 0) {
+                        overallCellStyle = 'text-align: center; font-weight: bold; background: rgba(139, 0, 139, 0.3);';
+                    }
+                    const overallTooltip = `Overall: ${overallApptHours.toFixed(1)}h / ${overallClockedHours.toFixed(1)}h = ${overallRate}%`;
+                    html += `<td style="${overallCellStyle}" title="${overallTooltip}">${overallRate}%</td>`;
                     html += `</tr>`;
                 });
                 
@@ -8155,33 +8370,44 @@
                 html += `<tr style="background: var(--accent); font-weight: bold;">
                     <td style="color: var(--primary);">Grand Total</td>`;
                 
-                filteredMonths.forEach(monthKey => {
-                    let monthApptHours = 0;
-                    let monthClockedHours = 0;
+                let grandOverallApptHours = 0;
+                let grandOverallClockedHours = 0;
+                
+                // Output months grouped by quarter with quarter total immediately after
+                quarterStructure.forEach(quarter => {
+                    let qApptHours = 0;
+                    let qClockedHours = 0;
                     
-                    sortedVSPs.forEach(vsp => {
-                        const data = utilizationByVSPMonth[vsp] && utilizationByVSPMonth[vsp][monthKey];
-                        if (data) {
-                            monthApptHours += data.appointmentHours;
-                            monthClockedHours += data.clockedHours;
-                        }
+                    quarter.months.forEach(monthKey => {
+                        let monthApptHours = 0;
+                        let monthClockedHours = 0;
+                        
+                        sortedVSPs.forEach(vsp => {
+                            const data = utilizationByVSPMonth[vsp] && utilizationByVSPMonth[vsp][monthKey];
+                            if (data) {
+                                monthApptHours += data.appointmentHours;
+                                monthClockedHours += data.clockedHours;
+                            }
+                        });
+                        
+                        qApptHours += monthApptHours;
+                        qClockedHours += monthClockedHours;
+                        
+                        const monthRate = monthClockedHours > 0 ? ((monthApptHours / monthClockedHours) * 100).toFixed(0) : 0;
+                        html += `<td style="text-align: center; color: var(--primary);">${monthRate}%</td>`;
                     });
                     
-                    const monthRate = monthClockedHours > 0 ? ((monthApptHours / monthClockedHours) * 100).toFixed(0) : 0;
-                    html += `<td style="text-align: center; color: var(--primary);">${monthRate}%</td>`;
+                    grandOverallApptHours += qApptHours;
+                    grandOverallClockedHours += qClockedHours;
+                    
+                    // Output quarter total immediately after months
+                    const qRate = qClockedHours > 0 ? ((qApptHours / qClockedHours) * 100).toFixed(0) : 0;
+                    html += `<td style="text-align: center; color: var(--primary);">${qRate}%</td>`;
                 });
                 
                 // Overall total
-                let overallApptHours = 0;
-                let overallClockedHours = 0;
-                sortedVSPs.forEach(vsp => {
-                    Object.values(utilizationByVSPMonth[vsp] || {}).forEach(data => {
-                        overallApptHours += data.appointmentHours;
-                        overallClockedHours += data.clockedHours;
-                    });
-                });
-                const overallRate = overallClockedHours > 0 ? ((overallApptHours / overallClockedHours) * 100).toFixed(0) : 0;
-                html += `<td style="text-align: center; color: var(--primary);">${overallRate}%</td>`;
+                const grandOverallRate = grandOverallClockedHours > 0 ? ((grandOverallApptHours / grandOverallClockedHours) * 100).toFixed(0) : 0;
+                html += `<td style="text-align: center; color: var(--primary);">${grandOverallRate}%</td>`;
                 html += `</tr>`;
                 
                 html += `
@@ -9583,9 +9809,13 @@
                     totalActiveCount = activeCustomersOnDate.size;
                     frozenCountOnDate = frozenCustomersOnDate.size;
                     
-                    // Active members = total active (not expired) - frozen
-                    dailyActiveMembers[dateKey] = totalActiveCount - frozenCountOnDate;
-                    dailyFrozenMembers[dateKey] = cumulativeFrozenCount; // Use cumulative frozen count
+                    // Active members = total members - cumulative frozen count
+                    dailyActiveMembers[dateKey] = totalActiveCount - cumulativeFrozenCount;
+                    // Store cumulative frozen count for the "Frozen Members" line
+                    dailyFrozenMembers[dateKey] = cumulativeFrozenCount;
+                    // Store cumulative frozen count for calculating Total Members line
+                    if (!window.dailyCurrentlyFrozen) window.dailyCurrentlyFrozen = {};
+                    window.dailyCurrentlyFrozen[dateKey] = cumulativeFrozenCount;
                     
                     // Ensure renewals has a value for every date
                     if (!dailyRenewals[dateKey]) {
@@ -10182,7 +10412,8 @@
                     const activeDates = Object.keys(dailyActiveMembers).sort();
                     const activeCounts = activeDates.map(date => dailyActiveMembers[date]);
                     const frozenCounts = activeDates.map(date => dailyFrozenMembers[date] || 0);
-                    const totalCounts = activeDates.map((date, i) => activeCounts[i] + frozenCounts[i]);
+                    const currentlyFrozenCounts = activeDates.map(date => window.dailyCurrentlyFrozen?.[date] || 0);
+                    const totalCounts = activeDates.map((date, i) => activeCounts[i] + currentlyFrozenCounts[i]);
                     const renewalCounts = activeDates.map(date => dailyRenewals[date] || 0);
                     const cancellationCounts = activeDates.map(date => dailyCancellations[date] || 0);
                     
@@ -12793,6 +13024,12 @@
                 .slice(0, 10);
             
             const sortedMonths = Object.keys(cancellationsByMonth).sort();
+            
+            // Filter out future months (months beyond current month)
+            const today = new Date();
+            const currentMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+            const filteredMonths = sortedMonths.filter(monthKey => monthKey <= currentMonthKey);
+            
             const sortedDates = Object.keys(dailyCancellations).sort();
             
             // Find most common day of week
@@ -17221,7 +17458,7 @@
     <!-- Footer -->
     <div class="dashboard-footer">
         <div class="footer-content">
-            <span class="footer-version">v2.20251113.04</span>
+            <span class="footer-version">v2.20251114.11</span>
             <span class="footer-separator">|</span>
             <span class="footer-credits">Made by bonJoeV with ❤️</span>
         </div>
