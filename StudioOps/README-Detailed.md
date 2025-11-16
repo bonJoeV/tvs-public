@@ -1,6 +1,6 @@
 # The Vital Stretch Analytics Dashboard - Detailed Documentation
 
-**Version:** v2.20251113.04  
+**Version:** v2.20251115.11 
 **Last Updated:** November 13, 2025  
 **Maintained For:** The Vital Stretch Franchise Operations
 
@@ -222,7 +222,7 @@ Settings are stored in browser's localStorage and persist between sessions.
 - [ ] Date filter works correctly
 - [ ] Location filter includes all studios
 - [ ] Export buttons generate CSV files
-- [ ] Footer shows correct version: `v2.20251113.04`
+- [ ] Footer shows correct version: `v2.20251115.11`
 
 ---
 
@@ -2867,7 +2867,7 @@ A: Press F12, screenshot the error, and send to support. Usually fixable with ca
 
 ## 📝 Version History
 
-### v2.20251113.04 (Current)
+### v2.20251115.11 (Current)
 
 **VSP Performance Analytics:**
 - Moved conversion/utilization tables to top of VSP tab
@@ -2923,7 +2923,7 @@ A: Press F12, screenshot the error, and send to support. Usually fixable with ca
 
 ---
 
-**Dashboard Version:** v2.20251113.04  
+**Dashboard Version:** v2.20251115.11  
 **Documentation Version:** v1.0  
 **Last Updated:** November 13, 2025
 

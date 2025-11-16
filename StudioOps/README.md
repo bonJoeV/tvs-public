@@ -1,6 +1,6 @@
 # The Vital Stretch Analytics Dashboard
 
-**Version:** v2.20251113.04 | **Single-page HTML dashboard for franchise analytics**
+**Version:** v2.20251115.11 | **Single-page HTML dashboard for franchise analytics**
 
 ---
 
@@ -69,7 +69,7 @@ You need **8 data files** from your Momence account:
 - **Windows/Linux:** `Ctrl + Shift + R`
 - **Mac:** `Cmd + Shift + R`
 
-**Verify Version:** Check footer shows `v2.20251113.04`
+**Verify Version:** Check footer shows `v2.20251115.11`
 
 ---
 
@@ -196,7 +196,7 @@ Appointment timing analysis with **location-specific heatmaps** showing busiest 
 
 **Dashboard not updating?**
 - Force reload: `Ctrl + Shift + R` (Windows/Linux) or `Cmd + Shift + R` (Mac)
-- Verify footer shows `v2.20251113.04`
+- Verify footer shows `v2.20251115.11`
 - Clear browser cache completely
 
 **No data showing?**
@@ -246,7 +246,7 @@ Appointment timing analysis with **location-specific heatmaps** showing busiest 
 
 ---
 
-## 🆕 What's New in v2.20251113.04
+## 🆕 What's New in v2.20251115.11
 
 ### VSP Performance Analytics
 - 📊 Moved to prominent position at top of VSP tab
@@ -294,4 +294,4 @@ For questions or support:
 
 **Thank you for using The Vital Stretch Analytics Dashboard!**
 
-*Version v2.20251113.04 | Created with ❤️ by bonJoeV for The Vital Stretch Franchise*
+*Version v2.20251115.11 | Created with ❤️ by bonJoeV for The Vital Stretch Franchise*
