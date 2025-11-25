@@ -421,7 +421,7 @@
             background: white;
             border-radius: 15px;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-            max-width: 900px;
+            max-width: 650px;
             max-height: 90vh;
             width: 100%;
             overflow-y: auto;
@@ -2042,7 +2042,7 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 14px; margin-bottom: 14px;">
                     <div class="upload-box">
                         <h3>📦 Payroll Zip</h3>
-                        <p style="font-size: 8px; color: #666; margin: 7px 0;">All employee payroll files</p>
+                        <p style="font-size: 8px; color: #666; margin: 7px 0;">Payroll Report or Staff Time Tracking</p>
                         <input type="file" id="payrollZipFile" accept=".zip" style="display: none;">
                         <label for="payrollZipFile" class="upload-btn">Choose Zip File</label>
                         <div class="upload-status" id="payrollZipStatus"></div>
@@ -4212,13 +4212,14 @@
                 try {
                     // Handle ZIP files
                     if (fileName.endsWith('.zip')) {
-                        if (fileName.includes('payroll')) {
-                            // Trigger payroll zip upload
+                        if (fileName.includes('payroll') || fileName.includes('staff-time')) {
+                            // Trigger payroll zip upload (handles both payroll and staff time tracking)
                             const dataTransfer = new DataTransfer();
                             dataTransfer.items.add(file);
                             document.getElementById('payrollZipFile').files = dataTransfer.files;
                             document.getElementById('payrollZipFile').dispatchEvent(new Event('change'));
-                            statusMessages.push(`✅ ${file.name} → Payroll ZIP`);
+                            const zipType = fileName.includes('staff-time') ? 'Staff Time Tracking ZIP' : 'Payroll ZIP';
+                            statusMessages.push(`✅ ${file.name} → ${zipType}`);
                         } else if (fileName.includes('attendance')) {
                             // Trigger attendance zip upload
                             const dataTransfer = new DataTransfer();
@@ -4518,7 +4519,9 @@
                     const content = await zipEntry.async('text');
                     
                     // Extract employee name from filename for different file types
-                    let nameParts = filename.match(/momence-(?:payroll-)?(?:appointments|time|commissions)-(.+?)(?:-aggregate)?\.csv/);
+                    // Handles: momence-payroll-appointments-*, momence-payroll-time-*, momence-payroll-commissions-*
+                    //          momence-staff-time-*, momence-appointments-*, momence-time-*, momence-commissions-*
+                    let nameParts = filename.match(/momence-(?:payroll-|staff-)?(?:appointments|time|commissions)-(.+?)(?:-aggregate)?\.csv/);
                     
                     // Skip files that don't match our pattern
                     if (!nameParts) {
@@ -4565,20 +4568,30 @@
                             skipEmptyLines: true,
                             complete: function(results) {
                                 results.data.forEach(row => {
-                                    row['Employee Name'] = employeeName;
+                                    // For combined files, construct employee name from First Name + Last Name
+                                    if (row['First Name'] && row['Last Name']) {
+                                        row['Employee Name'] = `${row['First Name']} ${row['Last Name']}`;
+                                        row['Employee name'] = row['Employee Name']; // lowercase version for compatibility
+                                    } else {
+                                        // For individual files, use the extracted employee name
+                                        row['Employee Name'] = employeeName;
+                                        row['Employee name'] = employeeName;
+                                    }
+                                    
                                     // Store for cleaning later
-                                    if (!employeeStats[employeeName]) {
-                                        employeeStats[employeeName] = { durations: [] };
+                                    const empName = row['Employee Name'];
+                                    if (!employeeStats[empName]) {
+                                        employeeStats[empName] = { durations: [] };
                                     }
                                     const duration = parseFloat(row['Duration (h)']);
                                     if (!isNaN(duration)) {
-                                        employeeStats[employeeName].durations.push(duration);
+                                        employeeStats[empName].durations.push(duration);
                                     }
                                 });
                                 
                                 // Filter out time tracking before the notBeforeDate AND future dates
                                 const filteredResults = results.data.filter(row => {
-                                    const dateField = row['Date'] || row['Date/Time (GMT)'];
+                                    const dateField = row['Date'] || row['Date/Time (GMT)'] || row['Clocked in'];
                                     return !shouldFilterDate(dateField) && !shouldFilterFutureDate(dateField);
                                 });
                                 
@@ -4690,9 +4703,16 @@
                     .reduce((sum, e) => sum + e.utilization, 0) / totalEmployees;
                 
                 const commissionCount = allCommissions ? allCommissions.length : 0;
+                const timeTrackingCount = allTimeTracking.length;
+                
+                // Detect file type
+                let fileType = 'Payroll Report';
+                if (file.name.includes('staff-time-tracking')) {
+                    fileType = 'Staff Time Tracking';
+                }
                 
                 document.getElementById('payrollZipStatus').innerHTML = 
-                    `<span style="color: var(--success); font-weight: 600;">✅ ${formatNumber(totalAppts)} appointments, ${formatNumber(commissionCount)} commissions from ${totalEmployees} employees (Avg Utilization: ${avgUtilization.toFixed(1)}%)</span>`;
+                    `<span style="color: var(--success); font-weight: 600;">✅ ${fileType}: ${formatNumber(totalAppts)} appts, ${formatNumber(timeTrackingCount)} time entries, ${formatNumber(commissionCount)} commissions from ${totalEmployees} employees (Avg Util: ${avgUtilization.toFixed(1)}%)</span>`;
                 
                 initializeDashboard();
                 
@@ -4937,6 +4957,11 @@
                 return; // No time tracking data available
             }
             
+            // Store the original utilization data if it hasn't been stored yet
+            if (!window.originalEmployeeUtilization) {
+                window.originalEmployeeUtilization = JSON.parse(JSON.stringify(window.employeeUtilization));
+            }
+            
             const month = document.getElementById('monthFilter').value;
             const startDate = document.getElementById('startDate').value;
             const endDate = document.getElementById('endDate').value;
@@ -4962,13 +4987,20 @@
             // Recalculate utilization for each employee based on filtered data
             const employeeUtilization = {};
             
-            // Get unique employee names from filtered appointments
+            // Get unique employee names from filtered appointments AND original utilization data
             const employeeNames = new Set();
             filteredAppointments.forEach(a => {
                 if (a['Employee Name']) {
                     employeeNames.add(a['Employee Name']);
                 }
             });
+            
+            // Also include employees from original utilization data to preserve clocked hours
+            if (window.originalEmployeeUtilization) {
+                Object.keys(window.originalEmployeeUtilization).forEach(empName => {
+                    employeeNames.add(empName);
+                });
+            }
             
             // Calculate utilization for each employee
             employeeNames.forEach(employeeName => {
@@ -4985,13 +5017,20 @@
                     return sum + hours;
                 }, 0);
                 
-                const utilization = totalClockedHours > 0 
-                    ? (totalApptHours / totalClockedHours * 100) 
+                // If no clocked hours in filtered range, use original total clocked hours
+                const finalClockedHours = totalClockedHours > 0 
+                    ? totalClockedHours 
+                    : (window.originalEmployeeUtilization && window.originalEmployeeUtilization[employeeName]
+                        ? window.originalEmployeeUtilization[employeeName].totalClockedHours
+                        : 0);
+                
+                const utilization = finalClockedHours > 0 
+                    ? (totalApptHours / finalClockedHours * 100) 
                     : 0;
                 
                 employeeUtilization[employeeName] = {
                     totalApptHours: totalApptHours,
-                    totalClockedHours: totalClockedHours,
+                    totalClockedHours: finalClockedHours,
                     utilization: utilization,
                     appointmentCount: employeeAppts.length,
                     shiftCount: employeeTime.length
@@ -7784,9 +7823,12 @@
                     });
                     
                     commissions = employeeCommissions.reduce((sum, c) => {
-                        return sum + (parseFloat(c['Commissions earned']) || 0);
+                        const amount = parseFloat(c['Commissions earned']) || 0;
+                        // EXCLUDE REFUNDS: Only count positive commission amounts
+                        return sum + (amount > 0 ? amount : 0);
                     }, 0);
-                    commissionCount = employeeCommissions.length;
+                    // Count only non-refund commissions
+                    commissionCount = employeeCommissions.filter(c => (parseFloat(c['Commissions earned']) || 0) > 0).length;
                 }
                 
                 // Calculate overall score (weighted)
@@ -7852,6 +7894,9 @@
             // Add Commission Payouts by Pay Period section
             html += renderCommissionPayoutsByPayPeriod();
             
+            // Add Bi-Weekly Payroll section
+            html += renderPayrollByPayPeriod();
+            
             // Continue with metrics grid and leaderboard only if we have practitioners
             if (filteredPractitioners.length > 0) {
                 html += `
@@ -7910,6 +7955,9 @@
                         </div>
                     </div>
                 `;
+                
+                // Add Service by VSP and Month breakdown table
+                html += renderServiceByVSPMonthTable(data, filteredPractitioners);
                 
                 // Re-sort by score for leaderboard display
                 filteredPractitioners.sort((a, b) => b.score - a.score);
@@ -8293,7 +8341,12 @@
                 }
             });
             
-            const sortedMonths = Array.from(allMonths).sort();
+            // Filter out future months (months that haven't happened yet)
+            const now = new Date();
+            const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            const sortedMonths = Array.from(allMonths)
+                .filter(monthKey => monthKey <= currentMonthKey)
+                .sort();
             
             // Build quarters dynamically based on what months actually have data
             const quartersWithData = new Map();
@@ -8975,6 +9028,11 @@
             return html;
         }
         
+        // Helper function to round hours up to nearest quarter hour
+        function roundToQuarterHour(hours) {
+            return Math.ceil(hours * 4) / 4;
+        }
+        
         // Function to calculate pay period for a given date
         function getPayPeriod(date) {
             // Last pay period ended November 1, 2025
@@ -9008,6 +9066,965 @@
                 end: periodEnd,
                 label: `${formatDateShort(periodStart)} - ${formatDateShort(periodEnd)}`
             };
+        }
+        
+        
+        // Render Bi-Weekly Payroll
+        function renderPayrollByPayPeriod() {
+            if (!filteredAppointments || filteredAppointments.length === 0) {
+                return `
+                    <div class="alert" style="margin-top: 40px; background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px;">
+                        <h3>💼 Bi-Weekly Payroll</h3>
+                        <p style="color: #856404;"><strong>No appointment data available for the selected date range.</strong></p>
+                    </div>
+                `;
+            }
+            
+            // Check if we have time tracking data
+            if (!window.timeTrackingData || window.timeTrackingData.length === 0) {
+                return `
+                    <div class="alert" style="margin-top: 40px; background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px;">
+                        <h3>💼 Bi-Weekly Payroll</h3>
+                        <p style="color: #856404;"><strong>No clocked hours data available.</strong></p>
+                        <p style="color: #856404;">Please upload either:</p>
+                        <ul style="color: #856404; margin-left: 20px;">
+                            <li><strong>Staff Time Tracking Report ZIP</strong> (recommended) - momence-staff-time-tracking-report-summary.zip</li>
+                            <li><strong>Payroll Report ZIP</strong> - Contains momence-payroll-time-*.csv files</li>
+                        </ul>
+                        <p style="color: #666; font-size: 0.85em; margin-top: 10px;">
+                            Debug Info: filteredAppointments = ${filteredAppointments?.length || 0}, 
+                            timeTrackingData = ${window.timeTrackingData?.length || 0}
+                        </p>
+                    </div>
+                `;
+            }
+            
+            // Group appointments by VSP, pay period, and date
+            const payrollData = {};
+            const allPayPeriods = new Set();
+            
+            // First, process appointments to get stretch hours (appointment hours)
+            // Filter out late cancellations and future appointments
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            let appointmentsProcessed = 0;
+            
+            filteredAppointments.forEach(appt => {
+                const dateStr = appt['Appointment Date'];
+                if (!dateStr) return;
+                
+                const date = parseDate(dateStr);
+                if (isNaN(date.getTime())) return;
+                
+                // Skip future appointments
+                if (date > today) return;
+                
+                // Skip late cancellations
+                if (appt['Late cancellations'] && appt['Late cancellations'].toLowerCase() === 'yes') return;
+                
+                const vspName = `${appt['Practitioner First Name'] || ''} ${appt['Practitioner Last Name'] || ''}`.trim();
+                if (!vspName || vspName.toLowerCase().includes('sauna')) return;
+                
+                // Skip excluded VSPs
+                if (isVSPExcluded(vspName)) return;
+                
+                const payPeriod = getPayPeriod(date);
+                const periodKey = payPeriod.label;
+                allPayPeriods.add(periodKey);
+                
+                const hours = parseFloat(appt['Time (h)'] || appt['Time booked (h)'] || 0);
+                const serviceName = appt['Appointment'] || '';
+                
+                // Extract customer name from "Customer Name" field (single field in payroll reports)
+                const customerName = appt['Customer Name'] || 
+                                    `${appt['Customer First Name'] || ''} ${appt['Customer Last Name'] || ''}`.trim() || 
+                                    `${appt['First Name'] || ''} ${appt['Last Name'] || ''}`.trim() || 
+                                    'Unknown';
+                
+                // Extract time from "Appointment Date" field (format: "2025-11-26, 2:00 PM")
+                let apptTime = '';
+                if (dateStr && dateStr.includes(',')) {
+                    apptTime = dateStr.split(',').slice(1).join(',').trim(); // Get everything after first comma
+                } else {
+                    apptTime = appt['Appointment Time'] || '';
+                }
+                
+                appointmentsProcessed++;
+                
+                // Initialize VSP data
+                if (!payrollData[vspName]) {
+                    payrollData[vspName] = {};
+                }
+                
+                if (!payrollData[vspName][periodKey]) {
+                    payrollData[vspName][periodKey] = {
+                        stretchHours: 0,  // Total appointment hours
+                        nonStretchHours: 0,  // Will be calculated from clocked hours
+                        clockedHours: 0,
+                        dailyData: {},
+                        periodStart: payPeriod.start,
+                        periodEnd: payPeriod.end
+                    };
+                }
+                
+                // Track by date for daily breakdown
+                const dateKey = date.toLocaleDateString();
+                if (!payrollData[vspName][periodKey].dailyData[dateKey]) {
+                    payrollData[vspName][periodKey].dailyData[dateKey] = {
+                        stretchHours: 0,
+                        clockedHours: 0,
+                        appointments: []
+                    };
+                }
+                
+                // Add to stretch hours (appointment hours)
+                payrollData[vspName][periodKey].stretchHours += hours;
+                payrollData[vspName][periodKey].dailyData[dateKey].stretchHours += hours;
+                
+                payrollData[vspName][periodKey].dailyData[dateKey].appointments.push({
+                    service: serviceName,
+                    hours: hours,
+                    customerName: customerName,
+                    time: apptTime
+                });
+            });
+            
+            // Now process clocked hours from time tracking data
+            let clockedHoursProcessed = 0;
+            let skipReasons = {
+                noClockIn: 0,
+                invalidDate: 0,
+                outOfRange: 0,
+                sauna: 0,
+                excluded: 0,
+                zeroDuration: 0
+            };
+            
+            if (window.timeTrackingData) {
+                window.timeTrackingData.forEach((record, index) => {
+                    // Use 'Clocked in' field and parse it properly with parseDate to avoid timezone issues
+                    const clockedInStr = record['Clocked in'];
+                    if (!clockedInStr) {
+                        skipReasons.noClockIn++;
+                        return;
+                    }
+                    
+                    const clockedIn = parseDate(clockedInStr);  // Use parseDate instead of new Date()
+                    
+                    if (isNaN(clockedIn.getTime())) {
+                        skipReasons.invalidDate++;
+                        return;
+                    }
+                    
+                    // Use the same date object directly (don't recreate it!)
+                    const date = new Date(clockedIn.getFullYear(), clockedIn.getMonth(), clockedIn.getDate());
+                    
+                    // Skip future dates
+                    if (date > today) {
+                        skipReasons.outOfRange++;
+                        return;
+                    }
+                    
+                    // Use both employee name formats like utilization does
+                    const employeeName = (record['Employee name'] || record['Employee Name'] || '').trim();
+                    if (!employeeName || employeeName.toLowerCase().includes('sauna')) {
+                        skipReasons.sauna++;
+                        return;
+                    }
+                    
+                    if (isVSPExcluded(employeeName)) {
+                        skipReasons.excluded++;
+                        return;
+                    }
+                    
+                    const clockedHours = parseFloat(record['Duration (h)'] || 0);
+                    
+                    if (clockedHours === 0) {
+                        skipReasons.zeroDuration++;
+                        return;
+                    }
+                    
+                    clockedHoursProcessed++;
+                    
+                    const payPeriod = getPayPeriod(date);
+                    const periodKey = payPeriod.label;
+                    
+                    // Match employee name to VSP name (they might be slightly different)
+                    let matchedVspName = null;
+                    for (const vspName of Object.keys(payrollData)) {
+                        if (vspName.toLowerCase() === employeeName.toLowerCase() || 
+                            employeeName.toLowerCase().includes(vspName.toLowerCase()) ||
+                            vspName.toLowerCase().includes(employeeName.toLowerCase())) {
+                            matchedVspName = vspName;
+                            break;
+                        }
+                    }
+                    
+                    // If no match found, use the employee name as-is
+                    if (!matchedVspName) {
+                        matchedVspName = employeeName;
+                        if (!payrollData[matchedVspName]) {
+                            payrollData[matchedVspName] = {};
+                        }
+                        if (!payrollData[matchedVspName][periodKey]) {
+                            payrollData[matchedVspName][periodKey] = {
+                                stretchHours: 0,
+                                nonStretchHours: 0,
+                                clockedHours: 0,
+                                dailyData: {},
+                                periodStart: payPeriod.start,
+                                periodEnd: payPeriod.end
+                            };
+                        }
+                    }
+                    
+                    // Add clocked hours
+                    if (!payrollData[matchedVspName][periodKey]) {
+                        payrollData[matchedVspName][periodKey] = {
+                            stretchHours: 0,
+                            nonStretchHours: 0,
+                            clockedHours: 0,
+                            dailyData: {},
+                            periodStart: payPeriod.start,
+                            periodEnd: payPeriod.end
+                        };
+                    }
+                    
+                    payrollData[matchedVspName][periodKey].clockedHours += clockedHours;
+                    
+                    const dateKey = date.toLocaleDateString();
+                    
+                    if (!payrollData[matchedVspName][periodKey].dailyData[dateKey]) {
+                        payrollData[matchedVspName][periodKey].dailyData[dateKey] = {
+                            stretchHours: 0,
+                            clockedHours: 0,
+                            appointments: []
+                        };
+                    }
+                    payrollData[matchedVspName][periodKey].dailyData[dateKey].clockedHours += clockedHours;
+                });
+            }
+            
+            // Calculate non-stretch hours (clocked - appointment hours)
+            Object.keys(payrollData).forEach(vspName => {
+                Object.keys(payrollData[vspName]).forEach(periodKey => {
+                    const period = payrollData[vspName][periodKey];
+                    period.nonStretchHours = Math.max(0, period.clockedHours - period.stretchHours);
+                    
+                    // Calculate for daily data too
+                    Object.keys(period.dailyData).forEach(dateKey => {
+                        const dailyData = period.dailyData[dateKey];
+                        dailyData.nonStretchHours = Math.max(0, dailyData.clockedHours - dailyData.stretchHours);
+                    });
+                });
+            });
+            
+            // Detect exceptions in timesheet data
+            const exceptions = [];
+            if (window.timeTrackingData) {
+                window.timeTrackingData.forEach(record => {
+                    const clockedIn = record['Clocked in'] ? new Date(record['Clocked in']) : null;
+                    if (!clockedIn) return;
+                    
+                    if (isNaN(clockedIn.getTime())) return;
+                    
+                    const date = new Date(clockedIn.toISOString().split('T')[0]); // Just the date part
+                    
+                    // Skip future dates
+                    if (date > today) return;
+                    
+                    const employeeName = (record['Employee name'] || record['Employee Name'] || '').trim();
+                    if (!employeeName || employeeName.toLowerCase().includes('sauna')) return;
+                    
+                    if (isVSPExcluded(employeeName)) return;
+                    
+                    const duration = parseFloat(record['Duration (h)'] || 0);
+                    
+                    let exceptionType = null;
+                    let details = '';
+                    
+                    // Check for duration > 11 hours
+                    if (duration > 11) {
+                        exceptionType = 'Long Shift';
+                        details = `${duration.toFixed(2)} hours in one shift`;
+                    }
+                    
+                    // Check if shift spans multiple days
+                    if (clockedIn && duration > 0) {
+                        const clockedOut = new Date(clockedIn.getTime() + (duration * 60 * 60 * 1000));
+                        const clockedInDate = clockedIn.toLocaleDateString();
+                        const clockedOutDate = clockedOut.toLocaleDateString();
+                        
+                        if (clockedInDate !== clockedOutDate) {
+                            if (exceptionType) {
+                                exceptionType = 'Long Shift + Overnight';
+                                details = `${duration.toFixed(2)} hours, clocked in ${clockedIn.toLocaleString()}, clocked out ${clockedOut.toLocaleString()}`;
+                            } else {
+                                exceptionType = 'Overnight Shift';
+                                details = `Clocked in ${clockedIn.toLocaleString()}, clocked out ${clockedOut.toLocaleString()} (${duration.toFixed(2)} hours)`;
+                            }
+                        }
+                    }
+                    
+                    if (exceptionType) {
+                        exceptions.push({
+                            vspName: employeeName,
+                            date: date.toLocaleDateString(),
+                            duration: duration,
+                            clockedIn: clockedIn,
+                            type: exceptionType,
+                            details: details
+                        });
+                    }
+                });
+            }
+            
+            // Sort exceptions by date (most recent first)
+            exceptions.sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            // Get commission data for the same periods
+            const commissionsByPeriod = {};
+            if (window.filteredCommissions) {
+                window.filteredCommissions.forEach(commission => {
+                    const dateStr = commission['Date'];
+                    if (!dateStr) return;
+                    
+                    const date = new Date(dateStr.split(',')[0]);
+                    if (isNaN(date.getTime())) return;
+                    
+                    // Skip future dates
+                    if (date > today) return;
+                    
+                    const employeeName = (commission['Employee Name'] || '').trim();
+                    if (!employeeName || employeeName.toLowerCase().includes('sauna')) return;
+                    
+                    if (isVSPExcluded(employeeName)) return;
+                    
+                    const commissionAmount = parseFloat(commission['Commissions earned']) || 0;
+                    
+                    // EXCLUDE REFUNDS: Skip if commission amount is negative or zero
+                    if (commissionAmount <= 0) return;
+                    
+                    const payPeriod = getPayPeriod(date);
+                    const periodKey = payPeriod.label;
+                    
+                    if (!commissionsByPeriod[employeeName]) {
+                        commissionsByPeriod[employeeName] = {};
+                    }
+                    
+                    if (!commissionsByPeriod[employeeName][periodKey]) {
+                        commissionsByPeriod[employeeName][periodKey] = {
+                            total: 0,
+                            dailyData: {},
+                            detailedData: {} // Store individual commission records with details
+                        };
+                    }
+                    
+                    commissionsByPeriod[employeeName][periodKey].total += commissionAmount;
+                    
+                    // Track by date with aggregated amount
+                    const dateKey = date.toLocaleDateString();
+                    if (!commissionsByPeriod[employeeName][periodKey].dailyData[dateKey]) {
+                        commissionsByPeriod[employeeName][periodKey].dailyData[dateKey] = 0;
+                    }
+                    commissionsByPeriod[employeeName][periodKey].dailyData[dateKey] += commissionAmount;
+                    
+                    // Store detailed commission records by date
+                    if (!commissionsByPeriod[employeeName][periodKey].detailedData[dateKey]) {
+                        commissionsByPeriod[employeeName][periodKey].detailedData[dateKey] = [];
+                    }
+                    
+                    // Determine if membership is new or renewal
+                    const itemName = (commission['Item name'] || '').toLowerCase();
+                    const isRenewal = itemName.includes('renewal') || itemName.includes('renew');
+                    
+                    // Extract time from date string (format: "2025-07-22, 10:02 AM")
+                    const timePart = dateStr.includes(',') ? dateStr.split(',')[1].trim() : '';
+                    
+                    commissionsByPeriod[employeeName][periodKey].detailedData[dateKey].push({
+                        customerName: commission['Customer name'] || 'Unknown Customer',
+                        itemName: commission['Item name'] || 'Unknown Item',
+                        itemType: commission['Item type'] || 'Unknown',
+                        amount: commissionAmount,
+                        isRenewal: isRenewal,
+                        employeeName: employeeName,
+                        time: timePart
+                    });
+                });
+            }
+            
+            // Sort pay periods by end date (most recent first)
+            const sortedPeriods = Array.from(allPayPeriods).sort((a, b) => {
+                const vspName = Object.keys(payrollData)[0];
+                const dateA = payrollData[vspName][a]?.periodEnd || new Date(0);
+                const dateB = payrollData[vspName][b]?.periodEnd || new Date(0);
+                return dateB - dateA;
+            });
+            
+            // Limit to most recent 10 pay periods
+            const recentPeriods = sortedPeriods.slice(0, 10);
+            
+            if (recentPeriods.length === 0) {
+                return '';
+            }
+            
+            // Sort VSPs alphabetically, but only include those with appointments
+            const sortedVSPs = Object.keys(payrollData)
+                .filter(vspName => {
+                    // Only include VSPs who have at least one period with appointments (stretch hours > 0)
+                    return Object.values(payrollData[vspName]).some(period => period.stretchHours > 0);
+                })
+                .sort();
+            
+            // Create unique IDs
+            const selectId = 'payrollPeriodSelect_' + Math.random().toString(36).substr(2, 9);
+            const tableId = 'payrollTable_' + Math.random().toString(36).substr(2, 9);
+            
+            // Store data globally for access by click handlers
+            window.payrollData = {
+                selectId: selectId,
+                tableId: tableId,
+                payrollData: payrollData,
+                commissionsByPeriod: commissionsByPeriod,
+                periods: recentPeriods,
+                vsps: sortedVSPs
+            };
+            
+            let html = `
+                <div class="chart-container" style="margin-top: 40px;">
+                    <h3>💼 Bi-Weekly Payroll</h3>
+                    <p style="color: #666; margin-bottom: 20px;">
+                        Payroll hours and commissions by pay period (2-week periods ending ${recentPeriods[0].split(' - ')[1]})
+                    </p>
+                    
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                        <div style="margin-bottom: 15px;">
+                            <label style="font-size: 0.9em; margin-right: 8px; font-weight: bold;">Pay Period:</label>
+                            <select id="${selectId}" style="padding: 5px 10px; border-radius: 4px; border: 1px solid #ccc; font-size: 0.95em;">
+            `;
+            
+            recentPeriods.forEach((period, idx) => {
+                html += `<option value="${idx}" ${idx === 0 ? 'selected' : ''}>${period}</option>`;
+            });
+            
+            html += `
+                            </select>
+                        </div>
+                        
+                        <div class="table-container" style="max-height: 600px; overflow-y: auto;">
+                            <table id="${tableId}" class="borderless-vsp-table">
+                                <thead>
+                                    <tr style="background: var(--primary); color: white; position: sticky; top: 0; z-index: 10;">
+                                        <th style="text-align: left; padding: 12px;">VSP Name</th>
+                                        <th style="text-align: right; padding: 12px;">Non-Stretch Hours</th>
+                                        <th style="text-align: right; padding: 12px;">Stretch Hours</th>
+                                        <th style="text-align: right; padding: 12px;">Total Hours</th>
+                                        <th style="text-align: right; padding: 12px;">Commission</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="${tableId}_body">
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <p style="font-size: 0.85em; color: #666; margin-top: 10px; font-style: italic;">
+                            * Click any cell to see daily breakdown.<br>
+                            * Non-Stretch Hours = Clocked Hours - Appointment Hours (time not on table)<br>
+                            * Excludes late cancellations and future appointments
+                        </p>
+                    </div>
+            `;
+            
+            // Add exceptions section if any found
+            if (exceptions.length > 0) {
+                html += `
+                    <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; border-radius: 8px; margin-top: 20px;">
+                        <h4 style="margin: 0 0 10px 0; color: #856404;">⚠️ Timesheet Exceptions (${exceptions.length})</h4>
+                        <p style="color: #856404; font-size: 0.9em; margin-bottom: 15px;">
+                            Shifts with unusual hours that may require review
+                        </p>
+                        <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="background: #ffc107; color: #333; position: sticky; top: 0; z-index: 100;">
+                                        <th style="text-align: left; padding: 10px; border-bottom: 2px solid #856404; background: #ffc107;">VSP Name</th>
+                                        <th style="text-align: left; padding: 10px; border-bottom: 2px solid #856404; background: #ffc107;">Date</th>
+                                        <th style="text-align: left; padding: 10px; border-bottom: 2px solid #856404; background: #ffc107;">Exception Type</th>
+                                        <th style="text-align: left; padding: 10px; border-bottom: 2px solid #856404; background: #ffc107;">Details</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                `;
+                
+                exceptions.forEach(exc => {
+                    const iconMap = {
+                        'Long Shift': '⏱️',
+                        'Overnight Shift': '🌙',
+                        'Long Shift + Overnight': '⚠️'
+                    };
+                    const icon = iconMap[exc.type] || '⚠️';
+                    
+                    html += `
+                        <tr style="border-bottom: 1px solid #e0e0e0;">
+                            <td style="padding: 10px; font-weight: 500;">${exc.vspName}</td>
+                            <td style="padding: 10px;">${exc.date}</td>
+                            <td style="padding: 10px;"><span style="background: #ffc107; padding: 3px 8px; border-radius: 4px; font-size: 0.85em;">${icon} ${exc.type}</span></td>
+                            <td style="padding: 10px; font-size: 0.9em; color: #666;">${exc.details}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            html += `
+                </div>
+            `;
+            
+            // Schedule table population after DOM update
+            setTimeout(() => {
+                updatePayrollTable(0);
+                
+                // Wire up dropdown
+                const selectElement = document.getElementById(selectId);
+                if (selectElement) {
+                    selectElement.addEventListener('change', function() {
+                        const idx = parseInt(this.value, 10);
+                        updatePayrollTable(idx);
+                    });
+                }
+            }, 100);
+            
+            return html;
+        }
+        
+        // Render Service by VSP table
+        function renderServiceByVSPMonthTable(appointmentsData, practitionersList) {
+            if (!appointmentsData || appointmentsData.length === 0) {
+                return '';
+            }
+            
+            // Get filtered practitioners (exclude sauna and excluded VSPs)
+            const validPractitioners = practitionersList
+                .filter(p => !p.name.toLowerCase().includes('sauna'))
+                .filter(p => !isVSPExcluded(p.name))
+                .map(p => p.name)
+                .sort();
+            
+            if (validPractitioners.length === 0) {
+                return '';
+            }
+            
+            // Group appointments by service and VSP
+            const serviceVSP = {};
+            const allServices = new Set();
+            
+            appointmentsData.forEach(appt => {
+                try {
+                    const serviceName = appt['Appointment'] || 'Unknown';
+                    const vspName = `${appt['Practitioner First Name']} ${appt['Practitioner Last Name']}`.trim();
+                    
+                    if (!vspName || vspName.toLowerCase().includes('sauna')) return;
+                    if (isVSPExcluded(vspName)) return;
+                    if (!validPractitioners.includes(vspName)) return;
+                    
+                    // Skip late cancellations
+                    if (appt['Late cancellations'] && appt['Late cancellations'].toLowerCase() === 'yes') return;
+                    
+                    allServices.add(serviceName);
+                    
+                    if (!serviceVSP[serviceName]) {
+                        serviceVSP[serviceName] = {};
+                    }
+                    if (!serviceVSP[serviceName][vspName]) {
+                        serviceVSP[serviceName][vspName] = 0;
+                    }
+                    serviceVSP[serviceName][vspName]++;
+                } catch (e) {
+                    console.error('Error processing appointment for service breakdown:', e);
+                }
+            });
+            
+            if (Object.keys(serviceVSP).length === 0) {
+                return '';
+            }
+            
+            // Sort services alphabetically
+            const sortedServices = Array.from(allServices).sort();
+            
+            // Build the table HTML
+            let html = `
+                <div class="table-container" style="margin-top: 30px;">
+                    <h3>📋 Appointments by Service & VSP</h3>
+                    <p style="font-size: 14px; color: #666; margin: 10px 0;">Service delivery breakdown by practitioner</p>
+                    <div style="overflow-x: auto;">
+                        <table class="vsp-table" style="min-width: 100%;">
+                            <thead>
+                                <tr>
+                                    <th style="background: var(--primary); color: white; position: sticky; left: 0; z-index: 2; min-width: 200px;">Service</th>
+                                    ${validPractitioners.map(vsp => {
+                                        return `<th style="background: var(--primary); color: white; text-align: center; min-width: 80px;">${vsp}</th>`;
+                                    }).join('')}
+                                    <th style="background: var(--highlight); color: var(--primary); font-weight: bold; text-align: center;">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+            
+            // Add data rows for each service
+            sortedServices.forEach((service, serviceIndex) => {
+                const rowBg = serviceIndex % 2 === 0 ? 'white' : 'var(--gray-light)';
+                let serviceTotal = 0;
+                
+                html += `<tr style="background: ${rowBg};">`;
+                html += `<td style="font-weight: 500; position: sticky; left: 0; background: ${rowBg}; z-index: 1; border-right: 2px solid var(--gray);">${service}</td>`;
+                
+                validPractitioners.forEach(vsp => {
+                    const count = serviceVSP[service]?.[vsp] || 0;
+                    serviceTotal += count;
+                    
+                    let cellStyle = 'text-align: center; padding: 6px;';
+                    if (count > 0) {
+                        // Color intensity based on count
+                        const opacity = Math.min(0.15 + (count / 50) * 0.35, 0.5);
+                        cellStyle += ` background: rgba(1, 49, 96, ${opacity});`;
+                        if (count >= 20) {
+                            cellStyle += ' font-weight: bold;';
+                        }
+                    }
+                    
+                    html += `<td style="${cellStyle}">${count > 0 ? count : '-'}</td>`;
+                });
+                
+                // Service total
+                html += `<td style="text-align: center; font-weight: bold; background: rgba(251, 181, 20, 0.2);">${serviceTotal}</td>`;
+                html += `</tr>`;
+            });
+            
+            // Add VSP totals row
+            html += `<tr style="background: var(--accent); font-weight: bold;">`;
+            html += `<td style="position: sticky; left: 0; background: var(--accent); z-index: 1; color: var(--primary);">VSP Total</td>`;
+            
+            let grandTotal = 0;
+            validPractitioners.forEach(vsp => {
+                let vspTotal = 0;
+                sortedServices.forEach(service => {
+                    vspTotal += serviceVSP[service]?.[vsp] || 0;
+                });
+                grandTotal += vspTotal;
+                html += `<td style="text-align: center; color: var(--primary);">${vspTotal > 0 ? vspTotal : '-'}</td>`;
+            });
+            
+            html += `<td style="text-align: center; color: var(--primary); background: var(--highlight);">${grandTotal}</td>`;
+            html += `</tr>`;
+            
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            
+            return html;
+        }
+        
+        // Update payroll table based on selected period
+        function updatePayrollTable(periodIndex) {
+            const data = window.payrollData;
+            if (!data) return;
+            
+            const period = data.periods[periodIndex];
+            const tbody = document.getElementById(data.tableId + '_body');
+            if (!tbody) return;
+            
+            let html = '';
+            let grandTotalNonStretch = 0;
+            let grandTotalStretch = 0;
+            let grandTotalClocked = 0;
+            let grandTotalCommission = 0;
+            
+            data.vsps.forEach(vsp => {
+                const payrollPeriodData = data.payrollData[vsp]?.[period];
+                const commissionPeriodData = data.commissionsByPeriod[vsp]?.[period];
+                
+                const nonStretchHours = payrollPeriodData?.nonStretchHours || 0;
+                const stretchHours = payrollPeriodData?.stretchHours || 0;
+                const clockedHours = payrollPeriodData?.clockedHours || 0;
+                const commission = commissionPeriodData?.total || 0;
+                
+                grandTotalNonStretch += nonStretchHours;
+                grandTotalStretch += stretchHours;
+                grandTotalClocked += clockedHours;
+                grandTotalCommission += commission;
+                
+                html += `
+                    <tr style="border-bottom: 1px solid #e0e0e0;">
+                        <td style="padding: 10px; font-weight: 500;">${vsp}</td>
+                        <td style="padding: 10px; text-align: right; cursor: pointer; color: var(--primary);" 
+                            class="payroll-cell" 
+                            data-vsp="${vsp}" 
+                            data-period="${period}" 
+                            data-type="nonstretch"
+                            title="Click to see daily breakdown">
+                            ${nonStretchHours.toFixed(2)}
+                        </td>
+                        <td style="padding: 10px; text-align: right; cursor: pointer; color: var(--primary);" 
+                            class="payroll-cell" 
+                            data-vsp="${vsp}" 
+                            data-period="${period}" 
+                            data-type="stretch"
+                            title="Click to see daily breakdown">
+                            ${stretchHours.toFixed(2)}
+                        </td>
+                        <td style="padding: 10px; text-align: right; font-weight: bold; cursor: pointer; color: var(--accent);" 
+                            class="payroll-cell" 
+                            data-vsp="${vsp}" 
+                            data-period="${period}" 
+                            data-type="total"
+                            title="Click to see daily breakdown">
+                            ${clockedHours.toFixed(2)}
+                        </td>
+                        <td style="padding: 10px; text-align: right; font-weight: bold; color: var(--success); cursor: pointer;" 
+                            class="payroll-cell" 
+                            data-vsp="${vsp}" 
+                            data-period="${period}" 
+                            data-type="commission"
+                            title="Click to see daily breakdown">
+                            ${formatCurrency(commission)}
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            // Add totals row
+            html += `
+                <tr style="background: #f0f0f0; font-weight: bold; border-top: 2px solid var(--primary);">
+                    <td style="padding: 12px;">TOTAL</td>
+                    <td style="padding: 12px; text-align: right;">${grandTotalNonStretch.toFixed(2)}</td>
+                    <td style="padding: 12px; text-align: right;">${grandTotalStretch.toFixed(2)}</td>
+                    <td style="padding: 12px; text-align: right; color: var(--accent);">${grandTotalClocked.toFixed(2)}</td>
+                    <td style="padding: 12px; text-align: right; color: var(--success);">${formatCurrency(grandTotalCommission)}</td>
+                </tr>
+            `;
+            
+            tbody.innerHTML = html;
+            
+            // Add click handlers to cells
+            document.querySelectorAll('.payroll-cell').forEach(cell => {
+                cell.addEventListener('click', function() {
+                    const vsp = this.getAttribute('data-vsp');
+                    const period = this.getAttribute('data-period');
+                    const type = this.getAttribute('data-type');
+                    showPayrollDailyBreakdown(vsp, period, type);
+                });
+            });
+        }
+        
+        // Show daily breakdown modal
+        function showPayrollDailyBreakdown(vsp, period, type) {
+            const data = window.payrollData;
+            if (!data) return;
+            
+            const payrollPeriodData = data.payrollData[vsp]?.[period];
+            const commissionPeriodData = data.commissionsByPeriod[vsp]?.[period];
+            
+            if (!payrollPeriodData && !commissionPeriodData) {
+                showModal(`${vsp} - ${period}`, '<p>No data available for this period.</p>');
+                return;
+            }
+            
+            const dailyData = payrollPeriodData?.dailyData || {};
+            const commissionDaily = commissionPeriodData?.dailyData || {};
+            
+            // Sort dates
+            const allDates = new Set([...Object.keys(dailyData), ...Object.keys(commissionDaily)]);
+            const sortedDates = Array.from(allDates).sort((a, b) => new Date(a) - new Date(b));
+            
+            let typeLabel = '';
+            switch(type) {
+                case 'nonstretch': typeLabel = 'Non-Stretch Hours (Clocked - Appointment)'; break;
+                case 'stretch': typeLabel = 'Stretch Hours (Appointment Hours)'; break;
+                case 'total': typeLabel = 'Total Hours (Clocked Hours)'; break;
+                case 'commission': typeLabel = 'Commission'; break;
+            }
+            
+            let content = `
+                <div style="max-height: 500px; overflow-y: auto;">
+                    <h4 style="margin-bottom: 15px; color: var(--primary);">${typeLabel} - Daily Breakdown</h4>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: var(--primary); color: white;">
+                                <th style="padding: 10px; text-align: left;">Date</th>
+            `;
+            
+            if (type === 'commission') {
+                content += '<th style="padding: 10px; text-align: right;">Commission</th>';
+            } else {
+                content += `
+                    <th style="padding: 10px; text-align: right;">Non-Stretch</th>
+                    <th style="padding: 10px; text-align: right;">Stretch</th>
+                    <th style="padding: 10px; text-align: right;">Total</th>
+                `;
+            }
+            
+            content += `
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            let grandTotal = 0;
+            let grandNonStretch = 0;
+            let grandStretch = 0;
+            let grandClocked = 0;
+            
+            sortedDates.forEach(date => {
+                const day = dailyData[date];
+                const commission = commissionDaily[date] || 0;
+                const detailedCommissions = commissionPeriodData?.detailedData?.[date] || [];
+                
+                if (type === 'commission') {
+                    if (commission > 0) {
+                        grandTotal += commission;
+                        
+                        // Count renewals and calculate renewal amount
+                        const renewals = detailedCommissions.filter(c => c.isRenewal);
+                        const renewalCount = renewals.length;
+                        const renewalAmount = renewals.reduce((sum, c) => sum + c.amount, 0);
+                        const newSales = detailedCommissions.filter(c => !c.isRenewal);
+                        const newSalesAmount = newSales.reduce((sum, c) => sum + c.amount, 0);
+                        
+                        content += `
+                            <tr style="border-bottom: 1px solid #e0e0e0;">
+                                <td style="padding: 10px; vertical-align: top; font-weight: bold;">${date}</td>
+                                <td style="padding: 10px; text-align: right; font-weight: bold; color: var(--success); vertical-align: top;">${formatCurrency(commission)}</td>
+                            </tr>
+                        `;
+                        
+                        // Show detailed commission breakdown
+                        if (detailedCommissions.length > 0) {
+                            content += `
+                                <tr style="background: #f9f9f9;">
+                                    <td colspan="2" style="padding: 5px 10px 10px 30px; font-size: 0.9em;">
+                            `;
+                            
+                            // Show new sales without header
+                            if (newSales.length > 0) {
+                                newSales.forEach(c => {
+                                    content += `
+                                        <div style="margin-bottom: 3px; padding-left: 0px;">
+                                            <span style="font-weight: 600; color: var(--primary);">${c.time || ''}</span>
+                                            <span style="color: #666;"> - </span>
+                                            <span style="color: #666;">${c.itemName}</span>
+                                            <span style="color: var(--success); font-weight: 600;"> ${formatCurrency(c.amount)}</span>
+                                        </div>
+                                    `;
+                                });
+                            }
+                            
+                            // Show renewals with header
+                            if (renewals.length > 0) {
+                                content += `<div style="margin: 10px 0 8px 0;"><strong style="color: var(--accent);">Renewals:</strong> ${formatCurrency(renewalAmount)} (${renewalCount} renewal${renewalCount !== 1 ? 's' : ''})</div>`;
+                                renewals.forEach(c => {
+                                    content += `
+                                        <div style="margin-bottom: 3px; padding-left: 15px;">
+                                            <span style="font-weight: 600; color: var(--accent);">${c.time || ''}</span>
+                                            <span style="color: #666;"> - </span>
+                                            <span style="color: #666;">${c.itemName}</span>
+                                            <span style="color: var(--success); font-weight: 600;"> ${formatCurrency(c.amount)}</span>
+                                        </div>
+                                    `;
+                                });
+                            }
+                            
+                            content += `
+                                    </td>
+                                </tr>
+                            `;
+                        }
+                    }
+                } else {
+                    const stretch = day?.stretchHours || 0;
+                    const clocked = day?.clockedHours || 0;
+                    const nonStretch = clocked - stretch;  // Calculate non-stretch as clocked - stretch
+                    const total = clocked; // Total = clocked hours
+                    
+                    if (clocked > 0 || stretch > 0) {
+                        grandNonStretch += nonStretch;
+                        grandStretch += stretch;
+                        grandClocked += clocked;
+                        grandTotal += total;
+                        
+                        content += `
+                            <tr style="border-bottom: 1px solid #e0e0e0;">
+                                <td style="padding: 10px;">${date}</td>
+                                <td style="padding: 10px; text-align: right;">${nonStretch.toFixed(2)}</td>
+                                <td style="padding: 10px; text-align: right;">${stretch.toFixed(2)}</td>
+                                <td style="padding: 10px; text-align: right; font-weight: bold;">${total.toFixed(2)}</td>
+                            </tr>
+                        `;
+                        
+                        // Show appointment details if available
+                        if (day?.appointments && day.appointments.length > 0) {
+                            content += `
+                                <tr style="background: #f9f9f9;">
+                                    <td colspan="4" style="padding: 5px 10px 10px 30px; font-size: 0.85em;">
+                            `;
+                            
+                            day.appointments.forEach(appt => {
+                                content += `
+                                    <div style="margin-bottom: 3px; padding-left: 10px;">
+                                        <span style="font-weight: 600; color: var(--primary);">${appt.time || 'No time'}</span>
+                                        <span style="color: #666;"> - </span>
+                                        <span style="font-weight: 500;">${appt.customerName || 'Unknown'}</span>
+                                        <span style="color: #666;"> - </span>
+                                        <span style="color: #666;">${appt.service || 'No service name'}</span>
+                                        <span style="color: var(--accent); font-weight: 600;"> (${appt.hours.toFixed(2)}h)</span>
+                                    </div>
+                                `;
+                            });
+                            
+                            content += `
+                                    </td>
+                                </tr>
+                            `;
+                        }
+                    }
+                }
+            });
+            
+            // Add total row
+            content += `
+                        <tr style="background: #f0f0f0; font-weight: bold; border-top: 2px solid var(--primary);">
+                            <td style="padding: 12px;">TOTAL</td>
+            `;
+            
+            if (type === 'commission') {
+                content += `
+                    <td style="padding: 12px; text-align: right; color: var(--success);">${formatCurrency(grandTotal)}</td>
+                `;
+            } else {
+                content += `
+                    <td style="padding: 12px; text-align: right;">${grandNonStretch.toFixed(2)}</td>
+                    <td style="padding: 12px; text-align: right;">${grandStretch.toFixed(2)}</td>
+                    <td style="padding: 12px; text-align: right; color: var(--accent);">${grandTotal.toFixed(2)}</td>
+                `;
+            }
+            
+            content += `
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            showModal(`${vsp} - ${period}`, content);
         }
         
         // Render Commission Payouts by Pay Period
@@ -9060,6 +10077,11 @@
                 // Skip excluded VSPs
                 if (isVSPExcluded(employeeName)) return;
                 
+                const commissionAmount = parseFloat(commission['Commissions earned']) || 0;
+                
+                // EXCLUDE REFUNDS: Skip if commission amount is negative or zero
+                if (commissionAmount <= 0) return;
+                
                 const payPeriod = getPayPeriod(date);
                 const periodKey = payPeriod.label;
                 allPayPeriods.add(periodKey);
@@ -9077,7 +10099,6 @@
                     };
                 }
                 
-                const commissionAmount = parseFloat(commission['Commissions earned']) || 0;
                 payPeriodData[employeeName][periodKey].total += commissionAmount;
                 payPeriodData[employeeName][periodKey].count++;
                 
@@ -12650,6 +13671,11 @@
             
             document.getElementById('leads').innerHTML = html;
             
+            // Initialize the SF breakdown table
+            setTimeout(() => {
+                updateSFBreakdown();
+            }, 100);
+            
             // Render all charts
             setTimeout(() => {
                 renderLeadsCharts(analysis, filtered, hasConvertedData);
@@ -12971,8 +13997,22 @@
         }
         
         function renderLeadsTimeline(leads, hasConvertedData) {
+            // Store leads data globally for SF breakdown table
+            window.currentLeadsData = leads;
+            // Calculate overall conversion metrics for main heatmap
+            let convertedLeads = 0;
+            if (hasConvertedData) {
+                convertedLeads = leads.filter(lead => {
+                    const convertedTo = (lead['Converted to'] || '').trim();
+                    return convertedTo && convertedTo !== 'N/A' && convertedTo !== '';
+                }).length;
+            }
+            
+            const conversionText = convertedLeads > 0 && leads.length > 0 ? 
+                ` (${convertedLeads}/${leads.length} converted - ${((convertedLeads/leads.length)*100).toFixed(1)}%)` : '';
+            
             let html = `
-                <div class="section">
+                <div class="section" style="margin-bottom: 50px;">
                     <h2>📅 Lead Generation Timeline</h2>
                     <div class="chart-container full-width">
                         <h3>Daily Lead Activity</h3>
@@ -12982,9 +14022,9 @@
                     </div>
                 </div>
                 
-                <div class="section">
-                    <h2>🔥 Lead Generation Heatmap (01/10/25)</h2>
-                    <p style="color: #666; margin-bottom: 15px;">Click any cell to see detailed lead information for that day and hour</p>
+                <div class="section" style="margin-bottom: 50px;">
+                    <h2>🔥 Lead Generation Heatmap</h2>
+                    <p style="color: #666; margin-bottom: 15px;">Click any cell to see detailed lead information for that day and hour${conversionText}</p>
                     <div id="leadsHeatmapContainer" style="overflow-x: auto;">
                         <div id="leadsHeatmap"></div>
                     </div>
@@ -13012,11 +14052,20 @@
                     // Create heatmaps for each location
                     Object.keys(locationMap).sort().forEach(location => {
                         const locationLeads = locationMap[location];
+                        
+                        // Calculate conversion metrics
+                        const convertedLeads = locationLeads.filter(lead => {
+                            const convertedTo = lead['Converted to'] || '';
+                            return convertedTo && convertedTo !== 'N/A' && convertedTo.trim() !== '';
+                        }).length;
+                        
+                        const conversionText = convertedLeads > 0 ? ` (${convertedLeads}/${locationLeads.length} converted - ${((convertedLeads/locationLeads.length)*100).toFixed(1)}%)` : '';
+                        
                         html += `
                             <div class="section" style="margin-bottom: 50px; padding: 20px; background: white; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
                                 <h2>🔥 SocialFitness Heatmap - ${location}</h2>
                                 <p style="color: #666; margin-bottom: 15px;">
-                                    <strong>${locationLeads.length}</strong> leads from SocialFitness at ${location} location
+                                    <strong>${locationLeads.length}</strong> leads from SocialFitness at ${location} location${conversionText}
                                 </p>
                                 <div id="sfHeatmapContainer-${location.replace(/\s+/g, '-')}" style="overflow-x: auto;">
                                     <div id="sfHeatmap-${location.replace(/\s+/g, '-')}"></div>
@@ -13024,6 +14073,23 @@
                             </div>
                         `;
                     });
+                    
+                    // Add SF leads breakdown table
+                    html += `
+                        <div class="section" style="margin-bottom: 50px; padding: 20px; background: white; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                <h2>📊 SocialFitness Performance by Source</h2>
+                                <select id="sfTimePeriod" onchange="updateSFBreakdown()" style="padding: 8px 12px; border: 2px solid var(--accent); border-radius: 6px; background: white; font-size: 14px;">
+                                    <option value="month">Last 12 Months</option>
+                                    <option value="week">Last 14 Weeks</option>
+                                    <option value="day">Last 14 Days</option>
+                                </select>
+                            </div>
+                            <div id="sfBreakdownTable">
+                                <!-- Table will be populated by JavaScript -->
+                            </div>
+                        </div>
+                    `;
                 }
             }
             
@@ -13505,6 +14571,17 @@
                     const count = heatmapData[day][hour].length;
                     const intensity = maxCount > 0 ? count / maxCount : 0;
                     
+                    // Calculate conversion metrics
+                    let converted = 0;
+                    if (count > 0) {
+                        heatmapData[day][hour].forEach(lead => {
+                            const convertedTo = (lead['Converted to'] || '').trim();
+                            if (convertedTo && convertedTo !== 'N/A' && convertedTo !== '') {
+                                converted++;
+                            }
+                        });
+                    }
+                    
                     // Color scale from white to dark blue
                     let bgColor;
                     if (count === 0) {
@@ -13520,11 +14597,20 @@
                     const cursor = count > 0 ? 'pointer' : 'default';
                     const dataAttr = count > 0 ? `data-day="${day}" data-hour="${hour}"` : '';
                     
-                    html += `<td ${dataAttr} style="padding: 12px; border: 1px solid #ddd; background: ${bgColor}; color: ${textColor}; text-align: center; font-weight: ${count > 0 ? 'bold' : 'normal'}; cursor: ${cursor}; transition: all 0.2s;" 
+                    // Build cell content with conversion metrics
+                    let cellContent = '';
+                    if (count > 0) {
+                        cellContent = `<div style="font-weight: bold;">${count}</div>`;
+                        if (converted > 0) {
+                            cellContent += `<div style="font-size: 10px; opacity: 0.8;">${converted}/${count}</div>`;
+                        }
+                    }
+                    
+                    html += `<td ${dataAttr} style="padding: 8px; border: 1px solid #ddd; background: ${bgColor}; color: ${textColor}; text-align: center; cursor: ${cursor}; transition: all 0.2s; line-height: 1.2;" 
                             onmouseover="this.style.transform='scale(1.1)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.2)'; this.style.zIndex='10';" 
                             onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none'; this.style.zIndex='1';"
                             ${count > 0 ? `onclick="showHeatmapDetails('${day}', ${hour})"` : ''}>
-                        ${count > 0 ? count : ''}
+                        ${cellContent}
                     </td>`;
                 }
                 
@@ -13596,6 +14682,17 @@
                     const count = heatmapData[day][hour].length;
                     const intensity = maxCount > 0 ? count / maxCount : 0;
                     
+                    // Calculate conversion metrics
+                    let converted = 0;
+                    if (count > 0) {
+                        heatmapData[day][hour].forEach(lead => {
+                            const convertedTo = (lead['Converted to'] || '').trim();
+                            if (convertedTo && convertedTo !== 'N/A' && convertedTo !== '') {
+                                converted++;
+                            }
+                        });
+                    }
+                    
                     // Color scale from white to orange (SocialFitness branding)
                     let bgColor;
                     if (count === 0) {
@@ -13611,11 +14708,20 @@
                     const cursor = count > 0 ? 'pointer' : 'default';
                     const dataAttr = count > 0 ? `data-day="${day}" data-hour="${hour}" data-location="${locationName}"` : '';
                     
-                    html += `<td ${dataAttr} style="padding: 12px; border: 1px solid #ddd; background: ${bgColor}; color: ${textColor}; text-align: center; font-weight: ${count > 0 ? 'bold' : 'normal'}; cursor: ${cursor}; transition: all 0.2s;" 
+                    // Build cell content with conversion metrics
+                    let cellContent = '';
+                    if (count > 0) {
+                        cellContent = `<div style="font-weight: bold;">${count}</div>`;
+                        if (converted > 0) {
+                            cellContent += `<div style="font-size: 10px; opacity: 0.8;">${converted}/${count}</div>`;
+                        }
+                    }
+                    
+                    html += `<td ${dataAttr} style="padding: 8px; border: 1px solid #ddd; background: ${bgColor}; color: ${textColor}; text-align: center; cursor: ${cursor}; transition: all 0.2s; line-height: 1.2;" 
                             onmouseover="this.style.transform='scale(1.1)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.2)'; this.style.zIndex='10';" 
                             onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none'; this.style.zIndex='1';"
                             ${count > 0 ? `onclick="showLocationHeatmapDetails('${locationName}', '${day}', ${hour})"` : ''}>
-                        ${count > 0 ? count : ''}
+                        ${cellContent}
                     </td>`;
                 }
                 
@@ -18420,6 +19526,188 @@
             html += `</div>`;
             
             showModal(`Leads Details: ${location} - ${formattedDate}`, html);
+        }
+        
+        function updateSFBreakdown() {
+            const period = document.getElementById('sfTimePeriod').value;
+            const container = document.getElementById('sfBreakdownTable');
+            
+            if (!window.currentLeadsData || window.currentLeadsData.length === 0) {
+                container.innerHTML = '<p style="color: #666; text-align: center; padding: 20px;">No leads data available</p>';
+                return;
+            }
+            
+            // Filter SF leads (same as heatmap logic)
+            const sfLeads = window.currentLeadsData.filter(lead => {
+                const source = (lead['Lead source'] || '').trim();
+                return source.startsWith('SF');
+            });
+            
+            if (sfLeads.length === 0) {
+                container.innerHTML = '<p style="color: #666; text-align: center; padding: 20px;">No SocialFitness leads found</p>';
+                return;
+            }
+            
+            // Get all periods and filter by time range first
+            const allPeriods = new Set();
+            const now = new Date();
+            
+            sfLeads.forEach(lead => {
+                const dateField = lead['Converted'] || lead['Join date'];
+                const joinDate = parseDate(dateField);
+                if (!joinDate) return;
+                
+                // Check if this period should be included based on time limits
+                let include = false;
+                if (period === 'month') {
+                    const monthsDiff = (now.getFullYear() - joinDate.getFullYear()) * 12 + (now.getMonth() - joinDate.getMonth());
+                    include = monthsDiff <= 12;
+                } else if (period === 'week') {
+                    const weeksDiff = Math.floor((now - joinDate) / (7 * 24 * 60 * 60 * 1000));
+                    include = weeksDiff <= 14;
+                } else if (period === 'day') {
+                    const daysDiff = Math.floor((now - joinDate) / (1000 * 60 * 60 * 24));
+                    include = daysDiff <= 14;
+                }
+                
+                if (include) {
+                    let periodKey;
+                    if (period === 'month') {
+                        periodKey = joinDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+                    } else if (period === 'week') {
+                        const weekStart = new Date(joinDate);
+                        weekStart.setDate(joinDate.getDate() - joinDate.getDay());
+                        periodKey = `Week of ${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+                    } else if (period === 'day') {
+                        periodKey = joinDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    }
+                    allPeriods.add(periodKey);
+                }
+            });
+            
+            const sortedPeriods = Array.from(allPeriods).sort((a, b) => {
+                const dateA = new Date(a);
+                const dateB = new Date(b);
+                return dateB - dateA; // Most recent first
+            });
+            
+            // Now process only leads that fall within the filtered periods
+            const sourceData = {};
+            
+            sfLeads.forEach(lead => {
+                const dateField = lead['Converted'] || lead['Join date'];
+                const joinDate = parseDate(dateField);
+                if (!joinDate) return;
+                
+                let periodKey;
+                if (period === 'month') {
+                    periodKey = joinDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+                } else if (period === 'week') {
+                    const weekStart = new Date(joinDate);
+                    weekStart.setDate(joinDate.getDate() - joinDate.getDay());
+                    periodKey = `Week of ${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+                } else if (period === 'day') {
+                    periodKey = joinDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                }
+                
+                // Only include if this period is in our filtered list
+                if (!sortedPeriods.includes(periodKey)) return;
+                
+                const source = lead['Lead source'] || 'Unknown';
+                
+                if (!sourceData[source]) {
+                    sourceData[source] = {};
+                }
+                
+                if (!sourceData[source][periodKey]) {
+                    sourceData[source][periodKey] = {
+                        leads: 0,
+                        converted: 0
+                    };
+                }
+                
+                sourceData[source][periodKey].leads++;
+                
+                // Use exact same conversion logic as heatmap
+                const convertedTo = lead['Converted to'] || '';
+                if (convertedTo && convertedTo !== 'N/A' && convertedTo.trim() !== '') {
+                    sourceData[source][periodKey].converted++;
+                }
+            });
+            
+            // Sort sources by total leads (from filtered data only)
+            const sortedSources = Object.entries(sourceData)
+                .sort((a, b) => {
+                    const aTotal = Object.values(a[1]).reduce((sum, p) => sum + p.leads, 0);
+                    const bTotal = Object.values(b[1]).reduce((sum, p) => sum + p.leads, 0);
+                    return bTotal - aTotal;
+                });
+            
+            let html = '<div style="display: flex; gap: 30px; overflow-x: auto;">';
+            
+            sortedSources.forEach(([source, periods]) => {
+                const totalLeads = Object.values(periods).reduce((sum, p) => sum + p.leads, 0);
+                const totalConverted = Object.values(periods).reduce((sum, p) => sum + p.converted, 0);
+                const overallRate = totalLeads > 0 ? ((totalConverted / totalLeads) * 100).toFixed(1) : '0.0';
+                
+                html += `
+                    <div style="min-width: 250px;">
+                        <h3 style="text-align: center; margin-bottom: 15px; color: var(--primary);">${source}</h3>
+                        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                            <thead>
+                                <tr style="background: var(--primary); color: white;">
+                                    <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">${period === 'month' ? 'Month' : period === 'week' ? 'Week' : 'Day'}</th>
+                                    <th style="padding: 8px; text-align: center; border: 1px solid #ddd;">Leads</th>
+                                    <th style="padding: 8px; text-align: center; border: 1px solid #ddd;">Conv</th>
+                                    <th style="padding: 8px; text-align: center; border: 1px solid #ddd;">%</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                sortedPeriods.forEach((periodKey, index) => {
+                    const data = periods[periodKey];
+                    const rowColor = index % 2 === 0 ? '#f9f9f9' : 'white';
+                    
+                    if (data) {
+                        const convRate = data.leads > 0 ? ((data.converted / data.leads) * 100).toFixed(1) : '0.0';
+                        html += `
+                            <tr style="background: ${rowColor};">
+                                <td style="padding: 8px; border: 1px solid #ddd; font-weight: 500;">${periodKey}</td>
+                                <td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold;">${data.leads}</td>
+                                <td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: var(--success);">${data.converted}</td>
+                                <td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold;">${convRate}%</td>
+                            </tr>
+                        `;
+                    } else {
+                        html += `
+                            <tr style="background: ${rowColor};">
+                                <td style="padding: 8px; border: 1px solid #ddd; font-weight: 500;">${periodKey}</td>
+                                <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: #ccc;">-</td>
+                                <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: #ccc;">-</td>
+                                <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: #ccc;">-</td>
+                            </tr>
+                        `;
+                    }
+                });
+                
+                html += `
+                            </tbody>
+                            <tfoot>
+                                <tr style="background: var(--gray-light); border-top: 2px solid var(--primary); font-weight: bold;">
+                                    <td style="padding: 8px; border: 1px solid #ddd;">TOTAL</td>
+                                    <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: var(--primary);">${totalLeads}</td>
+                                    <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: var(--primary);">${totalConverted}</td>
+                                    <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: var(--primary);">${overallRate}%</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
         }
         
         // Show lead details when clicking on source chart
