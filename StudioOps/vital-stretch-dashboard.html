@@ -1910,6 +1910,13 @@
             <button class="icon-btn highlight" onclick="openUploadModal()" style="position: relative; width: auto; height: auto; padding: 15px 30px; border-radius: 25px; font-size: 16px; font-weight: 600;">
                 📁 Upload Data to Get Started
             </button>
+            <div style="margin-top: 20px;">
+                <p style="color: #666; font-size: 14px;">— or —</p>
+                <button onclick="loadDemoData()" style="margin-top: 10px; padding: 12px 24px; background: linear-gradient(135deg, #71BED2, #013160); color: white; border: none; border-radius: 20px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.3s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                    🎯 Load Demo Data
+                </button>
+                <p style="color: #999; font-size: 12px; margin-top: 8px;">Preview the dashboard with sample data</p>
+            </div>
         </div>
 
         <!-- Main Content (hidden until data loaded) -->
@@ -3258,6 +3265,333 @@
         let membershipTypes = {};
         let salesByStaff = {};
         let staffEmailToName = {}; // Map staff email to full name
+        
+        // ========== DEMO DATA GENERATOR ==========
+        // Generates sample data for all sections of the dashboard
+        function generateDemoData() {
+            const now = new Date();
+            const vspNames = [
+                { first: 'Elena', last: 'Martinez', email: 'elena.martinez@tvs.com' },
+                { first: 'River', last: 'Chen', email: 'river.chen@tvs.com' },
+                { first: 'Aspen', last: 'Thompson', email: 'aspen.thompson@tvs.com' },
+                { first: 'Canyon', last: 'Rodriguez', email: 'canyon.rodriguez@tvs.com' },
+                { first: 'Sierra', last: 'Johnson', email: 'sierra.johnson@tvs.com' },
+                { first: 'Hunter', last: 'Garcia', email: 'hunter.garcia@tvs.com' },
+                { first: 'Sage', last: 'Williams', email: 'sage.williams@tvs.com' }
+            ];
+            
+            const customerFirstNames = ['Sarah', 'Michael', 'Jennifer', 'David', 'Emily', 'James', 'Amanda', 'Robert', 'Ashley', 'Daniel', 
+                'Jessica', 'William', 'Stephanie', 'Christopher', 'Nicole', 'Matthew', 'Melissa', 'Andrew', 'Lisa', 'Joshua',
+                'Emma', 'Liam', 'Olivia', 'Noah', 'Ava', 'Ethan', 'Isabella', 'Lucas', 'Sophia', 'Mason'];
+            const customerLastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez',
+                'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas', 'Taylor', 'Moore', 'Jackson', 'Martin',
+                'Lee', 'Perez', 'Thompson', 'White', 'Harris', 'Sanchez', 'Clark', 'Ramirez', 'Lewis', 'Robinson'];
+            
+            const services = [
+                { name: 'Introductory Stretch - 25 mins', duration: 0.42, revenue: 49, payout: 20 },
+                { name: 'Introductory Stretch - 50 mins', duration: 0.83, revenue: 89, payout: 35 },
+                { name: '25 Minute Stretch', duration: 0.42, revenue: 59, payout: 24 },
+                { name: '50 Minute Stretch', duration: 0.83, revenue: 109, payout: 44 },
+                { name: '80 Minute Stretch', duration: 1.33, revenue: 159, payout: 64 },
+                { name: 'Couple\'s 50 Minute Stretch', duration: 0.83, revenue: 199, payout: 80 }
+            ];
+            
+            const membershipProducts = [
+                { name: 'Monthly Unlimited Membership', commission: 25 },
+                { name: '4x per Month Membership', commission: 20 },
+                { name: '8x per Month Membership', commission: 22 },
+                { name: 'Couples Monthly Membership', commission: 35 },
+                { name: 'Recovery Foam Roller', commission: 5 },
+                { name: 'Stretch Strap', commission: 3 },
+                { name: 'Theragun Mini', commission: 15 }
+            ];
+            
+            const location = 'Fort Collins - The Vital Stretch';
+            
+            // Generate date range: last 6 months
+            const startDate = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+            
+            // Generate appointments (6 months of data)
+            const appointments = [];
+            const timeTracking = [];
+            const commissions = [];
+            const customers = [];
+            
+            // Generate customer base
+            for (let i = 0; i < 200; i++) {
+                const firstName = customerFirstNames[Math.floor(Math.random() * customerFirstNames.length)];
+                const lastName = customerLastNames[Math.floor(Math.random() * customerLastNames.length)];
+                customers.push({
+                    firstName,
+                    lastName,
+                    email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}${i}@email.com`
+                });
+            }
+            
+            // Generate bi-weekly pay periods
+            const payPeriods = [];
+            let periodStart = new Date(startDate);
+            while (periodStart < now) {
+                const periodEnd = new Date(periodStart);
+                periodEnd.setDate(periodEnd.getDate() + 13);
+                payPeriods.push({ start: new Date(periodStart), end: periodEnd });
+                periodStart.setDate(periodStart.getDate() + 14);
+            }
+            
+            // Generate appointments for each day
+            let currentDate = new Date(startDate);
+            let appointmentId = 1;
+            
+            while (currentDate <= now) {
+                const dayOfWeek = currentDate.getDay();
+                
+                // Skip Sundays, lighter on Saturdays
+                if (dayOfWeek === 0) {
+                    currentDate.setDate(currentDate.getDate() + 1);
+                    continue;
+                }
+                
+                const maxAppts = dayOfWeek === 6 ? 8 : 15;
+                const numAppts = Math.floor(Math.random() * maxAppts) + 5;
+                
+                // Select working VSPs for this day (4-6 VSPs)
+                const workingVSPs = vspNames.slice(0, Math.floor(Math.random() * 3) + 4);
+                
+                for (let i = 0; i < numAppts; i++) {
+                    const vsp = workingVSPs[Math.floor(Math.random() * workingVSPs.length)];
+                    const customer = customers[Math.floor(Math.random() * customers.length)];
+                    const service = services[Math.floor(Math.random() * services.length)];
+                    const hour = 9 + Math.floor(Math.random() * 9); // 9am to 5pm
+                    
+                    const apptDate = new Date(currentDate);
+                    apptDate.setHours(hour, Math.floor(Math.random() * 60), 0, 0);
+                    
+                    const isLateCancellation = Math.random() < 0.05;
+                    
+                    appointments.push({
+                        'Appointment Date': apptDate.toISOString().split('T')[0],
+                        'Appointment': service.name,
+                        'Practitioner First Name': vsp.first,
+                        'Practitioner Last Name': vsp.last,
+                        'Practitioner Email': vsp.email,
+                        'Employee Name': `${vsp.first} ${vsp.last}`,
+                        'Employee Email': vsp.email,
+                        'Customer Email': customer.email,
+                        'Customer First Name': customer.firstName,
+                        'Customer Last Name': customer.lastName,
+                        'Revenue': isLateCancellation ? 0 : service.revenue,
+                        'Total Payout': isLateCancellation ? 0 : service.payout,
+                        'Time (h)': service.duration,
+                        'Time booked (h)': service.duration,
+                        'Late cancellations': isLateCancellation ? 'Yes' : 'No',
+                        'Location': location,
+                        'Status': isLateCancellation ? 'Cancelled' : 'Completed'
+                    });
+                    appointmentId++;
+                }
+                
+                // Generate time tracking for each working VSP
+                workingVSPs.forEach(vsp => {
+                    const shiftStart = new Date(currentDate);
+                    shiftStart.setHours(8 + Math.floor(Math.random() * 2), Math.floor(Math.random() * 30), 0, 0);
+                    
+                    const shiftHours = 6 + Math.random() * 3;
+                    const shiftEnd = new Date(shiftStart);
+                    shiftEnd.setHours(shiftStart.getHours() + Math.floor(shiftHours), shiftStart.getMinutes() + Math.floor((shiftHours % 1) * 60), 0, 0);
+                    
+                    timeTracking.push({
+                        'Employee Name': `${vsp.first} ${vsp.last}`,
+                        'Clocked in': shiftStart.toISOString(),
+                        'Clocked out': shiftEnd.toISOString(),
+                        'Duration (h)': shiftHours.toFixed(2),
+                        'Location': location
+                    });
+                });
+                
+                // Generate commissions (1-3 per day)
+                const numCommissions = Math.floor(Math.random() * 3);
+                for (let c = 0; c < numCommissions; c++) {
+                    const vsp = workingVSPs[Math.floor(Math.random() * workingVSPs.length)];
+                    const product = membershipProducts[Math.floor(Math.random() * membershipProducts.length)];
+                    
+                    const commDate = new Date(currentDate);
+                    commDate.setHours(10 + Math.floor(Math.random() * 8), Math.floor(Math.random() * 60), 0, 0);
+                    
+                    commissions.push({
+                        'Date': `${commDate.toISOString().split('T')[0]}, ${commDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`,
+                        'Employee Name': `${vsp.first} ${vsp.last}`,
+                        'Item name': product.name,
+                        'Item type': product.name.includes('Membership') ? 'Membership' : 'Product',
+                        'Commissions earned': product.commission.toFixed(2)
+                    });
+                }
+                
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+            
+            // Generate leads data
+            const leads = [];
+            const leadSources = ['Website', 'Google', 'Facebook', 'Instagram', 'Referral', 'Walk-in', 'Groupon'];
+            
+            for (let i = 0; i < 150; i++) {
+                const firstName = customerFirstNames[Math.floor(Math.random() * customerFirstNames.length)];
+                const lastName = customerLastNames[Math.floor(Math.random() * customerLastNames.length)];
+                const leadDate = new Date(startDate);
+                leadDate.setDate(leadDate.getDate() + Math.floor(Math.random() * 180));
+                
+                const isConverted = Math.random() < 0.45;
+                
+                leads.push({
+                    'First name': firstName,
+                    'Last name': lastName,
+                    'E-mail': `${firstName.toLowerCase()}.${lastName.toLowerCase()}${i}@email.com`,
+                    'Type': isConverted ? 'Customer' : 'Lead',
+                    'Lead source': leadSources[Math.floor(Math.random() * leadSources.length)],
+                    'Join date': leadDate.toISOString().split('T')[0],
+                    'Converted': isConverted ? leadDate.toISOString().split('T')[0] : '',
+                    'Converted to': isConverted ? 'Customer' : '',
+                    'LTV': isConverted ? Math.floor(Math.random() * 2000) : 0,
+                    'Home location': location
+                });
+            }
+            
+            // Generate membership data
+            const memberships = [];
+            const membershipTypes = ['Monthly Unlimited', '4x per Month', '8x per Month', 'Couples Monthly', 'Student Monthly'];
+            const membershipPrices = [149, 89, 129, 249, 99];
+            
+            for (let i = 0; i < 80; i++) {
+                const customer = customers[Math.floor(Math.random() * customers.length)];
+                const typeIdx = Math.floor(Math.random() * membershipTypes.length);
+                const startDt = new Date(startDate);
+                startDt.setDate(startDt.getDate() + Math.floor(Math.random() * 150));
+                
+                const status = Math.random() < 0.7 ? 'Active' : (Math.random() < 0.3 ? 'Cancelled' : 'Frozen');
+                
+                memberships.push({
+                    'Email': customer.email,
+                    'First Name': customer.firstName,
+                    'Last Name': customer.lastName,
+                    'Membership': membershipTypes[typeIdx],
+                    'Price': membershipPrices[typeIdx],
+                    'Status': status,
+                    'Start Date': startDt.toISOString().split('T')[0],
+                    'Location': location
+                });
+            }
+            
+            // Generate cancellations
+            const cancellations = [];
+            const cancellationReasons = ['Moving', 'Financial', 'Not using enough', 'Switching to competitor', 'Medical', 'Too busy', 'Other'];
+            
+            for (let i = 0; i < 25; i++) {
+                const customer = customers[Math.floor(Math.random() * customers.length)];
+                const cancelDate = new Date(startDate);
+                cancelDate.setDate(cancelDate.getDate() + Math.floor(Math.random() * 180));
+                
+                cancellations.push({
+                    'Email': customer.email,
+                    'First Name': customer.firstName,
+                    'Last Name': customer.lastName,
+                    'Membership': membershipTypes[Math.floor(Math.random() * membershipTypes.length)],
+                    'Cancelled at': cancelDate.toISOString().split('T')[0],
+                    'Reason': cancellationReasons[Math.floor(Math.random() * cancellationReasons.length)],
+                    'Location': location
+                });
+            }
+            
+            return {
+                appointments,
+                timeTracking,
+                commissions,
+                leads,
+                memberships,
+                cancellations
+            };
+        }
+        
+        function loadDemoData() {
+            const demo = generateDemoData();
+            
+            // Load appointments
+            appointmentsData = demo.appointments;
+            filteredAppointments = [...appointmentsData];
+            
+            // Load time tracking
+            window.timeTrackingData = demo.timeTracking;
+            filteredTimeTracking = [...demo.timeTracking];
+            
+            // Load commissions
+            window.commissionsData = demo.commissions;
+            window.filteredCommissions = [...demo.commissions];
+            
+            // Load leads
+            leadsData = demo.leads;
+            filteredLeads = [...demo.leads];
+            
+            // Load memberships
+            membershipsData = demo.memberships;
+            filteredMemberships = [...demo.memberships];
+            
+            // Load cancellations
+            membershipCancellationsData = demo.cancellations;
+            filteredCancellations = [...demo.cancellations];
+            
+            // Calculate utilization from time tracking
+            window.employeeUtilization = {};
+            const employeeStats = {};
+            
+            demo.timeTracking.forEach(shift => {
+                const name = shift['Employee Name'];
+                if (!employeeStats[name]) {
+                    employeeStats[name] = { totalHours: 0, shiftCount: 0 };
+                }
+                employeeStats[name].totalHours += parseFloat(shift['Duration (h)']);
+                employeeStats[name].shiftCount++;
+            });
+            
+            demo.appointments.forEach(appt => {
+                const name = appt['Employee Name'];
+                if (!employeeStats[name]) {
+                    employeeStats[name] = { totalHours: 0, shiftCount: 0, appointmentHours: 0 };
+                }
+                if (!employeeStats[name].appointmentHours) employeeStats[name].appointmentHours = 0;
+                employeeStats[name].appointmentHours += parseFloat(appt['Time (h)'] || 0);
+            });
+            
+            Object.entries(employeeStats).forEach(([name, stats]) => {
+                const totalClockedHours = stats.totalHours || 1;
+                const apptHours = stats.appointmentHours || 0;
+                window.employeeUtilization[name] = {
+                    totalClockedHours,
+                    appointmentHours: apptHours,
+                    utilization: Math.min(100, (apptHours / totalClockedHours) * 100),
+                    shiftCount: stats.shiftCount
+                };
+            });
+            
+            // Initialize the dashboard
+            initializeDashboard();
+            
+            // Update status
+            const uploadStatus = document.getElementById('appointmentsFileStatus');
+            if (uploadStatus) {
+                uploadStatus.innerHTML = '<span style="color: var(--success); font-weight: 600;">✅ Demo data loaded: ' + 
+                    demo.appointments.length + ' appointments, ' + 
+                    demo.timeTracking.length + ' time entries, ' + 
+                    demo.commissions.length + ' commissions</span>';
+            }
+            
+            // Show success message
+            alert('Demo data loaded successfully!\\n\\n' +
+                  '• ' + demo.appointments.length + ' appointments\\n' +
+                  '• ' + demo.timeTracking.length + ' time tracking entries\\n' +
+                  '• ' + demo.commissions.length + ' commission records\\n' +
+                  '• ' + demo.leads.length + ' leads\\n' +
+                  '• ' + demo.memberships.length + ' memberships\\n\\n' +
+                  'Explore the tabs to see sample data.');
+        }
+        // ========== END DEMO DATA GENERATOR ==========
         
         // Configuration
         const CONFIG = {
@@ -9329,7 +9663,8 @@
                     
                     if (isNaN(clockedIn.getTime())) return;
                     
-                    const date = new Date(clockedIn.toISOString().split('T')[0]); // Just the date part
+                    // Use local date components to avoid UTC offset issues
+                    const date = new Date(clockedIn.getFullYear(), clockedIn.getMonth(), clockedIn.getDate());
                     
                     // Skip future dates
                     if (date > today) return;
@@ -9390,7 +9725,9 @@
                     const dateStr = commission['Date'];
                     if (!dateStr) return;
                     
-                    const date = new Date(dateStr.split(',')[0]);
+                    // Parse date - add T00:00:00 to force local time interpretation (avoids UTC offset issue)
+                    const datePart = dateStr.split(',')[0];
+                    const date = new Date(datePart + 'T00:00:00');
                     if (isNaN(date.getTime())) return;
                     
                     // Skip future dates
@@ -9921,7 +10258,7 @@
                                         <div style="margin-bottom: 3px; padding-left: 0px;">
                                             <span style="font-weight: 600; color: var(--primary);">${c.time || ''}</span>
                                             <span style="color: #666;"> - </span>
-                                            <span style="color: #666;">${c.itemName}</span>
+                                            <span style="color: #666;" title="${c.customerName || 'Unknown Customer'}">${c.itemName}</span>
                                             <span style="color: var(--success); font-weight: 600;"> ${formatCurrency(c.amount)}</span>
                                         </div>
                                     `;
@@ -9936,7 +10273,7 @@
                                         <div style="margin-bottom: 3px; padding-left: 15px;">
                                             <span style="font-weight: 600; color: var(--accent);">${c.time || ''}</span>
                                             <span style="color: #666;"> - </span>
-                                            <span style="color: #666;">${c.itemName}</span>
+                                            <span style="color: #666;" title="${c.customerName || 'Unknown Customer'}">${c.itemName}</span>
                                             <span style="color: var(--success); font-weight: 600;"> ${formatCurrency(c.amount)}</span>
                                         </div>
                                     `;
@@ -10067,8 +10404,9 @@
                 const dateStr = commission['Date'];
                 if (!dateStr) return;
                 
-                // Parse the date (format: "2025-07-22, 10:02 AM")
-                const date = new Date(dateStr.split(',')[0]);
+                // Parse the date (format: "2025-07-22, 10:02 AM") - add T00:00:00 to force local time
+                const datePart = dateStr.split(',')[0];
+                const date = new Date(datePart + 'T00:00:00');
                 if (isNaN(date.getTime())) return;
                 
                 const employeeName = (commission['Employee Name'] || '').trim();
@@ -19872,7 +20210,7 @@
     <!-- Footer -->
     <div class="dashboard-footer">
         <div class="footer-content">
-            <span class="footer-version">v2.20251115.11</span>
+            <span class="footer-version">v2.20251130.2</span>
             <span class="footer-separator">|</span>
             <span class="footer-credits">Made by bonJoeV with ❤️</span>
         </div>
