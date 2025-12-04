@@ -998,7 +998,7 @@
                     <div class="scenario-body">
                         <div class="scenario-stat"><span>Ramp Growth</span><strong>8%</strong></div>
                         <div class="scenario-stat"><span>Churn</span><strong>5%</strong></div>
-                        <div class="scenario-stat"><span>Conversion</span><strong>~18%</strong></div>
+                        <div class="scenario-stat"><span>Conversion</span><strong>18%</strong></div>
                         <hr style="margin: 0.75rem 0; border: none; border-top: 1px solid #eee;">
                         <div class="scenario-stat"><span id="scen-cons-month-label">Final Total</span><strong id="scen-cons-total">298</strong></div>
                         <div class="scenario-stat"><span>Monthly Revenue</span><strong id="scen-cons-rev">$44.7K</strong></div>
@@ -1013,7 +1013,7 @@
                     <div class="scenario-body">
                         <div class="scenario-stat"><span>Ramp Growth</span><strong>12%</strong></div>
                         <div class="scenario-stat"><span>Churn</span><strong>4.5%</strong></div>
-                        <div class="scenario-stat"><span>Conversion</span><strong>~21%</strong></div>
+                        <div class="scenario-stat"><span>Conversion</span><strong>21%</strong></div>
                         <hr style="margin: 0.75rem 0; border: none; border-top: 1px solid #eee;">
                         <div class="scenario-stat"><span id="scen-mod-month-label">Final Total</span><strong id="scen-mod-total">350</strong></div>
                         <div class="scenario-stat"><span>Monthly Revenue</span><strong id="scen-mod-rev">$52.5K</strong></div>
@@ -1028,7 +1028,7 @@
                     <div class="scenario-body">
                         <div class="scenario-stat"><span>Ramp Growth</span><strong>15%</strong></div>
                         <div class="scenario-stat"><span>Churn</span><strong>4%</strong></div>
-                        <div class="scenario-stat"><span>Conversion</span><strong>~24%</strong></div>
+                        <div class="scenario-stat"><span>Conversion</span><strong>24%</strong></div>
                         <hr style="margin: 0.75rem 0; border: none; border-top: 1px solid #eee;">
                         <div class="scenario-stat"><span id="scen-agg-month-label">Final Total</span><strong id="scen-agg-total">587</strong></div>
                         <div class="scenario-stat"><span>Monthly Revenue</span><strong id="scen-agg-rev">$88.1K</strong></div>
@@ -1458,6 +1458,22 @@
         
         let charts = {};
         let projectionData = {};
+        
+        // Chart update debouncing - prevents excessive redraws
+        let chartUpdatePending = false;
+        let pendingChartUpdates = new Set();
+        
+        function scheduleChartUpdate(chartName, updateFn) {
+            pendingChartUpdates.add({ name: chartName, fn: updateFn });
+            if (!chartUpdatePending) {
+                chartUpdatePending = true;
+                requestAnimationFrame(() => {
+                    pendingChartUpdates.forEach(({ fn }) => fn());
+                    pendingChartUpdates.clear();
+                    chartUpdatePending = false;
+                });
+            }
+        }
 
         // ==========================================
         // DYNAMIC HTML GENERATION
@@ -1530,22 +1546,22 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>${isNewStudio ? 'Opening Members' : 'Current Members'}</label>
-                            <input type="number" id="${id}-current" value="${def.current}" class="highlight">
+                            <input type="number" id="${id}-current" value="${def.current}" class="highlight" min="0">
                         </div>
                         ${monthField}
                         <div class="form-group">
                             <label>Month 9 Target</label>
-                            <input type="number" id="${id}-target" value="${def.target}" class="highlight">
+                            <input type="number" id="${id}-target" value="${def.target}" class="highlight" min="1">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label>Square Feet</label>
-                            <input type="number" id="${id}-sqft" value="${def.sqft}" class="highlight">
+                            <input type="number" id="${id}-sqft" value="${def.sqft}" class="highlight" min="100">
                         </div>
                         <div class="form-group">
                             <label>Lease + NNN Rate ($/sf/yr)</label>
-                            <input type="number" id="${id}-nnn" value="${def.nnn}" step="0.01" class="highlight">
+                            <input type="number" id="${id}-nnn" value="${def.nnn}" step="0.01" class="highlight" min="0">
                         </div>
                         <div class="form-group">
                             <label>Monthly Rent</label>
@@ -1557,37 +1573,37 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>Tables</label>
-                            <input type="number" id="${id}-tables" value="${def.tables}">
+                            <input type="number" id="${id}-tables" value="${def.tables}" min="1" max="20">
                         </div>
                         <div class="form-group">
                             <label>Hours Open/Day</label>
-                            <input type="number" id="${id}-hours" value="${def.hours}">
+                            <input type="number" id="${id}-hours" value="${def.hours}" min="1" max="24">
                         </div>
                         <div class="form-group">
                             <label>Days Open/Week</label>
-                            <input type="number" id="${id}-days" value="${def.days}">
+                            <input type="number" id="${id}-days" value="${def.days}" min="1" max="7">
                         </div>
                         <div class="form-group">
                             <label>Utilization %</label>
-                            <input type="number" id="${id}-util" value="${def.util}" step="5" class="highlight">
+                            <input type="number" id="${id}-util" value="${def.util}" step="5" class="highlight" min="0" max="100">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label>Lead→Intro %</label>
-                            <input type="number" id="${id}-conv-li" value="${def.convLi}" step="1">
+                            <input type="number" id="${id}-conv-li" value="${def.convLi}" step="1" min="0" max="100">
                         </div>
                         <div class="form-group">
                             <label>Intro→Member %</label>
-                            <input type="number" id="${id}-conv-im" value="${def.convIm}" step="1">
+                            <input type="number" id="${id}-conv-im" value="${def.convIm}" step="1" min="0" max="100">
                         </div>
                         <div class="form-group">
                             <label>Ad Spend/Mo</label>
-                            <input type="number" id="${id}-adspend" value="${def.adSpend}" step="100" class="highlight">
+                            <input type="number" id="${id}-adspend" value="${def.adSpend}" step="100" class="highlight" min="0">
                         </div>
                         <div class="form-group">
                             <label>Launch Spend/Mo</label>
-                            <input type="number" id="${id}-adspend-accel" value="${def.adSpendAccel}" step="100" class="highlight" title="1 month before + first 3 months">
+                            <input type="number" id="${id}-adspend-accel" value="${def.adSpendAccel}" step="100" class="highlight" min="0" title="1 month before + first 3 months">
                             <small class="text-muted" style="font-size: 0.65rem;">Pre-open + M1-3</small>
                         </div>
                         <div class="form-group">
@@ -1600,15 +1616,15 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>Cost Per Lead $</label>
-                            <input type="number" id="${id}-cpl" value="${def.costPerLead}" step="1" class="highlight">
+                            <input type="number" id="${id}-cpl" value="${def.costPerLead}" step="1" class="highlight" min="1">
                         </div>
                         <div class="form-group">
                             <label>VSP Stretch $/hr</label>
-                            <input type="number" id="${id}-vsp-stretch" value="${def.vspStretch}" step="0.5">
+                            <input type="number" id="${id}-vsp-stretch" value="${def.vspStretch}" step="0.5" min="0">
                         </div>
                         <div class="form-group">
                             <label>VSP Idle $/hr</label>
-                            <input type="number" id="${id}-vsp-idle" value="${def.vspIdle}" step="0.5">
+                            <input type="number" id="${id}-vsp-idle" value="${def.vspIdle}" step="0.5" min="0">
                         </div>
                         <div class="form-group">
                             <label>Blended Rate</label>
@@ -1693,6 +1709,12 @@
         function formatCurrency(num) {
             if (num >= 1000) return '$' + (num / 1000).toFixed(1) + 'K';
             return '$' + num.toFixed(0);
+        }
+
+        // Safe division helper - prevents NaN/Infinity
+        function safeDivide(numerator, denominator, fallback = 0) {
+            if (!denominator || !isFinite(numerator / denominator)) return fallback;
+            return numerator / denominator;
         }
 
         // Core calculation - now uses conversion rate to influence growth
@@ -1808,29 +1830,38 @@
                 }
             }
 
-            // Calculate per-studio rents and capacity
+            // Calculate per-studio metrics in a single pass
             const studioRents = {};
             const studioConv = {};
             const studioUtil = {};
             const studioAdSpend = {};
             const studioAdSpendAccel = {};
             const studioCapacity = {};
+            const studioCpl = {};
+            
             STUDIO_IDS.forEach(id => {
                 const def = DEFAULTS.studios[id];
+                
+                // Rent calculation
                 const sqft = getVal(`${id}-sqft`, def.sqft);
                 const nnn = getVal(`${id}-nnn`, def.nnn);
                 const rent = Math.round(sqft * nnn / 12);
                 studioRents[id] = rent;
                 setHtml(`${id}-rent`, '$' + rent.toLocaleString());
 
+                // Conversion rates
                 const convLi = getVal(`${id}-conv-li`, def.convLi) / 100;
                 const convIm = getVal(`${id}-conv-im`, def.convIm) / 100;
                 studioConv[id] = convLi * convIm;
                 setHtml(`${id}-conv`, (studioConv[id] * 100).toFixed(1) + '%');
 
+                // Utilization and ad spend
                 studioUtil[id] = getVal(`${id}-util`, def.util) / 100;
                 studioAdSpend[id] = getVal(`${id}-adspend`, def.adSpend);
                 studioAdSpendAccel[id] = getVal(`${id}-adspend-accel`, def.adSpendAccel);
+                
+                // CPL per studio
+                studioCpl[id] = getVal(`${id}-cpl`, def.costPerLead);
                 
                 // Per-studio capacity settings
                 studioCapacity[id] = {
@@ -1846,26 +1877,23 @@
                 const blendedRate = (vspStretch * util) + (vspIdle * (1 - util));
                 setHtml(`${id}-blended-rate`, '$' + blendedRate.toFixed(2));
             });
+            
+            // Store all metrics in projectionData
             projectionData.rents = studioRents;
             projectionData.conv = studioConv;
             projectionData.util = studioUtil;
             projectionData.adSpend = studioAdSpend;
             projectionData.adSpendAccel = studioAdSpendAccel;
             projectionData.capacity = studioCapacity;
-
-            // Calculate per-studio CPL and weighted average
-            const studioCpl = {};
-            STUDIO_IDS.forEach(id => {
-                const def = DEFAULTS.studios[id];
-                studioCpl[id] = getVal(`${id}-cpl`, def.costPerLead);
-            });
             projectionData.cpl = studioCpl;
             
             // Calculate weighted average CPL (by ad spend)
             const totalAdBudget = STUDIO_IDS.reduce((sum, id) => sum + studioAdSpend[id], 0);
-            const weightedAvgCpl = totalAdBudget > 0 
-                ? STUDIO_IDS.reduce((sum, id) => sum + (studioCpl[id] * studioAdSpend[id]), 0) / totalAdBudget
-                : DEFAULTS.leads.costPerLead;
+            const weightedAvgCpl = safeDivide(
+                STUDIO_IDS.reduce((sum, id) => sum + (studioCpl[id] * studioAdSpend[id]), 0),
+                totalAdBudget,
+                DEFAULTS.leads.costPerLead
+            );
             setHtml('avg-cpl', '$' + Math.round(weightedAvgCpl));
             
             // Calculate all studios using loop
@@ -1912,10 +1940,10 @@
             // Leads & VSPs - use average conversion for KPI (only open studios)
             const openStudios = STUDIO_IDS.filter(id => !DEFAULTS.studios[id].opens || getVal(`${id}-month`, 1) > 0);
             const avgConv = openStudios.length > 0 
-                ? openStudios.reduce((sum, id) => sum + studioConv[id], 0) / openStudios.length 
+                ? safeDivide(openStudios.reduce((sum, id) => sum + studioConv[id], 0), openStudios.length, 0.07)
                 : 0.07;
             const newMembersThisMonth = openStudios.reduce((sum, id) => sum + (studioData[id]?.[0]?.newMembers || 0), 0);
-            const leadsNeeded = Math.ceil(newMembersThisMonth / avgConv);
+            const leadsNeeded = Math.ceil(safeDivide(newMembersThisMonth, avgConv, 0));
             setHtml('kpi-leads-needed', leadsNeeded);
 
             // Update all sections (VSP KPI will be updated in updateOperations)
@@ -2059,12 +2087,12 @@
             const activeStudioCount = STUDIO_IDS.filter(id => 
                 projectionData[id][0].members > 0
             ).length || 2; // Default to 2 if none active yet
-            const mgmtPerStudio = totalMgmtCost / activeStudioCount;
+            const mgmtPerStudio = safeDivide(totalMgmtCost, activeStudioCount, totalMgmtCost / 2);
             
             const beHtml = STUDIO_IDS.map(id => {
                 const current = projectionData[id][0].members;
                 const studioFixed = rents[id] + otherFixed + adSpendData[id] + mgmtPerStudio;
-                const util = utils[id];
+                const util = utils[id] || 0.50; // Default to 50% if not set
                 
                 // Get per-studio VSP rates
                 const vspStretch = getVal(`${id}-vsp-stretch`, DEFAULTS.studios[id].vspStretch);
@@ -2072,13 +2100,13 @@
                 
                 // Labor cost per member at this studio's utilization + commission
                 const sessionHours = sessionsPm * sessionLengthHrs;
-                const totalVspHours = sessionHours / util;
+                const totalVspHours = safeDivide(sessionHours, util, sessionHours * 2);
                 const laborPerMember = (sessionHours * vspStretch) + ((totalVspHours - sessionHours) * vspIdle);
                 const commissionPerMember = arpm * vspCommission;
                 const contribMargin = arpm - laborPerMember - commissionPerMember;
                 
-                const studioBreakEven = Math.ceil(studioFixed / contribMargin);
-                const pct = Math.min((current / studioBreakEven) * 100, 100);
+                const studioBreakEven = Math.ceil(safeDivide(studioFixed, contribMargin, 999));
+                const pct = Math.min(safeDivide(current, studioBreakEven, 0) * 100, 100);
                 const status = current >= studioBreakEven ? 'success' : current >= studioBreakEven * CONFIG.status.breakEvenWarningPct ? 'warning' : 'info';
                 const utilDisplay = Math.round(util * 100) + '% util';
                 return `
@@ -2120,8 +2148,8 @@
             const activeConvs = STUDIO_IDS.filter(id => 
                 projectionData[id][finalIdx].members > 0
             ).map(id => conv[id]);
-            const avgConv = activeConvs.reduce((a, b) => a + b, 0) / activeConvs.length;
-            const cac = cpl / avgConv;
+            const avgConv = safeDivide(activeConvs.reduce((a, b) => a + b, 0), activeConvs.length, 0.10);
+            const cac = safeDivide(cpl, avgConv, 0);
 
             setHtml('conv-overall', (avgConv * 100).toFixed(1) + '%');
             setHtml('cac', '$' + Math.round(cac));
@@ -2155,10 +2183,10 @@
                 const studioConv = conv[id] || (DEFAULTS.studios[id].convLi/100 * DEFAULTS.studios[id].convIm/100);
                 const convLi = getVal(`${id}-conv-li`, DEFAULTS.studios[id].convLi) / 100;
                 
-            studioLeads[id] = data.map(d => {
-                if (d.members === 0 || d.newMembers <= 0) return 0;
-                return Math.ceil(d.newMembers / studioConv);
-            });
+                studioLeads[id] = data.map(d => {
+                    if (d.members === 0 || d.newMembers <= 0) return 0;
+                    return Math.ceil(safeDivide(d.newMembers, studioConv, 0));
+                });
                 studioIntros[id] = data.map((d, i) => {
                     if (d.members === 0) return 0;
                     return Math.ceil(studioLeads[id][i] * convLi);
@@ -2354,17 +2382,17 @@
                 const studioSpend = adSpend[id];
                 
                 // CAC = CPL / conversion rate
-                const studioCac = cpl / studioConvRate;
+                const studioCac = safeDivide(cpl, studioConvRate, 999);
                 
                 // LTV:CAC ratio
-                const ltvCacRatio = ltv / studioCac;
+                const ltvCacRatio = safeDivide(ltv, studioCac, 0);
                 
                 // ROAS = Revenue generated per $ spent on ads (first year)
                 // Members acquired per month = (ad spend / CPL) * conv rate
-                const monthlyMembersFromAds = (studioSpend / cpl) * studioConvRate;
+                const monthlyMembersFromAds = safeDivide(studioSpend, cpl, 0) * studioConvRate;
                 const yearlyRevenueFromAds = monthlyMembersFromAds * arpmForRoi * 12;
                 const yearlyAdSpend = studioSpend * 12;
-                const roas = yearlyRevenueFromAds / yearlyAdSpend;
+                const roas = safeDivide(yearlyRevenueFromAds, yearlyAdSpend, 0);
                 
                 // Status colors using CONFIG thresholds
                 let roasStatus = 'danger';
@@ -2642,7 +2670,8 @@
                     const members = projectionData[id][i].members;
                     if (members > 0) {
                         const sessionHours = members * sessionsPm * sessionLengthHrs;
-                        const totalVspHours = sessionHours / utils[id];
+                        const util = utils[id] || 0.50; // Default to 50% if not set
+                        const totalVspHours = safeDivide(sessionHours, util, sessionHours * 2);
                         const stretchPay = sessionHours * vspRates[id].stretch;
                         const idlePay = (totalVspHours - sessionHours) * vspRates[id].idle;
                         cost += stretchPay + idlePay;
@@ -2667,7 +2696,7 @@
             
             // Cost per member per month considering utilization + commission
             const sessionHoursPerMember = sessionsPm * sessionLengthHrs;
-            const totalVspHoursPerMember = sessionHoursPerMember / avgUtil;
+            const totalVspHoursPerMember = safeDivide(sessionHoursPerMember, avgUtil, sessionHoursPerMember * 2);
             const laborCostPerMember = (sessionHoursPerMember * avgStretch) + ((totalVspHoursPerMember - sessionHoursPerMember) * avgIdle);
             const commissionPerMember = arpm * vspCommission;
             const totalLaborCostPerMember = laborCostPerMember + commissionPerMember;
@@ -2677,18 +2706,18 @@
             const contrib = netArpm - totalLaborCostPerMember;
             
             // Average fixed cost per studio (rent + other + ad spend) + management overhead spread across studios
-            const avgRent = STUDIO_IDS.reduce((sum, id) => sum + rents[id], 0) / STUDIO_IDS.length;
-            const avgAdSpendCalc = STUDIO_IDS.reduce((sum, id) => sum + adSpend[id], 0) / STUDIO_IDS.length;
-            const avgFixed = avgRent + otherFixed + avgAdSpendCalc + (totalMgmtCost / STUDIO_IDS.length);
-            const breakEven = Math.ceil(avgFixed / contrib);
+            const avgRent = safeDivide(STUDIO_IDS.reduce((sum, id) => sum + rents[id], 0), STUDIO_IDS.length, 3000);
+            const avgAdSpendCalc = safeDivide(STUDIO_IDS.reduce((sum, id) => sum + adSpend[id], 0), STUDIO_IDS.length, 2000);
+            const avgFixed = avgRent + otherFixed + avgAdSpendCalc + safeDivide(totalMgmtCost, STUDIO_IDS.length, 2000);
+            const breakEven = Math.ceil(safeDivide(avgFixed, contrib, 999));
             
             // Break-even revenue per studio
             const breakEvenRevenue = breakEven * arpm;
             
             // Safety margin: final month members vs break-even
             const finalMembers = projectionData.total[getFinalMonthIndex()];
-            const avgMembersPerStudio = finalMembers / STUDIO_IDS.length;
-            const safetyMarginPct = Math.round((avgMembersPerStudio / breakEven) * 100);
+            const avgMembersPerStudio = safeDivide(finalMembers, STUDIO_IDS.length, 0);
+            const safetyMarginPct = Math.round(safeDivide(avgMembersPerStudio, breakEven, 0) * 100);
 
             setHtml('break-even-members', breakEven);
             setHtml('break-even-revenue', formatCurrency(breakEvenRevenue));
@@ -3078,13 +3107,13 @@
                 const fteHoursPerWeek = 40;
                 const fteSessionsPerWeek = fteHoursPerWeek * sessionsPerHour * utils[id];
                 const fteSessionsPerMonth = fteSessionsPerWeek * 4.33;
-                membersPerVspPerStudio[id] = Math.floor(fteSessionsPerMonth / sessionsPm);
+                membersPerVspPerStudio[id] = Math.floor(safeDivide(fteSessionsPerMonth, sessionsPm, 10));
             });
 
             // Average blended rate across studios (using per-studio rates)
-            const avgUtil = STUDIO_IDS.reduce((sum, id) => sum + utils[id], 0) / STUDIO_IDS.length;
-            const avgStretch = STUDIO_IDS.reduce((sum, id) => sum + vspRates[id].stretch, 0) / STUDIO_IDS.length;
-            const avgIdle = STUDIO_IDS.reduce((sum, id) => sum + vspRates[id].idle, 0) / STUDIO_IDS.length;
+            const avgUtil = safeDivide(STUDIO_IDS.reduce((sum, id) => sum + utils[id], 0), STUDIO_IDS.length, 0.50);
+            const avgStretch = safeDivide(STUDIO_IDS.reduce((sum, id) => sum + vspRates[id].stretch, 0), STUDIO_IDS.length, 23);
+            const avgIdle = safeDivide(STUDIO_IDS.reduce((sum, id) => sum + vspRates[id].idle, 0), STUDIO_IDS.length, 13);
             const avgBlended = (avgStretch * avgUtil) + (avgIdle * (1 - avgUtil));
             setHtml('avg-blended-rate', '$' + avgBlended.toFixed(2));
 
@@ -3108,13 +3137,13 @@
             STUDIO_IDS.forEach(id => {
                 staffingData[id] = projectionData[id].map(d => {
                     if (d.members <= 0) return { fte: 0, pt: 0, total: 0 };
-                    const membersPerFte = membersPerVspPerStudio[id];
-                    const totalVspsNeeded = d.members / membersPerFte;
+                    const membersPerFte = membersPerVspPerStudio[id] || 10; // Fallback to 10
+                    const totalVspsNeeded = safeDivide(d.members, membersPerFte, 1);
                     const fte = Math.min(CONFIG.staffing.maxFtePerStudio, Math.floor(totalVspsNeeded));
                     const remainingMembers = d.members - (fte * membersPerFte);
                     // PT workers handle ~20 hrs/week (half of FTE)
-                    const ptMembersPerWorker = membersPerFte / 2;
-                    const pt = remainingMembers > 0 ? Math.ceil(remainingMembers / ptMembersPerWorker) : 0;
+                    const ptMembersPerWorker = safeDivide(membersPerFte, 2, 5);
+                    const pt = remainingMembers > 0 ? Math.ceil(safeDivide(remainingMembers, ptMembersPerWorker, 1)) : 0;
                     return { fte, pt, total: fte + pt };
                 });
             });
@@ -3863,6 +3892,62 @@
             showSaveNotification('Settings saved!');
         }
 
+        // Validate loaded settings to prevent invalid values
+        function validateLoadedSettings() {
+            STUDIO_IDS.forEach(id => {
+                const def = DEFAULTS.studios[id];
+                
+                // Validate conversion rates (0-100%)
+                const convLi = document.getElementById(`${id}-conv-li`);
+                const convIm = document.getElementById(`${id}-conv-im`);
+                if (convLi && (parseFloat(convLi.value) < 0 || parseFloat(convLi.value) > 100)) {
+                    convLi.value = def.convLi;
+                }
+                if (convIm && (parseFloat(convIm.value) < 0 || parseFloat(convIm.value) > 100)) {
+                    convIm.value = def.convIm;
+                }
+                
+                // Validate utilization (0-100%)
+                const util = document.getElementById(`${id}-util`);
+                if (util && (parseFloat(util.value) < 0 || parseFloat(util.value) > 100)) {
+                    util.value = def.util;
+                }
+                
+                // Validate ad spend (non-negative)
+                const adspend = document.getElementById(`${id}-adspend`);
+                if (adspend && parseFloat(adspend.value) < 0) {
+                    adspend.value = def.adSpend;
+                }
+                
+                // Validate CPL (positive)
+                const cplEl = document.getElementById(`${id}-cpl`);
+                if (cplEl && parseFloat(cplEl.value) <= 0) {
+                    cplEl.value = def.costPerLead;
+                }
+                
+                // Validate members (non-negative)
+                const current = document.getElementById(`${id}-current`);
+                if (current && parseFloat(current.value) < 0) {
+                    current.value = def.current;
+                }
+            });
+            
+            // Validate global growth rates
+            const rampEl = document.getElementById('rampGrowth');
+            const maintEl = document.getElementById('maintGrowth');
+            const churnEl = document.getElementById('churnRate');
+            
+            if (rampEl && (parseFloat(rampEl.value) < 0 || parseFloat(rampEl.value) > 50)) {
+                rampEl.value = DEFAULTS.growth.ramp;
+            }
+            if (maintEl && (parseFloat(maintEl.value) < 0 || parseFloat(maintEl.value) > 50)) {
+                maintEl.value = DEFAULTS.growth.maint;
+            }
+            if (churnEl && (parseFloat(churnEl.value) < 0 || parseFloat(churnEl.value) > 20)) {
+                churnEl.value = DEFAULTS.growth.churn;
+            }
+        }
+
         function loadSettings() {
             const saved = localStorage.getItem(STORAGE_KEY);
             if (saved) {
@@ -3879,6 +3964,8 @@
                         timeHorizonMonths = parseInt(settings.timeHorizon);
                         generateMonthArrays(timeHorizonMonths);
                     }
+                    // Validate loaded values
+                    validateLoadedSettings();
                     return true;
                 } catch (e) {
                     console.error('Error loading settings:', e);
