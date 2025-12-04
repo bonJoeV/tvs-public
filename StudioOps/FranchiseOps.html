@@ -2155,10 +2155,10 @@
                 const studioConv = conv[id] || (DEFAULTS.studios[id].convLi/100 * DEFAULTS.studios[id].convIm/100);
                 const convLi = getVal(`${id}-conv-li`, DEFAULTS.studios[id].convLi) / 100;
                 
-                studioLeads[id] = data.map(d => {
-                    if (d.members === 0) return 0;
-                    return Math.ceil(d.newMembers / studioConv);
-                });
+            studioLeads[id] = data.map(d => {
+                if (d.members === 0 || d.newMembers <= 0) return 0;
+                return Math.ceil(d.newMembers / studioConv);
+            });
                 studioIntros[id] = data.map((d, i) => {
                     if (d.members === 0) return 0;
                     return Math.ceil(studioLeads[id][i] * convLi);
