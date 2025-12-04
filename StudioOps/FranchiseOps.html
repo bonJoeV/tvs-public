@@ -105,7 +105,7 @@
 
         /* Tables */
         .data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-        .data-table th { background: var(--blue); color: var(--white); padding: 0.6rem; text-align: center; font-weight: 500; white-space: nowrap; }
+        .data-table th { background: var(--blue); color: var(--white); padding: 0.6rem; text-align: center; font-weight: 500; white-space: nowrap; position: sticky; top: 0; z-index: 10; }
         .data-table th:first-child { text-align: left; border-radius: 6px 0 0 0; }
         .data-table th:last-child { border-radius: 0 6px 0 0; }
         .data-table td { padding: 0.5rem 0.6rem; border-bottom: 1px solid #eee; text-align: center; }
@@ -639,10 +639,14 @@
                         <label>Starting Cash on Hand</label>
                         <input type="number" inputmode="decimal" autocomplete="off" id="starting-cash" value="185000" step="5000">
                     </div>
-                    <div class="grid-3" style="gap: 0.75rem; margin-bottom: 1rem;">
+                    <div class="grid-4" style="gap: 0.75rem; margin-bottom: 1rem;">
                         <div class="stat-box" style="text-align: center;">
                             <div id="cash-lowest" style="font-size: 1.5rem; font-weight: 700; color: var(--danger);">-$50K</div>
                             <div style="font-size: 0.75rem; color: var(--muted);">Lowest Point</div>
+                        </div>
+                        <div class="stat-box" style="text-align: center;">
+                            <div id="cash-burn-rate" style="font-size: 1.5rem; font-weight: 700; color: var(--warning);">$8K</div>
+                            <div class="tooltip-trigger" style="font-size: 0.75rem; color: var(--muted);" data-tooltip="Average monthly loss until break-even">Avg Monthly Burn</div>
                         </div>
                         <div class="stat-box" style="text-align: center;">
                             <div id="cash-needed" style="font-size: 1.5rem; font-weight: 700; color: var(--blue);">$150K</div>
@@ -3022,9 +3026,18 @@
                 }
             }
             
+            // Calculate average monthly burn rate (only months with losses, up to break-even)
+            const lossMonths = profit.slice(0, breakEvenIdx >= 0 ? breakEvenIdx : profit.length).filter(p => p < 0);
+            const avgBurnRate = lossMonths.length > 0 
+                ? Math.abs(lossMonths.reduce((sum, p) => sum + p, 0) / lossMonths.length)
+                : 0;
+            
             // Update cash runway KPIs
             setHtml('cash-lowest', formatCurrency(lowestCash));
             document.getElementById('cash-lowest').style.color = lowestCash < 0 ? 'var(--danger)' : 'var(--success)';
+            
+            setHtml('cash-burn-rate', avgBurnRate > 0 ? formatCurrency(avgBurnRate) + '/mo' : '$0');
+            document.getElementById('cash-burn-rate').style.color = avgBurnRate > 5000 ? 'var(--danger)' : avgBurnRate > 0 ? 'var(--warning)' : 'var(--success)';
             
             setHtml('cash-needed', totalCashNeeded > 0 ? formatCurrency(totalCashNeeded) : '$0');
             
