@@ -122,6 +122,7 @@
         .progress-bar .fill.success { background: var(--success); }
         .progress-bar .fill.warning { background: var(--warning); }
         .progress-bar .fill.danger { background: var(--danger); }
+        .progress-bar .fill.info { background: var(--cyan); }
 
         /* Scenarios */
         .scenario-card { border: 2px solid var(--border); border-radius: 10px; overflow: hidden; transition: all 0.3s; opacity: 0.7; }
@@ -2251,6 +2252,25 @@
             const mgmtPerStudio = safeDivide(totalMgmtCost, activeStudioCount, totalMgmtCost / 2);
             
             const beHtml = STUDIO_IDS.map(id => {
+                const def = DEFAULTS.studios[id];
+                const isNewStudio = def.opens !== undefined;
+                const opensMonth = isNewStudio ? getVal(`${id}-opens`, def.opens) : 0;
+                
+                // For future studios, check if they're open yet
+                if (isNewStudio && opensMonth > 0) {
+                    // Studio hasn't opened - show "Opens [Month]" instead
+                    const openMonthName = months[opensMonth - 1] || `Month ${opensMonth}`;
+                    return `
+                        <div style="margin-bottom: 0.75rem;">
+                            <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.25rem;">
+                                <span>${STUDIO_NAMES[id]}</span>
+                                <span class="text-muted">Opens ${openMonthName}</span>
+                            </div>
+                            <div class="progress-bar" style="background: var(--gray);"><div class="fill info" style="width: 0%;"></div></div>
+                        </div>
+                    `;
+                }
+                
                 const current = projectionData[id][0].members;
                 const studioFixed = rents[id] + otherFixed + adSpendData[id] + mgmtPerStudio;
                 const util = utils[id] || 0.50; // Default to 50% if not set
@@ -2276,7 +2296,7 @@
                             <span>${STUDIO_NAMES[id]} <span class="text-muted" style="font-size: 0.75rem;">(${utilDisplay})</span></span>
                             <span>${current} / ${studioBreakEven} members</span>
                         </div>
-                        <div class="progress-bar"><div class="fill ${status}" style="width: ${pct}%"></div></div>
+                        <div class="progress-bar"><div class="fill ${status}" style="width: ${Math.max(pct, 0)}%;"></div></div>
                     </div>
                 `;
             }).join('');
