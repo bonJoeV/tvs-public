@@ -2047,6 +2047,9 @@
             // Dashboard and franchise tabs are always needed for core metrics
             updateDashboard();
             
+            // Financials must always run because cash runway chart is on Dashboard
+            updateFinancials();
+            
             // Update only the active tab (plus dependencies)
             switch(activeTab) {
                 case 'dashboard':
@@ -2056,7 +2059,7 @@
                     updateLeadFunnel();
                     break;
                 case 'financials':
-                    updateFinancials();
+                    // Already updated above
                     break;
                 case 'operations':
                     updateOperations();
