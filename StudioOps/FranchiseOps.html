@@ -1343,46 +1343,46 @@
         const DEFAULTS = {
             studios: {
                 eden: {
-                    current: 63, month: 6, target: 110,
+                    current: 63, month: 6, target: 105,
                     sqft: 1335, nnn: 26.62,
                     tables: 5, hours: 12, days: 6, util: 55,
-                    convLi: 25, convIm: 40, adSpend: 2000, adSpendAccel: 3500,  // Established: 25% × 40% = 10%
+                    convLi: 25, convIm: 40, adSpend: 1000, adSpendAccel: 3500,  // Established: 25% × 40% = 10%
                     costPerLead: 26, vspStretch: 24, vspIdle: 14,  // Per-studio rates
                     badge: 'Opened Jul 2025', headerClass: 'eden',
                     initialStaff: { fte: 2, pt: 2 }
                 },
                 savage: {
-                    current: 23, month: 2, target: 110,
+                    current: 23, month: 2, target: 112,
                     sqft: 1262, nnn: 39.99,
                     tables: 4, hours: 12, days: 5, util: 60,
                     convLi: 22, convIm: 38, adSpend: 2000, adSpendAccel: 3500,  // Newer: 22% × 38% = 8.4%
-                    costPerLead: 28, vspStretch: 24, vspIdle: 14,  // Per-studio rates
+                    costPerLead: 24, vspStretch: 23, vspIdle: 13,  // Per-studio rates
                     badge: 'Opened Nov 2025', headerClass: 'savage',
                     initialStaff: { fte: 2, pt: 2 }
                 },
                 slp: {
-                    current: 0, month: 0, target: 110, opens: 3,
+                    current: 25, month: 0, target: 125, opens: 3,
                     sqft: 1547, nnn: 51.00,
                     tables: 5, hours: 12, days: 6, util: 50,
                     convLi: 20, convIm: 35, adSpend: 3000, adSpendAccel: 5000,  // New: 20% × 35% = 7%
-                    costPerLead: 30, vspStretch: 25, vspIdle: 15,  // Per-studio rates (new market)
+                    costPerLead: 22, vspStretch: 23, vspIdle: 13,  // Per-studio rates (new market)
                     badge: 'Opens Mar 2026', headerClass: 'slp',
                     opensOptions: [{v:1,t:'Jan 2026'},{v:2,t:'Feb 2026'},{v:3,t:'Mar 2026',s:true},{v:4,t:'Apr 2026'},{v:5,t:'May 2026'}],
                     initialStaff: { fte: 1, pt: 2 }
                 },
                 minnetonka: {
-                    current: 0, month: 0, target: 110, opens: 5,
+                    current: 25, month: 0, target: 105, opens: 5,
                     sqft: 1247, nnn: 41.39,
                     tables: 5, hours: 12, days: 6, util: 50,
                     convLi: 20, convIm: 35, adSpend: 3000, adSpendAccel: 5000,  // New: 20% × 35% = 7%
-                    costPerLead: 30, vspStretch: 25, vspIdle: 15,  // Per-studio rates (new market)
+                    costPerLead: 21, vspStretch: 23, vspIdle: 13,  // Per-studio rates (new market)
                     badge: 'Opens May 2026', headerClass: 'minnetonka',
                     opensOptions: [{v:3,t:'Mar 2026'},{v:4,t:'Apr 2026'},{v:5,t:'May 2026',s:true},{v:6,t:'Jun 2026'}],
                     initialStaff: { fte: 1, pt: 2 }
                 }
             },
             growth: {
-                ramp: 10,      // % during months 1-9 (industry: 8-15%)
+                ramp: 15,      // % during months 1-9 (industry: 8-15%)
                 maint: 5,      // % after month 9 (industry: 3-6%)
                 churn: 5       // % monthly churn (industry: 4-7%, target <4%)
             },
@@ -1400,16 +1400,16 @@
                 momence: 1
             },
             costs: {
-                otherFixed: 2500,
+                otherFixed: 2550,
                 vspCommission: 5,
-                gmSalary: 5500,
+                gmSalary: 6000,
                 ownerDrawsTotal: 2000
             },
             leads: {
-                costPerLead: 26
+                costPerLead: 24
             },
             cash: {
-                startingCash: 100000  // Starting cash on hand
+                startingCash: 185000  // Starting cash on hand
             },
             seasonality: {
                 1: 1.35, 2: 1.15, 3: 1.10, 4: 0.95,
