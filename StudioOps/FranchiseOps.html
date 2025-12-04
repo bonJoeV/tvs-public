@@ -376,20 +376,114 @@
             }
         }
         
-        /* Dark mode support (optional - follows system preference) */
-        @media (prefers-color-scheme: dark) {
-            /* Uncomment to enable dark mode
-            :root {
-                --gray: #1a1a2e;
-                --white: #2d2d44;
-                --border: #3d3d5c;
-                --muted: #a0a0b0;
-            }
-            body { background: #0f0f1a; color: #e0e0e0; }
-            .card { background: var(--white); }
-            .data-table th { background: var(--blue); }
-            .form-group input, .form-group select { background: var(--gray); color: #e0e0e0; }
-            */
+        /* Dark mode support - toggleable via .dark-mode class on body */
+        body.dark-mode {
+            --gray: #1a1a2e;
+            --white: #2d2d44;
+            --border: #3d3d5c;
+            --muted: #a0a0b0;
+            --blue: #71BED2; /* Swap to cyan for visibility */
+            background: #0f0f1a;
+            color: #e0e0e0;
+        }
+        body.dark-mode .card { background: #2d2d44; }
+        body.dark-mode .header { background: #0a1628; }
+        body.dark-mode .nav-tabs { background: #2d2d44; }
+        body.dark-mode .nav-tab { color: #a0a0b0; }
+        body.dark-mode .nav-tab:hover { background: #3d3d5c; color: #e0e0e0; }
+        body.dark-mode .nav-tab.active { background: var(--cyan); color: #0f0f1a; }
+        body.dark-mode .data-table th { background: #0a1628; }
+        body.dark-mode .data-table td { border-color: #3d3d5c; }
+        body.dark-mode .data-table tr:hover td { background: rgba(113,190,210,0.15); }
+        body.dark-mode .form-group input, 
+        body.dark-mode .form-group select { 
+            background: #1a1a2e; 
+            color: #e0e0e0; 
+            border-color: #3d3d5c;
+        }
+        body.dark-mode .form-group input:focus,
+        body.dark-mode .form-group select:focus { border-color: var(--cyan); }
+        body.dark-mode .form-group input.highlight { background: #2a2a1e; border-color: var(--gold); }
+        body.dark-mode .stat-box { background: #1a1a2e; }
+        body.dark-mode .stat-box.success { background: #1a3d2a; }
+        body.dark-mode .stat-box.warning { background: #3d3a1a; }
+        body.dark-mode .stat-box.danger { background: #3d1a1a; }
+        body.dark-mode .stat-box.info { background: #1a2a3d; }
+        body.dark-mode .kpi-item { background: #1a1a2e; }
+        body.dark-mode .scenario-card { border-color: #3d3d5c; }
+        body.dark-mode .scenario-header { background: #1a1a2e; }
+        body.dark-mode .scenario-card.conservative .scenario-header { background: #1a2a3d; }
+        body.dark-mode .scenario-card.moderate .scenario-header { background: #1a3d2a; }
+        body.dark-mode .scenario-card.aggressive .scenario-header { background: #3d3a1a; }
+        body.dark-mode .legend-box { background: #1a1a2e; }
+        body.dark-mode .progress-bar { background: #3d3d5c; }
+        body.dark-mode .preset-btn { background: #2d2d44; border-color: #3d3d5c; }
+        body.dark-mode .whatif-btn { background: #2d2d44; border-color: #3d3d5c; color: #e0e0e0; }
+        body.dark-mode .card-header { border-color: #3d3d5c; }
+        body.dark-mode .total-row { background: #1a1a2e !important; }
+        body.dark-mode .footer { background: #0a1628; }
+        /* Dark mode header/title visibility fixes */
+        body.dark-mode .page-title { color: #71BED2; }
+        body.dark-mode .card-title { color: #71BED2; }
+        body.dark-mode .stat-box .value { color: #71BED2; }
+        body.dark-mode .kpi-item .value { color: #71BED2; }
+        body.dark-mode .studio-header h3 { color: #fff; }
+        body.dark-mode .form-group label { color: #c0c0d0; }
+        body.dark-mode .slider-group label { color: #c0c0d0; }
+        body.dark-mode .scenario-stat span:first-child { color: #a0a0b0; }
+        body.dark-mode .scenario-stat strong { color: #e0e0e0; }
+        body.dark-mode .studio-header.slp { color: #fff; }
+        body.dark-mode .studio-header.slp h3 { color: #fff; }
+        
+        /* Tooltip styles */
+        .tooltip-trigger { 
+            position: relative; 
+            cursor: help;
+            border-bottom: 1px dotted var(--muted);
+        }
+        .tooltip-trigger::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1a1a2e;
+            color: #fff;
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            max-width: 250px;
+            white-space: normal;
+            text-align: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s, visibility 0.2s;
+            z-index: 1000;
+            pointer-events: none;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        .tooltip-trigger:hover::after {
+            opacity: 1;
+            visibility: visible;
+        }
+        /* Dark mode toggle button */
+        .dark-mode-toggle {
+            background: none;
+            border: 2px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 0.4rem 0.6rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+        .dark-mode-toggle:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: rgba(255,255,255,0.5);
+        }
+        body.dark-mode .dark-mode-toggle {
+            border-color: var(--cyan);
         }
     </style>
 </head>
@@ -402,6 +496,7 @@
                     <span>S T R E T C H</span>
                 </div>
             </div>
+            <button class="dark-mode-toggle" onclick="toggleDarkMode()" title="Toggle dark mode">🌙</button>
         </div>
     </header>
 
@@ -412,7 +507,7 @@
                 <!-- Time Horizon -->
                 <div style="display: flex; align-items: center; gap: 0.5rem;">
                     <label style="font-size: 0.8rem; color: var(--muted);">Horizon:</label>
-                    <select id="timeHorizon" onchange="changeTimeHorizon(this.value)" style="padding: 0.4rem 0.5rem; border: 2px solid var(--border); border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer;">
+                    <select id="timeHorizon" onchange="changeTimeHorizon(this.value)" autocomplete="off" style="padding: 0.4rem 0.5rem; border: 2px solid var(--border); border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer;">
                         <option value="13">13 Mo (Dec '26)</option>
                         <option value="25">25 Mo (Dec '27)</option>
                         <option value="37">37 Mo (Dec '28)</option>
@@ -481,23 +576,23 @@
             <div class="kpi-row">
                 <div class="kpi-item">
                     <div class="value" id="kpi-total-dec">415</div>
-                    <div class="label">Total Members Dec '26</div>
+                    <div class="label tooltip-trigger" data-tooltip="Projected total active members across all studios at end of forecast period">Total Members Dec '26</div>
                 </div>
                 <div class="kpi-item">
                     <div class="value" id="kpi-revenue">$62K</div>
-                    <div class="label">Monthly Revenue Dec '26</div>
+                    <div class="label tooltip-trigger" data-tooltip="Projected monthly recurring revenue based on total members × ARPM">Monthly Revenue Dec '26</div>
                 </div>
                 <div class="kpi-item">
                     <div class="value" id="kpi-studios-target">2/4</div>
-                    <div class="label">Studios Hitting M9 Target</div>
+                    <div class="label tooltip-trigger" data-tooltip="Studios projected to reach their Month 9 membership target">Studios Hitting M9 Target</div>
                 </div>
                 <div class="kpi-item">
                     <div class="value" id="kpi-leads-needed">312</div>
-                    <div class="label">Leads Needed This Month</div>
+                    <div class="label tooltip-trigger" data-tooltip="Leads required this month across all studios to hit growth targets, based on your conversion rate">Leads Needed This Month</div>
                 </div>
                 <div class="kpi-item">
                     <div class="value" id="kpi-vsp-needed">17</div>
-                    <div class="label">Staff (FTE+PT) Dec '26</div>
+                    <div class="label tooltip-trigger" data-tooltip="Total VSP headcount (Full-Time + Part-Time) needed by end of forecast">Staff (FTE+PT) Dec '26</div>
                 </div>
             </div>
 
@@ -541,7 +636,7 @@
                     </div>
                     <div class="form-group" style="margin-bottom: 1rem;">
                         <label>Starting Cash on Hand</label>
-                        <input type="number" id="starting-cash" value="185000" step="5000">
+                        <input type="number" inputmode="decimal" autocomplete="off" id="starting-cash" value="185000" step="5000">
                     </div>
                     <div class="grid-3" style="gap: 0.75rem; margin-bottom: 1rem;">
                         <div class="stat-box" style="text-align: center;">
@@ -590,7 +685,7 @@
                         <span class="badge mt-1" id="bench-ramp-badge">Ambitious</span>
                     </div>
                     <div>
-                        <div class="text-muted mb-1" style="font-size: 0.8rem;">Monthly Churn Rate</div>
+                        <div class="text-muted mb-1 tooltip-trigger" style="font-size: 0.8rem;" data-tooltip="Percentage of members who cancel each month. Lower is better. Industry avg is 4-7%.">Monthly Churn Rate</div>
                         <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
                             <span>Your Rate:</span><strong id="bench-churn">4%</strong>
                         </div>
@@ -601,7 +696,7 @@
                         <span class="badge mt-1" id="bench-churn-badge">Good</span>
                     </div>
                     <div>
-                        <div class="text-muted mb-1" style="font-size: 0.8rem;">Lead → Member Conversion</div>
+                        <div class="text-muted mb-1 tooltip-trigger" style="font-size: 0.8rem;" data-tooltip="Lead→Intro × Intro→Member. The percentage of leads that become paying members.">Lead → Member Conversion</div>
                         <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
                             <span>Your Rate:</span><strong id="bench-conv">19.3%</strong>
                         </div>
@@ -612,7 +707,7 @@
                         <span class="badge mt-1" id="bench-conv-badge">On Track</span>
                     </div>
                     <div>
-                        <div class="text-muted mb-1" style="font-size: 0.8rem;">Avg Revenue Per Member/Mo</div>
+                        <div class="text-muted mb-1 tooltip-trigger" style="font-size: 0.8rem;" data-tooltip="Average monthly revenue per member including sessions and retail. Calculated as: (Rate/hr × Session Length × Sessions/mo) + Retail">Avg Revenue Per Member/Mo</div>
                         <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
                             <span>Your Rate:</span><strong id="bench-arpm">$158</strong>
                         </div>
@@ -640,19 +735,19 @@
                     </div>
                     <div class="form-row mt-2">
                         <div class="form-group">
-                            <label>Avg Cost Per Lead</label>
+                            <label class="tooltip-trigger" data-tooltip="Weighted average cost to acquire one lead across all studios, based on ad spend allocation">Avg Cost Per Lead</label>
                             <div class="stat-box mt-1">
                                 <div class="value" id="avg-cpl">$28</div>
                             </div>
                         </div>
                         <div class="form-group">
-                            <label>Total Ad Budget (Active)</label>
+                            <label class="tooltip-trigger" data-tooltip="Combined monthly ad spend for all currently open studios">Total Ad Budget (Active)</label>
                             <div class="stat-box info mt-1">
                                 <div class="value" id="total-ad-budget">$5,500</div>
                             </div>
                         </div>
                         <div class="form-group">
-                            <label>Customer Acquisition Cost</label>
+                            <label class="tooltip-trigger" data-tooltip="Cost to acquire one paying member. Calculated as: CPL ÷ Conversion Rate. Lower is better.">Customer Acquisition Cost</label>
                             <div class="stat-box warning mt-1">
                                 <div class="value" id="cac">$234</div>
                             </div>
@@ -713,17 +808,17 @@
             <div class="card">
                 <div class="card-header">
                     <span class="card-title">📊 Marketing ROI by Studio</span>
-                    <span class="card-subtitle">Return on Ad Spend (ROAS) & LTV:CAC Analysis</span>
+                    <span class="card-subtitle tooltip-trigger" data-tooltip="ROAS = Revenue from ads ÷ Ad spend. LTV:CAC = Lifetime Value ÷ Customer Acquisition Cost.">Return on Ad Spend (ROAS) & LTV:CAC Analysis</span>
                 </div>
                 <div class="grid-4" id="roiCards">
                     <!-- Generated dynamically -->
                 </div>
                 <div class="mt-1" style="font-size: 0.8rem; padding: 0.75rem; background: var(--gray); border-radius: 6px;">
                     <strong>Key Metrics:</strong> 
-                    <span style="color: var(--success);">ROAS > 3x = Excellent</span> | 
+                    <span class="tooltip-trigger" style="color: var(--success);" data-tooltip="Return on Ad Spend: Revenue generated per dollar spent on advertising">ROAS > 3x = Excellent</span> | 
                     <span style="color: #856404;">2-3x = Good</span> | 
                     <span style="color: var(--danger);">< 2x = Review spend</span>.
-                    LTV assumes avg 18-month membership lifespan.
+                    <span class="tooltip-trigger" data-tooltip="Lifetime Value: ARPM × Average membership duration (9 months default)">LTV</span> assumes avg 9-month membership lifespan.
                 </div>
             </div>
 
@@ -760,23 +855,23 @@
                     </div>
                     <div class="stat-box info mb-1">
                         <div class="value" id="break-even-members">80</div>
-                        <div class="label">Avg Members to Break Even</div>
+                        <div class="label tooltip-trigger" data-tooltip="Members needed per studio to cover all fixed costs (rent, utilities, management allocation, ad spend)">Avg Members to Break Even</div>
                     </div>
                     <div class="stat-box warning mb-1">
                         <div class="value" id="break-even-revenue">$12,000</div>
-                        <div class="label">Break-Even Revenue/Studio</div>
+                        <div class="label tooltip-trigger" data-tooltip="Monthly revenue required per studio to cover fixed costs. Break-even members × ARPM.">Break-Even Revenue/Studio</div>
                     </div>
                     <div class="stat-box success mb-1">
                         <div class="value" id="contribution-margin">$92</div>
-                        <div class="label">Contribution / Member</div>
+                        <div class="label tooltip-trigger" data-tooltip="Revenue minus variable costs (labor + commission + fees) per member. What each member contributes toward fixed costs.">Contribution / Member</div>
                     </div>
                     <div class="stat-box mb-1" id="safety-margin-box">
                         <div class="value" id="safety-margin">120%</div>
-                        <div class="label">Safety Margin (Dec)</div>
+                        <div class="label tooltip-trigger" data-tooltip="How far above break-even you are. 100% = at break-even, 150% = 50% buffer. Higher is safer.">Safety Margin (Dec)</div>
                     </div>
                     <div class="stat-box" style="background: var(--gray);">
                         <div class="value" id="avg-fixed-cost">$8,500</div>
-                        <div class="label">Avg Fixed Cost/Studio</div>
+                        <div class="label tooltip-trigger" data-tooltip="Average monthly fixed costs per studio: rent + other fixed + ad spend + management allocation">Avg Fixed Cost/Studio</div>
                     </div>
                 </div>
 
@@ -788,23 +883,23 @@
                     </div>
                     <div class="stat-box mb-1">
                         <div class="value" id="calc-arpm">$158</div>
-                        <div class="label">ARPM (Avg Rev/Member/Mo)</div>
+                        <div class="label tooltip-trigger" data-tooltip="Average Revenue Per Member per Month. Based on hourly rate × session length × sessions/month + retail.">ARPM (Avg Rev/Member/Mo)</div>
                     </div>
                     <div class="stat-box warning mb-1">
                         <div class="value" id="total-fee-pct">12%</div>
-                        <div class="label">Total Fees</div>
+                        <div class="label tooltip-trigger" data-tooltip="Combined percentage: Royalty + Brand Fund + Credit Card Processing + Momence fees">Total Fees</div>
                     </div>
                     <div class="stat-box mb-1">
                         <div class="value" id="total-mgmt-cost">$7,500</div>
-                        <div class="label">Mgmt+Owner/Mo</div>
+                        <div class="label tooltip-trigger" data-tooltip="GM Salary + Owner Draws. Allocated across all active studios.">Mgmt+Owner/Mo</div>
                     </div>
                     <div class="stat-box info mb-1">
                         <div class="value" id="total-rent-display">$12,721</div>
-                        <div class="label">Total Rent</div>
+                        <div class="label tooltip-trigger" data-tooltip="Sum of all studio rents (calculated from Sq Ft × NNN rate ÷ 12)">Total Rent</div>
                     </div>
                     <div class="stat-box">
                         <div class="value" id="total-fixed-display">$22,721</div>
-                        <div class="label">Total Fixed</div>
+                        <div class="label tooltip-trigger" data-tooltip="All fixed costs: Rent + Other Fixed + Ad Spend. Does not include management (shown separately).">Total Fixed</div>
                     </div>
                 </div>
 
@@ -889,19 +984,19 @@
                 <div class="grid-4">
                         <div class="stat-box">
                             <div class="value" id="avg-blended-rate">$18.50</div>
-                            <div class="label">Avg Blended VSP Rate</div>
+                            <div class="label tooltip-trigger" data-tooltip="Weighted average of Stretch Rate (during sessions) and Idle Rate (between sessions), based on utilization">Avg Blended VSP Rate</div>
                         </div>
                         <div class="stat-box info">
                             <div class="value" id="total-capacity">692</div>
-                            <div class="label">Total Portfolio Capacity</div>
+                            <div class="label tooltip-trigger" data-tooltip="Maximum members all studios can serve based on tables, hours, days, and target utilization">Total Portfolio Capacity</div>
                         </div>
                         <div class="stat-box success">
                             <div class="value" id="headroom">+277</div>
-                            <div class="label">Headroom Dec '26</div>
+                            <div class="label tooltip-trigger" data-tooltip="Capacity minus projected members. Positive = room to grow, Negative = over capacity">Headroom Dec '26</div>
                         </div>
                         <div class="stat-box" id="staff-cost-box">
                             <div class="value" id="staff-cost-per-member">$42</div>
-                            <div class="label">Labor Cost/Member/Mo</div>
+                            <div class="label tooltip-trigger" data-tooltip="Average VSP labor cost per member per month, including stretch and idle time">Labor Cost/Member/Mo</div>
                         </div>
                     </div>
                     <div class="grid-4 mt-1">
@@ -1095,7 +1190,7 @@
                 <div class="grid-3">
                     <div class="form-group">
                         <label>I want total portfolio at Dec '26 to be:</label>
-                        <input type="number" id="goal-seek-target" value="450">
+                        <input type="number" inputmode="decimal" autocomplete="off" id="goal-seek-target" value="450">
                     </div>
                     <div class="stat-box info">
                         <div class="value" id="goal-seek-growth">18.2%</div>
@@ -1120,7 +1215,7 @@
                 <div class="grid-4">
                     <div class="slider-group">
                         <label>
-                            <span>Ramp Growth (M1-9)</span>
+                            <span class="tooltip-trigger" data-tooltip="Monthly member growth rate during first 9 months of operation. Higher = faster ramp to target.">Ramp Growth (M1-9)</span>
                             <strong id="rampValue">15.0%</strong>
                         </label>
                         <input type="range" id="rampGrowth" min="5" max="25" value="15" step="0.5">
@@ -1131,7 +1226,7 @@
                     </div>
                     <div class="slider-group">
                         <label>
-                            <span>Maintenance Growth</span>
+                            <span class="tooltip-trigger" data-tooltip="Monthly growth rate after Month 9. Typically lower than ramp as studio matures.">Maintenance Growth</span>
                             <strong id="maintValue">6.0%</strong>
                         </label>
                         <input type="range" id="maintGrowth" min="3" max="15" value="6" step="0.5">
@@ -1142,7 +1237,7 @@
                     </div>
                     <div class="slider-group">
                         <label>
-                            <span>Churn Rate</span>
+                            <span class="tooltip-trigger" data-tooltip="Percentage of members who cancel each month. Applied after new member additions.">Churn Rate</span>
                             <strong id="churnValue">4.0%</strong>
                         </label>
                         <input type="range" id="churnRate" min="1" max="8" value="4" step="0.5">
@@ -1153,7 +1248,7 @@
                     </div>
                     <div class="stat-box info">
                         <div class="value" id="netGrowth">11.0%</div>
-                        <div class="label">Net Ramp Growth</div>
+                        <div class="label tooltip-trigger" data-tooltip="Effective monthly growth after accounting for cancellations. Ramp Growth minus Churn Rate.">Net Ramp Growth</div>
                         <div style="font-size: 0.65rem; color: var(--muted); margin-top: 0.25rem;">Ramp − Churn</div>
                     </div>
                 </div>
@@ -1167,27 +1262,27 @@
                     </div>
                     <div class="form-group">
                         <label>Avg Revenue Per Hour</label>
-                        <input type="number" id="rev-per-hour" value="91" step="1" class="highlight">
+                        <input type="number" inputmode="decimal" autocomplete="off" id="rev-per-hour" value="91" step="1" class="highlight">
                         <small class="text-muted">$ charged per session hour</small>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label>Avg Sessions/Member/Month</label>
-                            <input type="number" id="sessions-pm-rev" value="5" step="0.5">
+                            <input type="number" inputmode="decimal" autocomplete="off" id="sessions-pm-rev" value="5" step="0.5">
                         </div>
                         <div class="form-group">
                             <label>Avg Session Length (min)</label>
-                            <input type="number" id="session-length-rev" value="30" step="5">
+                            <input type="number" inputmode="decimal" autocomplete="off" id="session-length-rev" value="30" step="5">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label>Intro Session Price</label>
-                            <input type="number" id="intro-price" value="29" step="1">
+                            <input type="number" inputmode="decimal" autocomplete="off" id="intro-price" value="29" step="1">
                         </div>
                         <div class="form-group">
                             <label>Retail/Add-on Per Member</label>
-                            <input type="number" id="retail-pm" value="15" step="1">
+                            <input type="number" inputmode="decimal" autocomplete="off" id="retail-pm" value="15" step="1">
                         </div>
                     </div>
                 </div>
@@ -1201,19 +1296,19 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>Royalty %</label>
-                            <input type="number" id="fee-royalty" value="7" step="0.5" class="highlight">
+                            <input type="number" inputmode="decimal" autocomplete="off" id="fee-royalty" value="7" step="0.5" class="highlight">
                         </div>
                         <div class="form-group">
                             <label>Brand Fund %</label>
-                            <input type="number" id="fee-brand" value="1.5" step="0.5" class="highlight">
+                            <input type="number" inputmode="decimal" autocomplete="off" id="fee-brand" value="1.5" step="0.5" class="highlight">
                         </div>
                         <div class="form-group">
                             <label>Credit Card %</label>
-                            <input type="number" id="fee-cc" value="2.9" step="0.1">
+                            <input type="number" inputmode="decimal" autocomplete="off" id="fee-cc" value="2.9" step="0.1">
                         </div>
                         <div class="form-group">
                             <label>Momence %</label>
-                            <input type="number" id="fee-momence" value="1" step="0.1">
+                            <input type="number" inputmode="decimal" autocomplete="off" id="fee-momence" value="1" step="0.1">
                         </div>
                     </div>
                     <hr style="margin: 1rem 0; border: none; border-top: 1px solid #eee;">
@@ -1221,29 +1316,29 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>Other Fixed $/Studio/Mo</label>
-                            <input type="number" id="other-fixed-costs" value="2500" step="100">
+                            <input type="number" inputmode="decimal" autocomplete="off" id="other-fixed-costs" value="2500" step="100">
                         </div>
                         <div class="form-group">
                             <label>VSP Commission %</label>
-                            <input type="number" id="vsp-commission" value="5" step="0.5" min="0" max="20">
+                            <input type="number" inputmode="decimal" autocomplete="off" id="vsp-commission" value="5" step="0.5" min="0" max="20">
                         </div>
                         <div class="form-group">
                             <label>Sessions/Member/Mo</label>
-                            <input type="number" id="sessions-pm" value="5" step="0.5">
+                            <input type="number" inputmode="decimal" autocomplete="off" id="sessions-pm" value="5" step="0.5">
                         </div>
                         <div class="form-group">
                             <label>Session Length (min)</label>
-                            <input type="number" id="session-length-fin" value="30" step="5">
+                            <input type="number" inputmode="decimal" autocomplete="off" id="session-length-fin" value="30" step="5">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label>GM Salary</label>
-                            <input type="number" id="gm-salary" value="5500" step="500" class="highlight">
+                            <input type="number" inputmode="decimal" autocomplete="off" id="gm-salary" value="5500" step="500" class="highlight">
                         </div>
                         <div class="form-group">
                             <label>Owner Draws (×2)</label>
-                            <input type="number" id="owner-draws-total" value="2000" step="500" class="highlight">
+                            <input type="number" inputmode="decimal" autocomplete="off" id="owner-draws-total" value="2000" step="500" class="highlight">
                         </div>
                     </div>
                 </div>
@@ -1527,13 +1622,13 @@
                     monthField = `
                         <div class="form-group">
                             <label>Opens In</label>
-                            <select id="${id}-opens">${options}</select>
+                            <select id="${id}-opens" autocomplete="off">${options}</select>
                         </div>`;
                 } else {
                     monthField = `
                         <div class="form-group">
                             <label>Current Month #</label>
-                            <input type="number" id="${id}-month" value="${def.month}">
+                            <input type="number" inputmode="decimal" autocomplete="off" id="${id}-month" value="${def.month}">
                         </div>`;
                 }
                 
@@ -1546,22 +1641,22 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>${isNewStudio ? 'Opening Members' : 'Current Members'}</label>
-                            <input type="number" id="${id}-current" value="${def.current}" class="highlight" min="0">
+                            <input type="number" inputmode="decimal" autocomplete="off" id="${id}-current" value="${def.current}" class="highlight" min="0">
                         </div>
                         ${monthField}
                         <div class="form-group">
                             <label>Month 9 Target</label>
-                            <input type="number" id="${id}-target" value="${def.target}" class="highlight" min="1">
+                            <input type="number" inputmode="decimal" autocomplete="off" id="${id}-target" value="${def.target}" class="highlight" min="1">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label>Square Feet</label>
-                            <input type="number" id="${id}-sqft" value="${def.sqft}" class="highlight" min="100">
+                            <input type="number" inputmode="decimal" autocomplete="off" id="${id}-sqft" value="${def.sqft}" class="highlight" min="100">
                         </div>
                         <div class="form-group">
                             <label>Lease + NNN Rate ($/sf/yr)</label>
-                            <input type="number" id="${id}-nnn" value="${def.nnn}" step="0.01" class="highlight" min="0">
+                            <input type="number" inputmode="decimal" autocomplete="off" id="${id}-nnn" value="${def.nnn}" step="0.01" class="highlight" min="0">
                         </div>
                         <div class="form-group">
                             <label>Monthly Rent</label>
@@ -1573,41 +1668,41 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>Tables</label>
-                            <input type="number" id="${id}-tables" value="${def.tables}" min="1" max="20">
+                            <input type="number" inputmode="decimal" autocomplete="off" id="${id}-tables" value="${def.tables}" min="1" max="20">
                         </div>
                         <div class="form-group">
                             <label>Hours Open/Day</label>
-                            <input type="number" id="${id}-hours" value="${def.hours}" min="1" max="24">
+                            <input type="number" inputmode="decimal" autocomplete="off" id="${id}-hours" value="${def.hours}" min="1" max="24">
                         </div>
                         <div class="form-group">
                             <label>Days Open/Week</label>
-                            <input type="number" id="${id}-days" value="${def.days}" min="1" max="7">
+                            <input type="number" inputmode="decimal" autocomplete="off" id="${id}-days" value="${def.days}" min="1" max="7">
                         </div>
                         <div class="form-group">
-                            <label>Utilization %</label>
-                            <input type="number" id="${id}-util" value="${def.util}" step="5" class="highlight" min="0" max="100">
+                            <label class="tooltip-trigger" data-tooltip="Target % of available table-hours used for sessions. Affects capacity and VSP idle time costs.">Utilization %</label>
+                            <input type="number" inputmode="decimal" autocomplete="off" id="${id}-util" value="${def.util}" step="5" class="highlight" min="0" max="100">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Lead→Intro %</label>
-                            <input type="number" id="${id}-conv-li" value="${def.convLi}" step="1" min="0" max="100">
+                            <label class="tooltip-trigger" data-tooltip="% of leads who book an intro session">Lead→Intro %</label>
+                            <input type="number" inputmode="decimal" autocomplete="off" id="${id}-conv-li" value="${def.convLi}" step="1" min="0" max="100">
                         </div>
                         <div class="form-group">
-                            <label>Intro→Member %</label>
-                            <input type="number" id="${id}-conv-im" value="${def.convIm}" step="1" min="0" max="100">
+                            <label class="tooltip-trigger" data-tooltip="% of intros who convert to paying members">Intro→Member %</label>
+                            <input type="number" inputmode="decimal" autocomplete="off" id="${id}-conv-im" value="${def.convIm}" step="1" min="0" max="100">
                         </div>
                         <div class="form-group">
-                            <label>Ad Spend/Mo</label>
-                            <input type="number" id="${id}-adspend" value="${def.adSpend}" step="100" class="highlight" min="0">
+                            <label class="tooltip-trigger" data-tooltip="Monthly digital advertising budget for this studio (ongoing)">Ad Spend/Mo</label>
+                            <input type="number" inputmode="decimal" autocomplete="off" id="${id}-adspend" value="${def.adSpend}" step="100" class="highlight" min="0">
                         </div>
                         <div class="form-group">
-                            <label>Launch Spend/Mo</label>
-                            <input type="number" id="${id}-adspend-accel" value="${def.adSpendAccel}" step="100" class="highlight" min="0" title="1 month before + first 3 months">
+                            <label class="tooltip-trigger" data-tooltip="Higher ad spend for pre-opening month + first 3 months of operation">Launch Spend/Mo</label>
+                            <input type="number" inputmode="decimal" autocomplete="off" id="${id}-adspend-accel" value="${def.adSpendAccel}" step="100" class="highlight" min="0" title="1 month before + first 3 months">
                             <small class="text-muted" style="font-size: 0.65rem;">Pre-open + M1-3</small>
                         </div>
                         <div class="form-group">
-                            <label>Overall Conv.</label>
+                            <label class="tooltip-trigger" data-tooltip="Lead→Intro × Intro→Member. Overall funnel conversion rate.">Overall Conv.</label>
                             <div class="stat-box info" style="padding: 0.4rem; margin-top: 0.2rem;">
                                 <div class="value" id="${id}-conv" style="font-size: 1.1rem;">${((def.convLi/100) * (def.convIm/100) * 100).toFixed(1)}%</div>
                             </div>
@@ -1615,19 +1710,19 @@
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Cost Per Lead $</label>
-                            <input type="number" id="${id}-cpl" value="${def.costPerLead}" step="1" class="highlight" min="1">
+                            <label class="tooltip-trigger" data-tooltip="Average cost to acquire one lead from ads at this location">Cost Per Lead $</label>
+                            <input type="number" inputmode="decimal" autocomplete="off" id="${id}-cpl" value="${def.costPerLead}" step="1" class="highlight" min="1">
                         </div>
                         <div class="form-group">
-                            <label>VSP Stretch $/hr</label>
-                            <input type="number" id="${id}-vsp-stretch" value="${def.vspStretch}" step="0.5" min="0">
+                            <label class="tooltip-trigger" data-tooltip="Hourly rate paid to VSPs during active stretch sessions">VSP Stretch $/hr</label>
+                            <input type="number" inputmode="decimal" autocomplete="off" id="${id}-vsp-stretch" value="${def.vspStretch}" step="0.5" min="0">
                         </div>
                         <div class="form-group">
-                            <label>VSP Idle $/hr</label>
-                            <input type="number" id="${id}-vsp-idle" value="${def.vspIdle}" step="0.5" min="0">
+                            <label class="tooltip-trigger" data-tooltip="Hourly rate paid to VSPs during downtime between sessions">VSP Idle $/hr</label>
+                            <input type="number" inputmode="decimal" autocomplete="off" id="${id}-vsp-idle" value="${def.vspIdle}" step="0.5" min="0">
                         </div>
                         <div class="form-group">
-                            <label>Blended Rate</label>
+                            <label class="tooltip-trigger" data-tooltip="Weighted avg: (Stretch × Util%) + (Idle × (1-Util%))">Blended Rate</label>
                             <div class="stat-box" style="padding: 0.4rem; margin-top: 0.2rem;">
                                 <div class="value" id="${id}-blended-rate" style="font-size: 1.1rem;">$${((def.vspStretch * def.util/100) + (def.vspIdle * (1 - def.util/100))).toFixed(2)}</div>
                             </div>
@@ -1636,15 +1731,15 @@
                     <div class="grid-3 mt-1">
                         <div class="stat-box" id="${id}-projected-box">
                             <div class="value" id="${id}-projected">--</div>
-                            <div class="label">Projected M9</div>
+                            <div class="label tooltip-trigger" data-tooltip="Projected members at Month 9 of operation based on current growth settings">Projected M9</div>
                         </div>
                         <div class="stat-box">
                             <div class="value" id="${id}-required">--</div>
-                            <div class="label">Required Growth</div>
+                            <div class="label tooltip-trigger" data-tooltip="Monthly growth rate needed to hit M9 target from current members">Required Growth</div>
                         </div>
                         <div class="stat-box" id="${id}-final-box">
                             <div class="value" id="${id}-final">--</div>
-                            <div class="label">Dec '26</div>
+                            <div class="label tooltip-trigger" data-tooltip="Projected members at end of forecast period">Dec '26</div>
                         </div>
                     </div>
                 </div>`;
@@ -1946,11 +2041,38 @@
             const leadsNeeded = Math.ceil(safeDivide(newMembersThisMonth, avgConv, 0));
             setHtml('kpi-leads-needed', leadsNeeded);
 
-            // Update all sections (VSP KPI will be updated in updateOperations)
+            // Lazy tab calculation - only update active tab for performance
+            const activeTab = document.querySelector('.nav-tab.active')?.dataset.tab || 'dashboard';
+            
+            // Dashboard and franchise tabs are always needed for core metrics
             updateDashboard();
-            updateLeadFunnel();
-            updateFinancials();
-            updateOperations();
+            
+            // Update only the active tab (plus dependencies)
+            switch(activeTab) {
+                case 'dashboard':
+                    // Already updated above
+                    break;
+                case 'leads':
+                    updateLeadFunnel();
+                    break;
+                case 'financials':
+                    updateFinancials();
+                    break;
+                case 'operations':
+                    updateOperations();
+                    break;
+                case 'scenarios':
+                    updateScenarios();
+                    break;
+                case 'franchise':
+                    // Franchise tab uses studio cards which are already updated
+                    break;
+            }
+            
+            // Operations must run to calculate staffing for KPI
+            if (activeTab !== 'operations') {
+                updateOperations();
+            }
             
             // Update VSP KPI after operations calculates staffing
             if (projectionData.staffing) {
@@ -1961,7 +2083,43 @@
                 setHtml('kpi-vsp-needed', totalStaff);
             }
             
-            updateScenarios();
+            // Mark other tabs as needing refresh when switched to
+            tabNeedsRefresh = {
+                dashboard: false,
+                leads: activeTab !== 'leads',
+                financials: activeTab !== 'financials',
+                operations: false, // Always calculated for KPI
+                scenarios: activeTab !== 'scenarios',
+                franchise: false
+            };
+        }
+        
+        // Track which tabs need refresh
+        let tabNeedsRefresh = {
+            dashboard: false,
+            leads: true,
+            financials: true,
+            operations: false,
+            scenarios: true,
+            franchise: false
+        };
+        
+        // Refresh tab content when switching tabs
+        function refreshTabIfNeeded(tabName) {
+            if (!tabNeedsRefresh[tabName]) return;
+            
+            switch(tabName) {
+                case 'leads':
+                    updateLeadFunnel();
+                    break;
+                case 'financials':
+                    updateFinancials();
+                    break;
+                case 'scenarios':
+                    updateScenarios();
+                    break;
+            }
+            tabNeedsRefresh[tabName] = false;
         }
 
         function updateStudioCard(id, data, target, startMonth) {
@@ -4073,6 +4231,37 @@
             }
         }
 
+        // ==========================================
+        // DARK MODE
+        // ==========================================
+        let isDarkMode = localStorage.getItem('darkMode') === 'true';
+        
+        function toggleDarkMode() {
+            isDarkMode = !isDarkMode;
+            document.body.classList.toggle('dark-mode', isDarkMode);
+            localStorage.setItem('darkMode', isDarkMode);
+            
+            // Update toggle button icon
+            const btn = document.querySelector('.dark-mode-toggle');
+            if (btn) btn.textContent = isDarkMode ? '☀️' : '🌙';
+            
+            // Update charts for dark mode (redraw with appropriate colors)
+            if (typeof updateAll === 'function') {
+                updateAll();
+            }
+            
+            showSaveNotification(isDarkMode ? 'Dark mode enabled' : 'Light mode enabled');
+        }
+        
+        // Initialize dark mode on page load
+        function initDarkMode() {
+            if (isDarkMode) {
+                document.body.classList.add('dark-mode');
+                const btn = document.querySelector('.dark-mode-toggle');
+                if (btn) btn.textContent = '☀️';
+            }
+        }
+
         function showSaveNotification(msg) {
             const notification = document.createElement('div');
             notification.textContent = msg;
@@ -4302,6 +4491,9 @@
                 document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
                 this.classList.add('active');
                 document.getElementById('tab-' + this.dataset.tab).classList.add('active');
+                
+                // Trigger update for the newly active tab (lazy loading)
+                updateAll();
             });
         });
 
@@ -4391,7 +4583,7 @@
                     options += `<option value="${val}"${selected}>${val}</option>`;
                 }
                 
-                div.innerHTML = `<label>${month}</label><select id="season-${i + 1}">${options}</select>`;
+                div.innerHTML = `<label>${month}</label><select id="season-${i + 1}" autocomplete="off">${options}</select>`;
                 container.appendChild(div);
             });
             
@@ -4411,6 +4603,7 @@
 
         // Initialize table headers and update
         regenerateTableHeaders();
+        initDarkMode();
         updateAll();
 
         // Show loaded notification if settings were restored
