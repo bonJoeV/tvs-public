@@ -1,297 +1,201 @@
-# The Vital Stretch Analytics Dashboard
+# TVS Franchisee Command Center
 
-**Version:** v2.20251115.11 | **Single-page HTML dashboard for franchise analytics**
+A comprehensive financial modeling and operations dashboard for The Vital Stretch franchise owners. Built as a single-file HTML application with no external dependencies (except Chart.js CDN).
 
----
+## Overview
 
-## 🎯 What Is This?
+This dashboard enables franchise operators to:
+- Project member growth across multiple studio locations
+- Model P&L scenarios with customizable assumptions
+- Track VSP (Vital Stretch Practitioner) staffing requirements
+- Generate clean reports for SBA loan presentations
+- Compare what-if scenarios for business planning
 
-A powerful analytics dashboard for The Vital Stretch franchises that runs entirely in your browser. No installation, no servers, complete privacy.
+## Features
 
-### Key Features
-- 📊 8 comprehensive analytical tabs
-- 💰 Complete financial tracking (revenue, labor, profitability)
-- 👥 Advanced client segmentation with downloadable lists
-- 📈 Goal tracking & performance monitoring
-- 🎯 VSP conversion rates & utilization metrics
-- 🗺️ Location-specific appointment heatmaps
-- 🎨 Colorblind-friendly performance indicators
-- 📥 CSV exports for any data view
-- 🔒 Complete privacy - your data never leaves your computer
+### 📊 Dashboard Tab
+- **Portfolio KPIs**: Total members, projected growth, revenue metrics
+- **Studio Status Cards**: Visual health indicators per location
+- **Growth Trajectory Chart**: Multi-studio member projections over time
+- **Performance Benchmarks**: Compare against industry standards
 
----
+### 💰 Financials Tab
+- **Revenue & Contribution Margin Table**: Monthly or Quarterly view (Q1 CY26 format)
+- **P&L Trajectory Chart**: Visualize revenue, costs, and profit trends
+- **Studio Break-Even Timeline**: When each location reaches profitability
+- **Cash Runway Projections**: Months of runway based on current burn rate
+- **Debt Service Tracking**: Per-studio loan payments integrated into P&L
 
-## 🚀 Quick Start
+### 👥 Operations Tab
+- **VSP Staffing Requirements**: FTE and part-time needs by month
+- **Capacity Analysis**: Headroom calculations per studio
+- **Utilization Tracking**: Blended hourly rates and efficiency metrics
+- **Hiring Alerts**: Advance warnings for staffing needs
 
-### Step 1: Export Data from Momence
+### 📈 Leads & Marketing Tab
+- **Conversion Funnel**: Lead → Intro → Member pipeline
+- **Ad Spend Modeling**: Per-studio marketing budgets
+- **Cost Per Lead Analysis**: Track acquisition costs
+- **Launch Spend**: Accelerated pre-opening marketing
 
-You need **8 data files** from your Momence account:
+### 🎯 Scenarios Tab
+- **Sensitivity Analysis**: Impact of churn, growth, and delays
+- **What-If Modeling**: Test different assumptions
+- **Quick Presets**: Conservative, Moderate, Aggressive scenarios
 
-#### Required Files
+### 🏢 Franchise Tab
+- **Multi-Studio Management**: Add, remove, rename locations
+- **Per-Studio Configuration**: Rent, capacity, staffing, conversion rates
+- **Open Date Planning**: Schedule future studio launches
 
-1. **Membership Sales** → `momence--membership-sales-export.csv`
-   - Report: "Membership sales - A report on membership purchases history"
+## Studio Management
 
-2. **Membership Cancellations** → `momence--membership-sales-export__1_.csv`
-   - Report: "Membership sales" → Cancellations tab
+### Adding Studios
+1. Click **➕ Add New Studio** button
+2. Edit the studio name in the header
+3. Toggle "New" checkbox for future openings
+4. Configure all parameters (sq ft, rent, tables, etc.)
 
-3. **New Leads & Customers** → `momence-new-leads-and-customers.csv`
-   - Report: "New Leads & Customers by join date"
+### Configuring Studios
+Each studio card includes:
+- **Members & Targets**: Current count, Month 9 goal
+- **Facility**: Square footage, NNN lease rate, tables
+- **Operations**: Hours, days, utilization %
+- **Marketing**: Lead→Intro %, Intro→Member %, Ad spend
+- **Staffing**: VSP stretch/idle rates
+- **Debt Service**: Loan amount, rate, term (set to $0 if no loan)
 
-4. **Practitioner Payroll ZIP** → `momence-payroll-report-summary.zip`
-   - Report: "Practitioner Payroll" (includes appointments, time tracking, commissions)
+### Removing Studios
+Click the **✕** button in the studio header (minimum 1 studio required)
 
-5. **Leads Converted Report** → `momence-leads-converted-report.csv`
-   - Report: "Leads converted" or "Lead Conversion Report"
+## Loan Presentation Mode
 
-6. **Appointments Attendance Report** → `momence-appointments-attendance-report-combined.csv`
-   - Report: "Appointments attendance report"
+Click **🏦 Loan View** to enter a clean presentation mode for SBA loan officers:
+- Hides all input controls and editing UI
+- Shows only projections and financial data
+- Automatically switches to Quarterly view
+- Select specific studio(s) to focus the presentation
+- Click **✕ Exit Loan View** to return to editing
 
-7. **Membership Renewals** → `momence-membership-renewals-report.csv`
-   - Report: "Membership renewals report"
+## Multi-Studio Filtering
 
-8. **Frozen Memberships** → `frozen-memberships-report.csv`
-   - Report: "Frozen memberships report"
+Use the studio dropdown to:
+- **Select All**: View combined portfolio metrics
+- **Single Studio**: Focus on one location's projections
+- **Multiple Studios**: Compare subset of locations
 
-💡 **Tip:** Select **LAST 365 Days** for all exports to get comprehensive historical data.
+A banner appears when filtering, showing selected studio(s) details.
 
----
+## Time Horizon
 
-### Step 2: Open & Upload Data
+Adjust the projection period using the dropdown:
+- **13 months**: Short-term view
+- **24 months** (default): Two-year projection (Jan '26 - Dec '27)
+- **36 months**: Extended planning
 
-1. **Open** `vital-stretch-dashboard.html` in your browser
-2. Click **📤 Upload Data** button
-3. Upload your 8 files (drag & drop or click to browse)
-4. Wait for green checkmarks (✅) for each file
-5. Dashboard automatically processes and displays your data
+## Growth Rate Settings
 
-⚠️ **First Time Users:** If you've used an older version, clear your browser cache:
-- **Windows/Linux:** `Ctrl + Shift + R`
-- **Mac:** `Cmd + Shift + R`
+### Ramp Growth (M1-9)
+Monthly growth rate during the initial 9-month ramp period.
+- Industry benchmark: 8-15%
+- Target: 12%+
 
-**Verify Version:** Check footer shows `v2.20251115.11`
+### Maintenance Growth (M9+)
+Monthly growth rate after Month 9.
+- Industry benchmark: 3-6%
+- Target: 5%+
 
----
+### Churn Rate
+Monthly member attrition rate.
+- Industry benchmark: 4-7%
+- Target: <4%
 
-### Step 3: Configure Settings
+### Net Growth Display
+Shows both phases:
+- **M1-9**: Ramp Growth minus Churn
+- **M9+**: Maintenance Growth minus Churn
 
-Click **⚙️ Settings** to configure:
+## Financial Modeling
 
-**Business Settings:**
-- Timezone (for accurate date/time calculations)
-- Franchise Fee (default: 6%)
-- Brand Fund (default: 2%)
-- Credit Card Fees (default: 3%)
+### Revenue Assumptions
+- Average Revenue Per Hour
+- Session length (minutes)
+- Sessions per member per month
+- Retail revenue per member
 
-**Monthly Goals:**
-- Revenue Goal (default: $20,000)
-- Paid Appointments Goal (default: 300)
-- Intro Appointments Goal (default: 50)
+### Cost Structure
+- **Royalty**: Franchise fees (default 6%)
+- **Brand Fund**: Marketing fund (default 2%)
+- **Credit Card Fees**: Payment processing (default 3%)
+- **Momence Fee**: Studio management software (default 1%)
+- **VSP Commission**: Practitioner bonuses
+- **GM Salary**: General manager compensation
+- **Owner Draws**: Owner compensation
 
-**Labor Settings:**
-- Base Hourly Rate (default: $13.00)
+### Debt Service
+Per-studio loan tracking:
+- Enter $0 for locations without loans
+- Automatic monthly payment calculation using standard amortization
+- Integrated into P&L and cash flow projections
 
-Click **Save Settings** - stored locally in your browser.
+## Data Persistence
 
----
+Settings are automatically saved to browser localStorage:
+- All input values
+- Studio configurations
+- Time horizon selection
 
-## 📊 Dashboard Tabs
+Click **Reset** to clear all saved data and return to defaults.
 
-### 1. Overview
-Key metrics at a glance: revenue, appointments, memberships, goals progress, and top-level KPIs.
+## Technical Details
 
-### 2. Timeline
-Historical trends: revenue over time, appointment volume, MRR growth, weekly/monthly comparisons.
+### Architecture
+- **Single HTML file**: No build process required
+- **Vanilla JavaScript**: No framework dependencies
+- **Chart.js**: Visualization library (loaded via CDN)
+- **CSS Variables**: Consistent theming
+- **Responsive Design**: Works on desktop, tablet, and mobile
 
-### 3. VSP Performance
-**Includes Advanced Analytics:**
-- **Conversion Rates Table** - Intro stretch → paid member conversion by VSP/month
-- **Utilization Rates Table** - Table time efficiency (appointment hours / clocked hours)
-- Revenue by VSP, appointments breakdown, unique clients served
-- Color-coded performance indicators (Blue = Excellent, Orange = Good, Purple = Needs Improvement)
+### Browser Support
+- Chrome (recommended)
+- Firefox
+- Safari
+- Edge
 
-### 4. Customers
-Client demographics, visit patterns, customer lifetime value, and advanced segmentation.
+### Print Support
+- Optimized print styles for PDF generation
+- Tables print without scroll constraints
+- Charts resize appropriately
 
-**Advanced Client Segmentation:**
-- 💎 VIP Clients (>$2,500 LTV)
-- ⚠️ At-Risk Clients (45+ days inactive)
-- ❌ Inactive Paid Members
-- 🌱 New Clients (<3 visits)
-- ⚡ High-Frequency Non-Members
+## Color Coding
 
-Each segment includes downloadable contact lists for targeted campaigns.
+- **Blue** (#013160): Primary brand color, headers
+- **Cyan** (#71BED2): Secondary accent, positive trends
+- **Gold** (#FBB514): Highlights, warnings, call-to-action
+- **Green**: Success states, profitable months
+- **Red**: Danger states, losses, alerts
+- **Purple**: Debt service indicators
 
-### 5. Retention
-Churn analysis, cohort retention tracking, membership lifecycle, and retention rate trends.
+## File Structure
 
-### 6. Journey
-Customer lifecycle funnel from lead → customer → member, with conversion metrics at each stage.
+```
+FranchiseOps.html    # Complete application (single file)
+README.md            # This documentation
+```
 
-### 7. Memberships
-Subscription tracking, MRR analysis, membership growth trends, and active member counts.
+## Usage
 
-### 8. Cancellations
-Churn reasons analysis, lost revenue tracking, cancellation trends, and reactivation opportunities.
+1. Open `FranchiseOps.html` in a web browser
+2. Configure your studio parameters in the Franchise tab
+3. Adjust growth assumptions in the Dashboard tab
+4. Review projections across all tabs
+5. Use Loan View for clean presentations
+6. Print to PDF as needed
 
-### 9. Leads
-Lead generation tracking, source effectiveness, conversion rates, and lead value analysis.
+## Support
 
-### 10. Schedule
-Appointment timing analysis with **location-specific heatmaps** showing busiest times by day/hour.
-
----
-
-## 📈 Key Metrics Explained
-
-**Financial Metrics:**
-- **Total Revenue** - All income from appointments and memberships
-- **Labor Costs** - VSP pay + non-appointment hours × base rate
-- **Gross Profit** - Revenue - Labor Costs
-- **Net Profit** - Gross Profit - Franchise Fees - Brand Fund - CC Fees
-- **MRR** - Monthly Recurring Revenue from active subscriptions
-
-**Customer Metrics:**
-- **Customer LTV** - Lifetime value per customer
-- **Churn Rate** - % of members who cancel
-- **Retention Rate** - % of customers retained period-over-period
-- **Conversion Rate** - % of leads who become customers
-
-**VSP Metrics:**
-- **Conversion Rate** - % of intro stretches that become paid members (Target: 50%+)
-- **Utilization Rate** - Appointment hours / clocked hours (Target: 60%+)
-- **Revenue per Hour** - Efficiency metric
-- **Appointments per VSP** - Workload distribution
-
----
-
-## 🎯 Best Practices
-
-### Weekly Routine (15 minutes)
-1. Export fresh data from Momence
-2. Upload to dashboard
-3. Review goal progress in Overview tab
-4. Check VSP Performance Analytics
-5. Review At-Risk clients segment
-6. Export segments for outreach campaigns
-
-### Monthly Review (1 hour)
-1. Analyze full month trends in Timeline
-2. Review VSP conversion & utilization rates
-3. Check Retention & Cancellations tabs
-4. Compare to previous periods
-5. Export all client segments for campaigns
-6. Adjust next month's goals in Settings
-
-### Quarterly Planning
-1. Identify seasonal patterns in Timeline
-2. Review location performance in Schedule heatmaps
-3. Analyze customer journey funnel
-4. Plan marketing campaigns based on lead sources
-5. Set strategic goals for next quarter
-
----
-
-## 🛠️ Troubleshooting
-
-**Dashboard not updating?**
-- Force reload: `Ctrl + Shift + R` (Windows/Linux) or `Cmd + Shift + R` (Mac)
-- Verify footer shows `v2.20251115.11`
-- Clear browser cache completely
-
-**No data showing?**
-- Verify all 8 required files uploaded successfully
-- Look for green checkmarks (✅) on each file
-- Check browser console (F12) for error messages
-- Try refreshing page and re-uploading
-
-**VSP Analytics showing weird dates?**
-- Dashboard automatically filters future dates
-- Check that Momence exports don't include test data
-- Verify appointment dates are in correct format
-
-**Can't export segments?**
-- Disable pop-up blocker for this page
-- Check browser's download settings
-- Try different browser (Chrome recommended)
-
-**Performance issues?**
-- Reduce date range to smaller period
-- Filter to single location
-- Close other browser tabs
-- Use Chrome or Edge for best performance
+For questions about The Vital Stretch franchise operations, contact your franchise support team.
 
 ---
 
-## 🔒 Privacy & Security
-
-✅ **Your data never leaves your computer** - All processing happens in your browser  
-✅ **No server connection required** - Works completely offline  
-✅ **No login required** - Just open and use  
-✅ **No tracking or analytics** - Zero data collection  
-✅ **Local storage only** - Settings saved in your browser  
-
----
-
-## 💻 System Requirements
-
-**Browser:** Chrome 90+, Firefox 88+, Safari 14+, Edge 90+  
-**Operating System:** Windows, macOS, Linux  
-**Internet:** Only needed to download dashboard file (once)  
-**Storage:** ~2MB for dashboard file + your CSV files  
-
-**Not Supported:**
-- Internet Explorer (any version)
-- Very old mobile browsers
-
----
-
-## 🆕 What's New in v2.20251115.11
-
-### VSP Performance Analytics
-- 📊 Moved to prominent position at top of VSP tab
-- 📊 Added conversion rate tracking (intro → paid member by month)
-- ⏱️ Added utilization rate tracking (table time efficiency by month)
-- 🎨 Implemented colorblind-friendly color scheme (Blue-Orange-Purple)
-- 💡 Added detailed hover tooltips for all metrics
-- 🔮 Automatic filtering of future dates
-
-### Design Improvements
-- Color-coded performance levels with maximum distinction
-- Professional table layouts with clear legends
-- Enhanced mobile responsiveness
-- Improved chart readability
-
-### Bug Fixes
-- Fixed future date filtering in analytics
-- Improved conversion rate calculations
-- Enhanced utilization rate accuracy
-- Better handling of missing data
-
----
-
-## 📖 Need More Details?
-
-For comprehensive documentation including:
-- Detailed data requirements and field mappings
-- In-depth metric calculations and formulas
-- Advanced use cases and workflows
-- Marketing campaign templates
-- Data validation tips
-
-See **README-Detailed.md**
-
----
-
-## 📞 Support
-
-For questions or support:
-- Contact your franchise administrator
-- Check README-Detailed.md for technical details
-- Review browser console (F12) for error messages
-
----
-
-**Thank you for using The Vital Stretch Analytics Dashboard!**
-
-*Version v2.20251115.11 | Created with ❤️ by bonJoeV for The Vital Stretch Franchise*
+*Built for The Vital Stretch franchise system*
