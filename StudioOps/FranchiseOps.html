@@ -102,6 +102,8 @@
         .studio-header.minnetonka { background: linear-gradient(135deg, var(--blue), var(--cyan)); }
         .studio-header h3 { font-family: 'Yeseva One', serif; font-size: 1rem; flex: 1; }
         .studio-badge { font-size: 0.7rem; padding: 0.2rem 0.5rem; background: rgba(255,255,255,0.2); border-radius: 10px; }
+        .remove-studio-btn { transition: all 0.2s ease; }
+        .remove-studio-btn:hover { background: rgba(220,53,69,0.8) !important; transform: scale(1.1); }
 
         /* Tables */
         .data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
@@ -109,11 +111,14 @@
         .data-table th:first-child { text-align: left; border-radius: 6px 0 0 0; }
         .data-table th:last-child { border-radius: 0 6px 0 0; }
         .data-table td { padding: 0.5rem 0.6rem; border-bottom: 1px solid #eee; text-align: center; }
-        .data-table td:first-child { text-align: left; font-weight: 500; }
+        .data-table td:first-child { text-align: left; font-weight: 500; white-space: nowrap; }
         .data-table tr:hover td { background: rgba(113,190,210,0.1); }
         .data-table .total-row { background: var(--gray); font-weight: 600; }
-        .table-scroll { overflow-x: auto; overflow-y: auto; max-height: 400px; -webkit-overflow-scrolling: touch; }
+        #financeTableQuarterly td, #financeTableQuarterly th { padding: 0.6rem 1rem; min-width: 100px; }
+        #financeTableQuarterly td:first-child { min-width: 200px; }
+        .table-scroll { overflow-x: auto; overflow-y: auto; max-height: 600px; -webkit-overflow-scrolling: touch; }
         .table-scroll table { min-width: max-content; }
+        #financeMonthlyView, #financeQuarterlyView { max-height: none; }
 
         /* Charts & Progress */
         .chart-container { position: relative; height: 280px; }
@@ -171,6 +176,48 @@
         .print-mode .tab-content { display: block !important; margin-bottom: 1.5rem; }
         .print-mode .tab-content::before { content: attr(data-tab-title); display: block; font-family: 'Yeseva One', serif; font-size: 1.25rem; color: var(--blue); margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--blue); }
 
+        /* Studio Filter & Loan Presentation Mode */
+        .studio-filter-container { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.75rem; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 6px; border: 2px solid var(--cyan); }
+        .studio-filter-container label { font-size: 0.75rem; font-weight: 600; color: var(--blue); white-space: nowrap; }
+        .studio-filter-container select { padding: 0.4rem 0.6rem; border: 2px solid var(--cyan); border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; background: white; color: var(--blue); }
+        .studio-filter-container select:focus { outline: none; border-color: var(--blue); }
+        
+        /* Multi-select dropdown */
+        .studio-multiselect { position: relative; }
+        .studio-multiselect-display { padding: 0.4rem 0.6rem; border: 2px solid var(--cyan); border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; background: white; color: var(--blue); min-width: 140px; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+        .studio-multiselect-display:hover { border-color: var(--blue); }
+        .dropdown-arrow { font-size: 0.6rem; color: var(--muted); transition: transform 0.2s; }
+        .studio-multiselect.open .dropdown-arrow { transform: rotate(180deg); }
+        .studio-multiselect-dropdown { display: none; position: absolute; top: 100%; left: 0; margin-top: 4px; background: white; border: 2px solid var(--cyan); border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; min-width: 180px; padding: 0.5rem 0; }
+        .studio-multiselect.open .studio-multiselect-dropdown { display: block; }
+        .studio-checkbox-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.75rem; cursor: pointer; font-size: 0.8rem; transition: background 0.15s; }
+        .studio-checkbox-item:hover { background: var(--gray); }
+        .studio-checkbox-item input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--blue); }
+        .studio-checkbox-divider { height: 1px; background: var(--border); margin: 0.25rem 0; }
+        
+        .loan-presentation-btn { padding: 0.4rem 0.75rem; background: linear-gradient(135deg, var(--gold) 0%, #f0a000 100%); color: var(--blue); border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 700; transition: all 0.2s; }
+        .loan-presentation-btn:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(251, 181, 20, 0.4); }
+        .loan-presentation-btn.active { background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white; }
+        
+        /* Loan Presentation Mode Styles */
+        .loan-mode .page-title::after { content: ' — Loan Presentation'; color: var(--gold); }
+        .loan-mode .nav-tabs { display: none; }
+        .loan-mode #tab-dashboard, .loan-mode #tab-financials, .loan-mode #tab-operations { display: block !important; }
+        .loan-mode #tab-leads, .loan-mode #tab-scenarios, .loan-mode #tab-franchise { display: none !important; }
+        .loan-mode .form-group, .loan-mode .slider-group, .loan-mode #whatIfButtonsContainer, .loan-mode #presetContainer { display: none !important; }
+        .loan-mode .whatif-btn { display: none !important; }
+        .loan-mode .card { page-break-inside: avoid; }
+        .loan-mode #studioCardsContainer { display: none !important; }
+        .loan-mode .studio-filter-container { background: linear-gradient(135deg, var(--gold) 0%, #ffc93c 100%); border-color: var(--blue); }
+        .loan-mode .studio-filter-container label { color: var(--blue); }
+        .loan-mode #financeViewToggle { display: none; }
+        
+        /* Single Studio Indicator */
+        .single-studio-banner { display: none; background: linear-gradient(135deg, var(--cyan) 0%, var(--blue) 100%); color: white; padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1rem; text-align: center; font-weight: 600; }
+        .single-studio-banner .studio-name { font-family: 'Yeseva One', serif; font-size: 1.25rem; }
+        .single-studio-banner .studio-details { font-size: 0.85rem; opacity: 0.9; margin-top: 0.25rem; }
+        .filtered-mode .single-studio-banner { display: block; }
+        
         /* Print Styles */
         @media print {
             body { background: white; font-size: 11pt; }
@@ -190,6 +237,9 @@
             .form-row { display: none !important; }
             /* Show values only */
             .stat-box, .kpi-item { display: block !important; }
+            /* Tables print fully */
+            .table-scroll { max-height: none !important; overflow: visible !important; }
+            .data-table { font-size: 9pt; }
             @page { margin: 0.5in; }
         }
 
@@ -258,7 +308,7 @@
             .form-row { grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
             .data-table { font-size: 0.75rem; }
             .data-table th, .data-table td { padding: 0.4rem; }
-            .table-scroll { max-height: 300px; }
+            .table-scroll { max-height: 500px; }
             .whatif-btn { padding: 0.35rem 0.5rem; font-size: 0.7rem; }
             .nav-tabs { padding: 0.35rem; gap: 0.15rem; }
             .nav-tab { padding: 0.5rem 0.75rem; font-size: 0.75rem; }
@@ -503,15 +553,50 @@
 
     <main class="main-container">
         <div class="page-header">
-            <h1 class="page-title">Twin Cities Command Center</h1>
+            <h1 class="page-title">TVS Franchisee Command Center</h1>
             <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                <!-- Studio Filter for Loan Presentations - Multi-Select -->
+                <div class="studio-filter-container">
+                    <label>📍 Studios:</label>
+                    <div class="studio-multiselect" id="studioMultiselect">
+                        <div class="studio-multiselect-display" onclick="toggleStudioDropdown()">
+                            <span id="studioFilterText">All Studios</span>
+                            <span class="dropdown-arrow">▼</span>
+                        </div>
+                        <div class="studio-multiselect-dropdown" id="studioDropdown">
+                            <label class="studio-checkbox-item">
+                                <input type="checkbox" id="chk-all" onchange="toggleAllStudios(this.checked)" checked>
+                                <span>Select All</span>
+                            </label>
+                            <div class="studio-checkbox-divider"></div>
+                            <label class="studio-checkbox-item">
+                                <input type="checkbox" class="studio-chk" value="eden" onchange="updateStudioFilter()" checked>
+                                <span style="border-left: 3px solid #013160; padding-left: 6px;">Eden Prairie</span>
+                            </label>
+                            <label class="studio-checkbox-item">
+                                <input type="checkbox" class="studio-chk" value="savage" onchange="updateStudioFilter()" checked>
+                                <span style="border-left: 3px solid #71BED2; padding-left: 6px;">Savage</span>
+                            </label>
+                            <label class="studio-checkbox-item">
+                                <input type="checkbox" class="studio-chk" value="slp" onchange="updateStudioFilter()" checked>
+                                <span style="border-left: 3px solid #FBB514; padding-left: 6px;">St Louis Park</span>
+                            </label>
+                            <label class="studio-checkbox-item">
+                                <input type="checkbox" class="studio-chk" value="minnetonka" onchange="updateStudioFilter()" checked>
+                                <span style="border-left: 3px solid #4A90A4; padding-left: 6px;">Minnetonka</span>
+                            </label>
+                        </div>
+                    </div>
+                    <button class="loan-presentation-btn" id="loanModeBtn" onclick="toggleLoanMode()" title="Clean view for loan officers">🏦 Loan View</button>
+                </div>
+                <span class="last-updated">|</span>
                 <!-- Time Horizon -->
                 <div style="display: flex; align-items: center; gap: 0.5rem;">
                     <label style="font-size: 0.8rem; color: var(--muted);">Horizon:</label>
                     <select id="timeHorizon" onchange="changeTimeHorizon(this.value)" autocomplete="off" style="padding: 0.4rem 0.5rem; border: 2px solid var(--border); border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer;">
                         <option value="13">13 Mo (Dec '26)</option>
-                        <option value="25">25 Mo (Dec '27)</option>
-                        <option value="37">37 Mo (Dec '28)</option>
+                        <option value="24" selected>24 Mo (Nov '27)</option>
+                        <option value="36">36 Mo (Nov '28)</option>
                     </select>
                 </div>
                 <span class="last-updated">|</span>
@@ -526,6 +611,12 @@
                 <button onclick="saveSettings()" style="padding: 0.4rem 0.75rem; background: var(--blue); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem;">💾 Save</button>
                 <button onclick="resetSettings()" style="padding: 0.4rem 0.75rem; background: #dc3545; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem;">🔄 Reset</button>
             </div>
+        </div>
+        
+        <!-- Single Studio Banner (shown when filtered) -->
+        <div class="single-studio-banner" id="singleStudioBanner">
+            <div class="studio-name" id="bannerStudioName">Eden Prairie</div>
+            <div class="studio-details" id="bannerStudioDetails">Financial Projections & Growth Analysis</div>
         </div>
 
         <!-- Navigation with Settings Banner -->
@@ -601,7 +692,7 @@
                 <!-- Growth Chart -->
                 <div class="card">
                     <div class="card-header">
-                        <span class="card-title">Portfolio Growth Trajectory</span>
+                        <span class="card-title">Paid Members</span>
                     </div>
                     <div class="chart-container">
                         <canvas id="dashGrowthChart"></canvas>
@@ -661,14 +752,6 @@
                         <canvas id="cashRunwayChart"></canvas>
                     </div>
                 </div>
-            </div>
-
-            <!-- Break-even Timeline - Full Width -->
-            <div class="card">
-                <div class="card-header">
-                    <span class="card-title">Break-Even Progress</span>
-                </div>
-                <div id="breakEvenBars"></div>
             </div>
 
             <!-- Performance vs Benchmarks -->
@@ -906,28 +989,37 @@
                         <div class="value" id="total-fixed-display">$22,721</div>
                         <div class="label tooltip-trigger" data-tooltip="All fixed costs: Rent + Other Fixed + Ad Spend. Does not include management (shown separately).">Total Fixed</div>
                     </div>
-                </div>
-
-                <!-- Break-Even Bars -->
-                <div class="card">
-                    <div class="card-header">
-                        <span class="card-title">Break-Even Progress by Studio</span>
+                    <div class="stat-box" style="background: linear-gradient(135deg, #f3e8ff 0%, #ede4ff 100%); border-left: 3px solid #6f42c1;">
+                        <div class="value" id="total-debt-display" style="color: #6f42c1;">$0</div>
+                        <div class="label">💳 Debt Service/Mo</div>
+                        <div id="debt-per-studio" style="font-size: 0.7rem; color: var(--muted); margin-top: 0.25rem;"></div>
                     </div>
-                    <div id="breakEvenBarsFinancials"></div>
                 </div>
             </div>
 
             <!-- Revenue Table -->
             <div class="card">
-                <div class="card-header">
-                    <span class="card-title">Monthly Revenue & Contribution Margin</span>
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span class="card-title">Revenue & Contribution Margin</span>
+                    <select id="financeViewToggle" onchange="toggleFinanceView(this.value)" style="padding: 0.3rem 0.5rem; border: 1px solid var(--border); border-radius: 4px; font-size: 0.8rem;">
+                        <option value="monthly">Monthly</option>
+                        <option value="quarterly">Quarterly</option>
+                    </select>
                 </div>
-                <div class="table-scroll">
+                <div id="financeMonthlyView" class="table-scroll">
                     <table class="data-table" id="financeTable">
                         <thead id="financeTableHead">
                             <!-- Generated dynamically -->
                         </thead>
                         <tbody id="financeTableBody"></tbody>
+                    </table>
+                </div>
+                <div id="financeQuarterlyView" class="table-scroll" style="display: none;">
+                    <table class="data-table" id="financeTableQuarterly">
+                        <thead id="financeTableHeadQuarterly">
+                            <!-- Generated dynamically -->
+                        </thead>
+                        <tbody id="financeTableBodyQuarterly"></tbody>
                     </table>
                 </div>
             </div>
@@ -1231,10 +1323,15 @@
                     </div>
                     <div class="slider-group">
                         <label>
+<<<<<<< Updated upstream
                             <span class="tooltip-trigger" data-tooltip="Monthly growth rate after Month 9. Typically lower than ramp as studio matures.">Maintenance Growth</span>
                             <strong id="maintValue">6.0%</strong>
+=======
+                            <span>Maintenance Growth</span>
+                            <strong id="maintValue">5.0%</strong>
+>>>>>>> Stashed changes
                         </label>
-                        <input type="range" id="maintGrowth" min="3" max="15" value="6" step="0.5">
+                        <input type="range" id="maintGrowth" min="3" max="15" value="5" step="0.5" oninput="updateAll()">
                         <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--muted); margin-top: 0.25rem;">
                             <span>Industry: 3-6%</span>
                             <span style="color: var(--success);">Target: 5%+</span>
@@ -1252,9 +1349,24 @@
                         </div>
                     </div>
                     <div class="stat-box info">
+<<<<<<< Updated upstream
                         <div class="value" id="netGrowth">11.0%</div>
                         <div class="label tooltip-trigger" data-tooltip="Effective monthly growth after accounting for cancellations. Ramp Growth minus Churn Rate.">Net Ramp Growth</div>
                         <div style="font-size: 0.65rem; color: var(--muted); margin-top: 0.25rem;">Ramp − Churn</div>
+=======
+                        <div style="display: flex; gap: 1rem; justify-content: center;">
+                            <div style="text-align: center;">
+                                <div class="value" id="netGrowthRamp" style="font-size: 1.1rem;">11.0%</div>
+                                <div style="font-size: 0.65rem; color: var(--muted);">M1-9</div>
+                            </div>
+                            <div style="border-left: 1px solid var(--border);"></div>
+                            <div style="text-align: center;">
+                                <div class="value" id="netGrowthMaint" style="font-size: 1.1rem;">1.0%</div>
+                                <div style="font-size: 0.65rem; color: var(--muted);">M9+</div>
+                            </div>
+                        </div>
+                        <div class="label">Net Growth (−Churn)</div>
+>>>>>>> Stashed changes
                     </div>
                 </div>
             </div>
@@ -1436,49 +1548,75 @@
         // ==========================================
         // 🏢 STUDIO CONFIGURATION - Edit studio defaults here
         // ==========================================
-        const STUDIO_IDS = ['eden', 'savage', 'slp', 'minnetonka'];
-        const STUDIO_NAMES = { eden: 'Eden Prairie', savage: 'Savage', slp: 'St Louis Park', minnetonka: 'Minnetonka' };
-        const STUDIO_COLORS = { eden: '#013160', savage: '#71BED2', slp: '#FBB514', minnetonka: '#4A90A4' };
+        let STUDIO_IDS = ['eden', 'savage', 'slp', 'minnetonka'];
+        let STUDIO_NAMES = { eden: 'Eden Prairie', savage: 'Savage', slp: 'St Louis Park', minnetonka: 'Minnetonka' };
+        let STUDIO_COLORS = { eden: '#013160', savage: '#71BED2', slp: '#FBB514', minnetonka: '#4A90A4' };
+        const COLOR_PALETTE = ['#013160', '#71BED2', '#FBB514', '#4A90A4', '#28a745', '#dc3545', '#6f42c1', '#fd7e14', '#20c997', '#e83e8c'];
         
-        const DEFAULTS = {
+        // Generate open date options (every 3 months starting Jan 2026, 10 options)
+        function generateOpenDateOptions() {
+            const options = [];
+            const startDate = new Date(2026, 0, 1); // Jan 2026
+            for (let i = 0; i < 10; i++) {
+                const date = new Date(startDate);
+                date.setMonth(startDate.getMonth() + (i * 3));
+                const monthName = date.toLocaleString('default', { month: 'short' });
+                const year = date.getFullYear();
+                // Value is the month index in projection (1-indexed for opens)
+                const opensValue = (i * 3) + 1; // 1, 4, 7, 10, 13, 16, 19, 22, 25, 28
+                options.push({ value: opensValue, label: `${monthName} ${year}` });
+            }
+            return options;
+        }
+        const OPEN_DATE_OPTIONS = generateOpenDateOptions();
+        
+        let studioIdCounter = 5; // For generating unique IDs
+        
+        let DEFAULTS = {
             studios: {
                 eden: {
+                    name: 'Eden Prairie',
                     current: 63, month: 6, target: 105,
                     sqft: 1335, nnn: 26.62,
                     tables: 5, hours: 12, days: 6, util: 55,
-                    convLi: 25, convIm: 40, adSpend: 1000, adSpendAccel: 3500,  // Established: 25% × 40% = 10%
-                    costPerLead: 26, vspStretch: 24, vspIdle: 14,  // Per-studio rates
-                    badge: 'Opened Jul 2025', headerClass: 'eden',
-                    initialStaff: { fte: 2, pt: 2 }
+                    convLi: 25, convIm: 40, adSpend: 1000, adSpendAccel: 3500,
+                    costPerLead: 26, vspStretch: 24, vspIdle: 14,
+                    isNew: false, opens: 0,
+                    initialStaff: { fte: 2, pt: 2 },
+                    loanAmount: 0, loanRate: 9.0, loanTermMonths: 60
                 },
                 savage: {
+                    name: 'Savage',
                     current: 23, month: 2, target: 112,
                     sqft: 1262, nnn: 39.99,
                     tables: 4, hours: 12, days: 5, util: 60,
-                    convLi: 26, convIm: 45, adSpend: 2000, adSpendAccel: 3500,  // Newer: 22% × 38% = 8.4%
-                    costPerLead: 24, vspStretch: 23, vspIdle: 13,  // Per-studio rates
-                    badge: 'Opened Nov 2025', headerClass: 'savage',
-                    initialStaff: { fte: 2, pt: 2 }
+                    convLi: 26, convIm: 45, adSpend: 2000, adSpendAccel: 3500,
+                    costPerLead: 24, vspStretch: 23, vspIdle: 13,
+                    isNew: false, opens: 0,
+                    initialStaff: { fte: 2, pt: 2 },
+                    loanAmount: 0, loanRate: 9.0, loanTermMonths: 84
                 },
                 slp: {
-                    current: 25, month: 0, target: 125, opens: 3,
+                    name: 'St Louis Park',
+                    current: 25, month: 0, target: 125, opens: 4,
                     sqft: 1547, nnn: 51.00,
                     tables: 5, hours: 12, days: 6, util: 50,
-                    convLi: 22, convIm: 40, adSpend: 3000, adSpendAccel: 5000,  // New: 20% × 35% = 7%
-                    costPerLead: 22, vspStretch: 23, vspIdle: 13,  // Per-studio rates (new market)
-                    badge: 'Opens Mar 2026', headerClass: 'slp',
-                    opensOptions: [{v:1,t:'Jan 2026'},{v:2,t:'Feb 2026'},{v:3,t:'Mar 2026',s:true},{v:4,t:'Apr 2026'},{v:5,t:'May 2026'}],
-                    initialStaff: { fte: 1, pt: 2 }
+                    convLi: 22, convIm: 40, adSpend: 3000, adSpendAccel: 5000,
+                    costPerLead: 22, vspStretch: 23, vspIdle: 13,
+                    isNew: true,
+                    initialStaff: { fte: 1, pt: 2 },
+                    loanAmount: 125000, loanRate: 9.0, loanTermMonths: 120
                 },
                 minnetonka: {
-                    current: 25, month: 0, target: 105, opens: 5,
+                    name: 'Minnetonka',
+                    current: 25, month: 0, target: 105, opens: 7,
                     sqft: 1247, nnn: 41.39,
                     tables: 5, hours: 12, days: 6, util: 50,
-                    convLi: 22, convIm: 40, adSpend: 3000, adSpendAccel: 5000,  // New: 20% × 35% = 7%
-                    costPerLead: 21, vspStretch: 23, vspIdle: 13,  // Per-studio rates (new market)
-                    badge: 'Opens May 2026', headerClass: 'minnetonka',
-                    opensOptions: [{v:3,t:'Mar 2026'},{v:4,t:'Apr 2026'},{v:5,t:'May 2026',s:true},{v:6,t:'Jun 2026'}],
-                    initialStaff: { fte: 1, pt: 2 }
+                    convLi: 22, convIm: 40, adSpend: 3000, adSpendAccel: 5000,
+                    costPerLead: 21, vspStretch: 23, vspIdle: 13,
+                    isNew: true,
+                    initialStaff: { fte: 1, pt: 2 },
+                    loanAmount: 125000, loanRate: 9.0, loanTermMonths: 120
                 }
             },
             growth: {
@@ -1523,17 +1661,17 @@
                              'July', 'August', 'September', 'October', 'November', 'December'];
         const MONTH_ABBREV = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         
-        // Dynamic time horizon - default 13 months (Dec '25 to Dec '26)
-        let timeHorizonMonths = 13;
+        // Dynamic time horizon - default 24 months (Jan '26 to Dec '27)
+        let timeHorizonMonths = 24;
         let months = [];
         let monthNumbers = [];
         
         function generateMonthArrays(numMonths) {
             months = [];
             monthNumbers = [];
-            // Start from Dec 2025 (month 12, year 25)
-            let month = 12;
-            let year = 25;
+            // Start from Jan 2026 (month 1, year 26)
+            let month = 1;
+            let year = 26;
             for (let i = 0; i < numMonths; i++) {
                 months.push(`${MONTH_ABBREV[month - 1]}-${year}`);
                 monthNumbers.push(month);
@@ -1559,6 +1697,7 @@
         let charts = {};
         let projectionData = {};
         
+<<<<<<< Updated upstream
         // Chart update debouncing - prevents excessive redraws
         let chartUpdatePending = false;
         let pendingChartUpdates = new Set();
@@ -1574,6 +1713,140 @@
                 });
             }
         }
+=======
+        // ==========================================
+        // STUDIO FILTER & LOAN PRESENTATION MODE
+        // ==========================================
+        let activeStudioFilters = ['eden', 'savage', 'slp', 'minnetonka']; // Array of selected studio IDs
+        let loanModeActive = false;
+        
+        function getActiveStudios() {
+            // Returns array of studio IDs to display based on filter
+            return activeStudioFilters.length > 0 ? activeStudioFilters : STUDIO_IDS;
+        }
+        
+        function toggleStudioDropdown() {
+            const dropdown = document.getElementById('studioMultiselect');
+            dropdown.classList.toggle('open');
+        }
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            const multiselect = document.getElementById('studioMultiselect');
+            if (multiselect && !multiselect.contains(e.target)) {
+                multiselect.classList.remove('open');
+            }
+            
+            // Handle remove studio button clicks (event delegation)
+            if (e.target.classList.contains('remove-studio-btn')) {
+                const studioId = e.target.dataset.studio;
+                if (studioId) {
+                    removeStudio(studioId);
+                }
+            }
+        });
+        
+        function toggleAllStudios(checked) {
+            const checkboxes = document.querySelectorAll('.studio-chk');
+            checkboxes.forEach(cb => cb.checked = checked);
+            updateStudioFilter();
+        }
+        
+        function updateStudioFilter() {
+            // Get all checked studio checkboxes
+            const checkboxes = document.querySelectorAll('.studio-chk:checked');
+            activeStudioFilters = Array.from(checkboxes).map(cb => cb.value);
+            
+            // Update "Select All" checkbox state
+            const allCheckbox = document.getElementById('chk-all');
+            const totalStudios = document.querySelectorAll('.studio-chk').length;
+            if (allCheckbox) {
+                allCheckbox.checked = activeStudioFilters.length === totalStudios;
+                allCheckbox.indeterminate = activeStudioFilters.length > 0 && activeStudioFilters.length < totalStudios;
+            }
+            
+            // Update display text
+            updateStudioFilterDisplay();
+            
+            // Update banner
+            const body = document.body;
+            if (activeStudioFilters.length === totalStudios || activeStudioFilters.length === 0) {
+                body.classList.remove('filtered-mode');
+                document.getElementById('singleStudioBanner').style.display = 'none';
+            } else {
+                body.classList.add('filtered-mode');
+                const banner = document.getElementById('singleStudioBanner');
+                banner.style.display = 'block';
+                
+                if (activeStudioFilters.length === 1) {
+                    const studioId = activeStudioFilters[0];
+                    document.getElementById('bannerStudioName').textContent = STUDIO_NAMES[studioId];
+                    const def = DEFAULTS.studios[studioId];
+                    const details = def.isNew 
+                        ? `New Location | Target: ${def.target} members by Month 9`
+                        : `Current: ${def.current} members | Target: ${def.target}`;
+                    document.getElementById('bannerStudioDetails').textContent = details;
+                } else {
+                    const names = activeStudioFilters.map(id => STUDIO_NAMES[id]).join(' + ');
+                    document.getElementById('bannerStudioName').textContent = names;
+                    document.getElementById('bannerStudioDetails').textContent = 'Combined Financial Projections & Growth Analysis';
+                }
+            }
+            
+            updateAll();
+            
+            // Show notification
+            const msg = activeStudioFilters.length === totalStudios ? 'Showing all studios' 
+                : activeStudioFilters.length === 0 ? 'No studios selected'
+                : activeStudioFilters.length === 1 ? `Filtered to ${STUDIO_NAMES[activeStudioFilters[0]]}`
+                : `Filtered to ${activeStudioFilters.length} studios`;
+            showSaveNotification(msg);
+        }
+        
+        function toggleLoanMode() {
+            loanModeActive = !loanModeActive;
+            const body = document.body;
+            const btn = document.getElementById('loanModeBtn');
+            const financeToggle = document.getElementById('financeViewToggle');
+            
+            if (loanModeActive) {
+                body.classList.add('loan-mode');
+                btn.classList.add('active');
+                btn.innerHTML = '✕ Exit Loan View';
+                btn.title = 'Exit loan presentation mode';
+                
+                // Force quarterly view in loan mode
+                if (financeToggle) {
+                    financeToggle.value = 'quarterly';
+                    toggleFinanceView('quarterly');
+                }
+                
+                // If all studios selected, prompt to select specific ones
+                if (activeStudioFilters.length === STUDIO_IDS.length) {
+                    showSaveNotification('💡 Select specific studio(s) for loan presentation', 3000);
+                }
+            } else {
+                body.classList.remove('loan-mode');
+                btn.classList.remove('active');
+                btn.innerHTML = '🏦 Loan View';
+                btn.title = 'Clean view for loan officers';
+                
+                // Restore monthly view when exiting loan mode
+                if (financeToggle) {
+                    financeToggle.value = 'monthly';
+                    toggleFinanceView('monthly');
+                }
+            }
+        }
+        
+        function getFilteredTotal() {
+            // Get total members across filtered studios only
+            const studios = getActiveStudios();
+            return months.map((_, i) => 
+                studios.reduce((sum, id) => sum + (projectionData[id]?.[i]?.members || 0), 0)
+            );
+        }
+>>>>>>> Stashed changes
 
         // ==========================================
         // DYNAMIC HTML GENERATION
@@ -1613,11 +1886,22 @@
             const container = document.getElementById('studioCardsContainer');
             if (!container) return;
             
-            container.innerHTML = STUDIO_IDS.map(id => {
+            // Add "Add Studio" button at the top in its own row
+            let html = `
+                <div style="grid-column: 1 / -1; margin-bottom: 0.5rem;">
+                    <button onclick="addStudio()" class="preset-btn" style="padding: 0.5rem 1rem; font-size: 0.9rem;">
+                        ➕ Add New Studio
+                    </button>
+                </div>
+            `;
+            
+            html += STUDIO_IDS.map((id, index) => {
                 const def = DEFAULTS.studios[id];
                 const name = STUDIO_NAMES[id];
-                const isNewStudio = def.opens !== undefined;
+                const isNewStudio = def.isNew;
+                const color = STUDIO_COLORS[id] || COLOR_PALETTE[index % COLOR_PALETTE.length];
                 
+<<<<<<< Updated upstream
                 // Build opens select for new studios
                 let monthField = '';
                 if (isNewStudio) {
@@ -1636,12 +1920,41 @@
                             <input type="number" inputmode="decimal" autocomplete="off" id="${id}-month" value="${def.month}">
                         </div>`;
                 }
+=======
+                // Build open date dropdown for new studios
+                const openDateOptions = OPEN_DATE_OPTIONS.map(opt => 
+                    `<option value="${opt.value}"${def.opens === opt.value ? ' selected' : ''}>${opt.label}</option>`
+                ).join('');
+                
+                const monthField = isNewStudio ? `
+                    <div class="form-group">
+                        <label>Opens</label>
+                        <select id="${id}-opens" onchange="updateStudioOpenDate('${id}', this.value)">${openDateOptions}</select>
+                    </div>` : `
+                    <div class="form-group">
+                        <label>Current Month #</label>
+                        <input type="number" id="${id}-month" value="${def.month}">
+                    </div>`;
+>>>>>>> Stashed changes
                 
                 return `
-                <div class="card">
-                    <div class="studio-header ${def.headerClass}">
-                        <h3>${name}</h3>
-                        <span class="studio-badge">${def.badge}</span>
+                <div class="card" id="studio-card-${id}">
+                    <div class="studio-header" style="background: linear-gradient(135deg, ${color} 0%, ${color}dd 100%);">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1;">
+                            <input type="text" id="${id}-name" value="${name}" 
+                                   onchange="updateStudioName('${id}', this.value)"
+                                   style="background: transparent; border: none; border-bottom: 1px solid rgba(255,255,255,0.5); color: white; font-family: 'Yeseva One', serif; font-size: 1.1rem; padding: 0.25rem; width: 150px;">
+                            <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; color: rgba(255,255,255,0.9); cursor: pointer;">
+                                <input type="checkbox" id="${id}-isnew" ${isNewStudio ? 'checked' : ''} 
+                                       onchange="toggleStudioType('${id}', this.checked)"
+                                       style="width: 14px; height: 14px;">
+                                New
+                            </label>
+                        </div>
+                        <button class="remove-studio-btn" data-studio="${id}" title="Remove studio" 
+                                style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 0.25rem 0.5rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">
+                            ✕
+                        </button>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
@@ -1733,6 +2046,26 @@
                             </div>
                         </div>
                     </div>
+                    <div class="form-row" style="background: #f0f7ff; padding: 0.5rem; border-radius: 6px; margin-top: 0.5rem;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label>💳 Loan Amount</label>
+                            <input type="number" id="${id}-loan-amount" value="${def.loanAmount}" step="1000" class="highlight">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label>Interest Rate %</label>
+                            <input type="number" id="${id}-loan-rate" value="${def.loanRate}" step="0.25" class="highlight">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label>Term (Months)</label>
+                            <input type="number" id="${id}-loan-term" value="${def.loanTermMonths}" step="12">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label>Monthly Payment</label>
+                            <div class="stat-box ${def.loanAmount > 0 ? 'warning' : ''}" style="padding: 0.4rem; margin-top: 0.2rem;">
+                                <div class="value" id="${id}-debt-payment" style="font-size: 1.1rem;">${def.loanAmount > 0 ? '$' + calcMonthlyPayment(def.loanAmount, def.loanRate, def.loanTermMonths).toLocaleString() : '--'}</div>
+                            </div>
+                        </div>
+                    </div>
                     <div class="grid-3 mt-1">
                         <div class="stat-box" id="${id}-projected-box">
                             <div class="value" id="${id}-projected">--</div>
@@ -1744,11 +2077,167 @@
                         </div>
                         <div class="stat-box" id="${id}-final-box">
                             <div class="value" id="${id}-final">--</div>
+<<<<<<< Updated upstream
                             <div class="label tooltip-trigger" data-tooltip="Projected members at end of forecast period">Dec '26</div>
+=======
+                            <div class="label">End Projection</div>
+>>>>>>> Stashed changes
                         </div>
                     </div>
                 </div>`;
             }).join('');
+            
+            container.innerHTML = html;
+            
+            // Re-attach event listeners to new inputs
+            attachStudioCardListeners();
+        }
+        
+        function attachStudioCardListeners() {
+            let saveTimeout;
+            document.querySelectorAll('#studioCardsContainer input, #studioCardsContainer select').forEach(el => {
+                el.addEventListener('input', updateAll);
+                el.addEventListener('change', updateAll);
+                el.addEventListener('change', () => {
+                    clearTimeout(saveTimeout);
+                    saveTimeout = setTimeout(saveSettings, 1000);
+                });
+            });
+        }
+        
+        function updateStudioName(id, newName) {
+            STUDIO_NAMES[id] = newName;
+            DEFAULTS.studios[id].name = newName;
+            updateStudioFilterDropdown();
+            updateAll();
+        }
+        
+        function updateStudioOpenDate(id, value) {
+            DEFAULTS.studios[id].opens = parseInt(value);
+            updateAll();
+        }
+        
+        function toggleStudioType(id, isNew) {
+            DEFAULTS.studios[id].isNew = isNew;
+            if (isNew) {
+                DEFAULTS.studios[id].opens = DEFAULTS.studios[id].opens || 3;
+                DEFAULTS.studios[id].month = 0;
+            } else {
+                DEFAULTS.studios[id].opens = 0;
+                DEFAULTS.studios[id].month = DEFAULTS.studios[id].month || 1;
+            }
+            generateStudioCards();
+            updateAll();
+        }
+        
+        function addStudio() {
+            const newId = 'studio' + studioIdCounter++;
+            const colorIndex = STUDIO_IDS.length % COLOR_PALETTE.length;
+            
+            // Add to arrays
+            STUDIO_IDS.push(newId);
+            STUDIO_NAMES[newId] = 'New Studio';
+            STUDIO_COLORS[newId] = COLOR_PALETTE[colorIndex];
+            
+            // Add default config
+            DEFAULTS.studios[newId] = {
+                name: 'New Studio',
+                current: 25, month: 0, target: 100, opens: 4,
+                sqft: 1200, nnn: 40.00,
+                tables: 4, hours: 12, days: 6, util: 50,
+                convLi: 22, convIm: 40, adSpend: 3000, adSpendAccel: 5000,
+                costPerLead: 22, vspStretch: 23, vspIdle: 13,
+                isNew: true,
+                initialStaff: { fte: 1, pt: 2 },
+                loanAmount: 100000, loanRate: 9.0, loanTermMonths: 120
+            };
+            
+            // Add to filter
+            activeStudioFilters.push(newId);
+            
+            // Regenerate UI
+            generateStudioCards();
+            generateConversionDisplays();
+            generateOpsUtilDisplays();
+            updateStudioFilterDropdown();
+            updateAll();
+            
+            showSaveNotification('Added new studio');
+        }
+        
+        function removeStudio(id) {
+            if (STUDIO_IDS.length <= 1) {
+                showSaveNotification('Cannot remove last studio');
+                return;
+            }
+            
+            if (!confirm(`Remove ${STUDIO_NAMES[id]}? This cannot be undone.`)) return;
+            
+            // Remove from arrays
+            STUDIO_IDS = STUDIO_IDS.filter(s => s !== id);
+            delete STUDIO_NAMES[id];
+            delete STUDIO_COLORS[id];
+            delete DEFAULTS.studios[id];
+            
+            // Remove from filter
+            activeStudioFilters = activeStudioFilters.filter(s => s !== id);
+            if (activeStudioFilters.length === 0) {
+                activeStudioFilters = [...STUDIO_IDS];
+            }
+            
+            // Regenerate UI
+            generateStudioCards();
+            generateConversionDisplays();
+            generateOpsUtilDisplays();
+            updateStudioFilterDropdown();
+            updateAll();
+            
+            showSaveNotification(`Removed ${id}`);
+        }
+        
+        function updateStudioFilterDropdown() {
+            const dropdown = document.getElementById('studioDropdown');
+            if (!dropdown) return;
+            
+            // Rebuild checkboxes
+            let html = `
+                <label class="studio-checkbox-item">
+                    <input type="checkbox" id="chk-all" onchange="toggleAllStudios(this.checked)" ${activeStudioFilters.length === STUDIO_IDS.length ? 'checked' : ''}>
+                    <span>Select All</span>
+                </label>
+                <div class="studio-checkbox-divider"></div>
+            `;
+            
+            html += STUDIO_IDS.map((id, index) => {
+                const color = STUDIO_COLORS[id] || COLOR_PALETTE[index % COLOR_PALETTE.length];
+                const checked = activeStudioFilters.includes(id) ? 'checked' : '';
+                return `
+                    <label class="studio-checkbox-item">
+                        <input type="checkbox" class="studio-chk" value="${id}" onchange="updateStudioFilter()" ${checked}>
+                        <span style="border-left: 3px solid ${color}; padding-left: 6px;">${STUDIO_NAMES[id]}</span>
+                    </label>
+                `;
+            }).join('');
+            
+            dropdown.innerHTML = html;
+            
+            // Update display text
+            updateStudioFilterDisplay();
+        }
+        
+        function updateStudioFilterDisplay() {
+            const displayText = document.getElementById('studioFilterText');
+            if (!displayText) return;
+            
+            if (activeStudioFilters.length === 0) {
+                displayText.textContent = 'None Selected';
+            } else if (activeStudioFilters.length === STUDIO_IDS.length) {
+                displayText.textContent = 'All Studios';
+            } else if (activeStudioFilters.length === 1) {
+                displayText.textContent = STUDIO_NAMES[activeStudioFilters[0]];
+            } else {
+                displayText.textContent = `${activeStudioFilters.length} Studios`;
+            }
         }
         
         function generateConversionDisplays() {
@@ -1809,6 +2298,70 @@
         function formatCurrency(num) {
             if (num >= 1000) return '$' + (num / 1000).toFixed(1) + 'K';
             return '$' + num.toFixed(0);
+        }
+        
+        // Aggregate monthly data into quarters
+        function aggregateToQuarterly(rows) {
+            // Group months into quarters (3 months each)
+            const quarters = [];
+            const labels = [];
+            
+            for (let i = 0; i < months.length; i += 3) {
+                const endIdx = Math.min(i + 3, months.length);
+                quarters.push({ start: i, end: endIdx });
+                
+                // Create quarter label like "Q1 CY26"
+                // months format is "Jan-26", starting Jan 2026
+                // Q1 = Jan-Mar, Q2 = Apr-Jun, Q3 = Jul-Sep, Q4 = Oct-Dec
+                const firstMonthName = months[i].split('-')[0];
+                const year = months[endIdx - 1].split('-')[1]; // "26", "27", etc.
+                const monthToQ = { 'Jan': 1, 'Apr': 2, 'Jul': 3, 'Oct': 4, 'Feb': 1, 'Mar': 1, 'May': 2, 'Jun': 2, 'Aug': 3, 'Sep': 3, 'Nov': 4, 'Dec': 4 };
+                const qNum = monthToQ[firstMonthName] || Math.floor(i / 3) % 4 + 1;
+                labels.push(`Q${qNum} CY${year}`);
+            }
+            
+            return { quarters, labels };
+        }
+        
+        // Aggregate a single row's data into quarterly sums (or last value for member counts)
+        function aggregateRowToQuarterly(data, quarters, useLastValue = false) {
+            return quarters.map(q => {
+                if (useLastValue) {
+                    // For member counts, use end-of-quarter value
+                    return data[q.end - 1] || 0;
+                }
+                // For financial metrics, sum the quarter
+                let sum = 0;
+                for (let i = q.start; i < q.end; i++) {
+                    sum += data[i] || 0;
+                }
+                return sum;
+            });
+        }
+        
+        // Toggle between monthly and quarterly finance view
+        function toggleFinanceView(view) {
+            const monthlyView = document.getElementById('financeMonthlyView');
+            const quarterlyView = document.getElementById('financeQuarterlyView');
+            
+            if (view === 'quarterly') {
+                monthlyView.style.display = 'none';
+                quarterlyView.style.display = 'block';
+            } else {
+                monthlyView.style.display = 'block';
+                quarterlyView.style.display = 'none';
+            }
+        }
+
+        // Calculate monthly loan payment using standard amortization formula
+        function calcMonthlyPayment(principal, annualRate, termMonths) {
+            if (principal <= 0 || termMonths <= 0) return 0;
+            if (annualRate <= 0) return Math.round(principal / termMonths);
+            
+            const monthlyRate = (annualRate / 100) / 12;
+            const payment = principal * (monthlyRate * Math.pow(1 + monthlyRate, termMonths)) / 
+                           (Math.pow(1 + monthlyRate, termMonths) - 1);
+            return Math.round(payment);
         }
 
         // Safe division helper - prevents NaN/Infinity
@@ -1891,7 +2444,8 @@
             setHtml('rampValue', (ramp * 100).toFixed(1) + '%');
             setHtml('maintValue', (maint * 100).toFixed(1) + '%');
             setHtml('churnValue', (churn * 100).toFixed(1) + '%');
-            setHtml('netGrowth', ((ramp - churn) * 100).toFixed(1) + '%');
+            setHtml('netGrowthRamp', ((ramp - churn) * 100).toFixed(1) + '%');
+            setHtml('netGrowthMaint', ((maint - churn) * 100).toFixed(1) + '%');
             
             // Update Performance vs Benchmarks
             // Calculate months to reach 100 members at current ramp rate
@@ -2000,7 +2554,7 @@
             const studioData = {};
             STUDIO_IDS.forEach(id => {
                 const def = DEFAULTS.studios[id];
-                const isNewStudio = def.opens !== undefined;
+                const isNewStudio = def.isNew;
                 const startMonth = isNewStudio ? 1 : getVal(`${id}-month`, def.month);
                 const opensMonth = isNewStudio ? getVal(`${id}-opens`, def.opens) : 0;
                 studioData[id] = calculateStudio(
@@ -2020,25 +2574,31 @@
             // Update studio cards
             STUDIO_IDS.forEach(id => {
                 const def = DEFAULTS.studios[id];
-                const isNewStudio = def.opens !== undefined;
+                const isNewStudio = def.isNew;
                 const startMonth = isNewStudio ? 1 : getVal(`${id}-month`, def.month);
                 updateStudioCard(id, studioData[id], getVal(`${id}-target`, def.target), startMonth);
             });
 
-            // Update KPIs
+            // Update KPIs - use filtered studios
+            const filteredStudios = getActiveStudios();
             const arpm = calcArpm();
             const finalIdx = getFinalMonthIndex();
-            const totalFinal = total[finalIdx];
+            
+            // Calculate filtered totals
+            const filteredTotal = months.map((_, i) => 
+                filteredStudios.reduce((sum, id) => sum + (studioData[id]?.[i]?.members || 0), 0)
+            );
+            const totalFinal = filteredTotal[finalIdx];
             setHtml('kpi-total-dec', totalFinal);
             setHtml('kpi-revenue', formatCurrency(totalFinal * arpm));
 
-            const targetsHit = STUDIO_IDS.filter(id => 
+            const targetsHit = filteredStudios.filter(id => 
                 findMonth9Value(studioData[id]) >= getVal(`${id}-target`, DEFAULTS.studios[id].target)
             ).length;
-            setHtml('kpi-studios-target', targetsHit + '/' + STUDIO_IDS.length);
+            setHtml('kpi-studios-target', targetsHit + '/' + filteredStudios.length);
 
-            // Leads & VSPs - use average conversion for KPI (only open studios)
-            const openStudios = STUDIO_IDS.filter(id => !DEFAULTS.studios[id].opens || getVal(`${id}-month`, 1) > 0);
+            // Leads & VSPs - use average conversion for KPI (only open filtered studios)
+            const openStudios = filteredStudios.filter(id => !DEFAULTS.studios[id].opens || getVal(`${id}-month`, 1) > 0);
             const avgConv = openStudios.length > 0 
                 ? safeDivide(openStudios.reduce((sum, id) => sum + studioConv[id], 0), openStudios.length, 0.07)
                 : 0.07;
@@ -2085,8 +2645,8 @@
             // Update VSP KPI after operations calculates staffing
             if (projectionData.staffing) {
                 const finalIdx = getFinalMonthIndex();
-                const totalStaff = STUDIO_IDS.reduce((sum, id) => {
-                    return sum + (projectionData.staffing[id][finalIdx]?.total || 0);
+                const totalStaff = filteredStudios.reduce((sum, id) => {
+                    return sum + (projectionData.staffing[id]?.[finalIdx]?.total || 0);
                 }, 0);
                 setHtml('kpi-vsp-needed', totalStaff);
             }
@@ -2148,25 +2708,34 @@
         }
 
         function updateDashboard() {
-            // Growth chart - build datasets dynamically
+            const filteredStudios = getActiveStudios();
+            
+            // Growth chart - build datasets for filtered studios only
             if (charts.dashGrowth) charts.dashGrowth.destroy();
             const ctx = document.getElementById('dashGrowthChart')?.getContext('2d');
             if (ctx) {
-                const studioDatasets = STUDIO_IDS.map(id => ({
+                const studioDatasets = filteredStudios.map(id => ({
                     label: STUDIO_NAMES[id],
                     data: projectionData[id].map(d => d.members || null),
                     borderColor: STUDIO_COLORS[id],
                     tension: 0.4,
                     fill: false
                 }));
-                studioDatasets.push({
-                    label: 'Total',
-                    data: projectionData.total,
-                    borderColor: '#28a745',
-                    borderWidth: 3,
-                    tension: 0.4,
-                    fill: false
-                });
+                
+                // Only show total line if multiple studios
+                if (filteredStudios.length > 1) {
+                    const filteredTotal = months.map((_, i) => 
+                        filteredStudios.reduce((sum, id) => sum + (projectionData[id]?.[i]?.members || 0), 0)
+                    );
+                    studioDatasets.push({
+                        label: 'Total',
+                        data: filteredTotal,
+                        borderColor: '#28a745',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: false
+                    });
+                }
                 
                 charts.dashGrowth = new Chart(ctx, {
                     type: 'line',
@@ -2175,12 +2744,12 @@
                 });
             }
 
-            // Revenue chart - Stacked by Studio
+            // Revenue chart - Stacked by filtered studios
             if (charts.dashRevenue) charts.dashRevenue.destroy();
             const revCtx = document.getElementById('dashRevenueChart')?.getContext('2d');
             if (revCtx) {
                 const arpm = calcArpm();
-                const revenueDatasets = STUDIO_IDS.map(id => ({
+                const revenueDatasets = filteredStudios.map(id => ({
                     label: STUDIO_NAMES[id],
                     data: projectionData[id].map(d => (d.members || 0) * arpm),
                     backgroundColor: STUDIO_COLORS[id],
@@ -2208,8 +2777,8 @@
                 });
             }
 
-            // Studio status cards
-            const statusHtml = STUDIO_IDS.map(id => {
+            // Studio status cards - filtered
+            const statusHtml = filteredStudios.map(id => {
                 const data = projectionData[id];
                 const m9 = findMonth9Value(data);
                 const target = getVal(`${id}-target`, DEFAULTS.studios[id].target);
@@ -2226,6 +2795,7 @@
                 `;
             }).join('');
             setHtml('studioStatusCards', statusHtml);
+<<<<<<< Updated upstream
 
             // Break-even bars - use per-studio costs and utilization
             const rents = projectionData.rents || Object.fromEntries(
@@ -2306,6 +2876,8 @@
             }).join('');
             setHtml('breakEvenBars', beHtml);
             setHtml('breakEvenBarsFinancials', beHtml);
+=======
+>>>>>>> Stashed changes
         }
 
         function updateLeadFunnel() {
@@ -2413,7 +2985,7 @@
             
             STUDIO_IDS.forEach(id => {
                 const def = DEFAULTS.studios[id];
-                const isNewStudio = def.opens !== undefined;
+                const isNewStudio = def.isNew;
                 const opensMonth = isNewStudio ? getVal(`${id}-opens`, def.opens) : 0;
                 
                 const cells = studioLeads[id].map((needed, i) => {
@@ -2443,7 +3015,7 @@
             const totalAdBudget = months.map((_, i) => {
                 return STUDIO_IDS.reduce((budget, id) => {
                     const def = DEFAULTS.studios[id];
-                    const isNewStudio = def.opens !== undefined;
+                    const isNewStudio = def.isNew;
                     const opensMonth = isNewStudio ? getVal(`${id}-opens`, def.opens) : 0;
                     const currentMonthNum = projectionData[id][i].monthNum || 0;
                     
@@ -2617,7 +3189,7 @@
             const adSpendRows = STUDIO_IDS.map(id => {
                 const def = DEFAULTS.studios[id];
                 const name = STUDIO_NAMES[id];
-                const isNewStudio = def.opens !== undefined;
+                const isNewStudio = def.isNew;
                 const opensMonth = isNewStudio ? getVal(`${id}-opens`, def.opens) : 0;
                 const currentNormalSpend = adSpend[id];
                 const currentAccelSpend = adSpendAccel[id];
@@ -2691,7 +3263,7 @@
                     } else {
                         // Check if pre-launch
                         const def = DEFAULTS.studios[id];
-                        const isNewStudio = def.opens !== undefined;
+                        const isNewStudio = def.isNew;
                         const opensMonth = isNewStudio ? getVal(`${id}-opens`, def.opens) : 0;
                         if (isNewStudio && i >= opensMonth - 2 && i < opensMonth) {
                             totalRec += adSpendAccel[id];
@@ -2710,7 +3282,7 @@
             const currentBudgetByMonth = months.map((_, i) => {
                 return STUDIO_IDS.reduce((sum, id) => {
                     const def = DEFAULTS.studios[id];
-                    const isNewStudio = def.opens !== undefined;
+                    const isNewStudio = def.isNew;
                     const opensMonth = isNewStudio ? getVal(`${id}-opens`, def.opens) : 0;
                     const currentMonthNum = projectionData[id][i].monthNum || 0;
                     
@@ -2747,6 +3319,8 @@
         }
 
         function updateFinancials() {
+            const filteredStudios = getActiveStudios();
+            
             // Revenue - calculated from hourly rate
             const arpm = calcArpm();
             setHtml('calc-arpm', '$' + Math.round(arpm));
@@ -2766,11 +3340,13 @@
             const sessionLengthMin = getVal('session-length-fin', DEFAULTS.costs.sessionLength);
             const sessionLengthHrs = sessionLengthMin / 60;
 
-            // Management & Owner compensation
+            // Management & Owner compensation - allocated proportionally
             const gmSalary = getVal('gm-salary', DEFAULTS.costs.gmSalary);
             const ownerDraws = getVal('owner-draws-total', DEFAULTS.costs.ownerDrawsTotal);
-            const totalMgmtCost = gmSalary + ownerDraws;
-            setHtml('total-mgmt-cost', '$' + totalMgmtCost.toLocaleString());
+            const totalMgmtCostAll = gmSalary + ownerDraws;
+            // Allocate: (total cost / all studios) * filtered studios
+            const totalMgmtCost = (totalMgmtCostAll / STUDIO_IDS.length) * filteredStudios.length;
+            setHtml('total-mgmt-cost', '$' + Math.round(totalMgmtCost).toLocaleString());
 
             const rents = projectionData.rents || Object.fromEntries(
                 STUDIO_IDS.map(id => [id, DEFAULTS.studios[id].sqft * DEFAULTS.studios[id].nnn / 12])
@@ -2780,6 +3356,25 @@
             );
             const adSpend = projectionData.adSpend || Object.fromEntries(
                 STUDIO_IDS.map(id => [id, DEFAULTS.studios[id].adSpend])
+            );
+            
+            // Get per-studio debt service
+            const debtService = Object.fromEntries(
+                STUDIO_IDS.map(id => {
+                    const def = DEFAULTS.studios[id];
+                    const loanAmount = getVal(`${id}-loan-amount`, def.loanAmount);
+                    const loanRate = getVal(`${id}-loan-rate`, def.loanRate);
+                    const loanTerm = getVal(`${id}-loan-term`, def.loanTermMonths);
+                    const monthlyPayment = calcMonthlyPayment(loanAmount, loanRate, loanTerm);
+                    // Update the display (show -- if no loan)
+                    setHtml(`${id}-debt-payment`, monthlyPayment > 0 ? '$' + monthlyPayment.toLocaleString() : '--');
+                    return [id, monthlyPayment];
+                })
+            );
+            
+            // Calculate total debt service for FILTERED active studios
+            const totalDebtService = months.map((_, i) => 
+                filteredStudios.reduce((sum, id) => sum + (projectionData[id][i].members > 0 ? debtService[id] : 0), 0)
             );
             
             // Get per-studio VSP rates
@@ -2797,20 +3392,20 @@
                 blendedRates[id] = (vspRates[id].stretch * utils[id]) + (vspRates[id].idle * (1 - utils[id]));
             });
 
-            // Calculate total rent for active studios
+            // Calculate total rent for FILTERED active studios
             const totalRent = months.map((_, i) => 
-                STUDIO_IDS.reduce((sum, id) => sum + (projectionData[id][i].members > 0 ? rents[id] : 0), 0)
+                filteredStudios.reduce((sum, id) => sum + (projectionData[id][i].members > 0 ? rents[id] : 0), 0)
             );
 
-            // Calculate total ad spend for active studios
+            // Calculate total ad spend for FILTERED active studios
             // Use accelerated spend for: 1 month before open + first 3 months of operation
             const adSpendAccel = projectionData.adSpendAccel || Object.fromEntries(
                 STUDIO_IDS.map(id => [id, DEFAULTS.studios[id].adSpendAccel || DEFAULTS.studios[id].adSpend])
             );
             const totalAdSpend = months.map((_, i) => {
-                return STUDIO_IDS.reduce((spend, id) => {
+                return filteredStudios.reduce((spend, id) => {
                     const def = DEFAULTS.studios[id];
-                    const isNewStudio = def.opens !== undefined;
+                    const isNewStudio = def.isNew;
                     const opensMonth = isNewStudio ? getVal(`${id}-opens`, def.opens) : 0;
                     const currentMonthNum = projectionData[id][i].monthNum || 0;
                     
@@ -2836,22 +3431,43 @@
                 }, 0);
             });
 
-            // Display total rent for final month
+            // Display total rent for final month (filtered studios only)
             const finalIdx = getFinalMonthIndex();
-            const activeRents = STUDIO_IDS.reduce((sum, id) => 
+            const activeRents = filteredStudios.reduce((sum, id) => 
                 sum + (projectionData[id][finalIdx].members > 0 ? rents[id] : 0), 0
             );
             setHtml('total-rent-display', '$' + activeRents.toLocaleString());
             
             // Display total fixed costs (rent + other fixed + mgmt)
-            const activeStudiosCount = STUDIO_IDS.filter(id => projectionData[id][finalIdx].members > 0).length;
+            const activeStudiosCount = filteredStudios.filter(id => projectionData[id][finalIdx].members > 0).length;
             const totalFixed = activeRents + (activeStudiosCount * otherFixed) + totalMgmtCost;
             setHtml('total-fixed-display', '$' + totalFixed.toLocaleString());
+            
+            // Display debt service summary (hide box if no debt)
+            const activeDebtService = filteredStudios.reduce((sum, id) => 
+                sum + (projectionData[id][finalIdx].members > 0 ? debtService[id] : 0), 0
+            );
+            const debtBox = document.getElementById('total-debt-display')?.closest('.stat-box');
+            if (debtBox) {
+                if (activeDebtService > 0) {
+                    debtBox.style.display = '';
+                    setHtml('total-debt-display', '$' + activeDebtService.toLocaleString());
+                    
+                    // Per-studio debt breakdown
+                    const debtBreakdown = filteredStudios
+                        .filter(id => projectionData[id][finalIdx].members > 0 && debtService[id] > 0)
+                        .map(id => `${STUDIO_NAMES[id].split(' ')[0]}: $${debtService[id].toLocaleString()}`)
+                        .join(' | ');
+                    setHtml('debt-per-studio', debtBreakdown);
+                } else {
+                    debtBox.style.display = 'none';
+                }
+            }
 
-            // Calculate variable costs per studio - separate labor and commission
+            // Calculate variable costs per FILTERED studio - separate labor and commission
             const laborCosts = months.map((_, i) => {
                 let cost = 0;
-                STUDIO_IDS.forEach(id => {
+                filteredStudios.forEach(id => {
                     const members = projectionData[id][i].members;
                     if (members > 0) {
                         const sessionHours = members * sessionsPm * sessionLengthHrs;
@@ -2865,19 +3481,24 @@
                 return cost;
             });
             
+            // Calculate filtered total for commission
+            const filteredTotal = months.map((_, i) => 
+                filteredStudios.reduce((sum, id) => sum + (projectionData[id]?.[i]?.members || 0), 0)
+            );
+            
             const commissionCosts = months.map((_, i) => {
-                return projectionData.total[i] * arpm * vspCommission;
+                return filteredTotal[i] * arpm * vspCommission;
             });
             
             // Combined for calculations
             const varCosts = laborCosts.map((l, i) => l + commissionCosts[i]);
 
-            // Calculate contribution margin using weighted average utilization
-            const avgUtil = STUDIO_IDS.reduce((sum, id) => sum + utils[id], 0) / STUDIO_IDS.length;
+            // Calculate contribution margin using weighted average utilization (filtered studios)
+            const avgUtil = filteredStudios.reduce((sum, id) => sum + utils[id], 0) / filteredStudios.length;
             
-            // Average VSP rates across studios
-            const avgStretch = STUDIO_IDS.reduce((sum, id) => sum + vspRates[id].stretch, 0) / STUDIO_IDS.length;
-            const avgIdle = STUDIO_IDS.reduce((sum, id) => sum + vspRates[id].idle, 0) / STUDIO_IDS.length;
+            // Average VSP rates across filtered studios
+            const avgStretch = filteredStudios.reduce((sum, id) => sum + vspRates[id].stretch, 0) / filteredStudios.length;
+            const avgIdle = filteredStudios.reduce((sum, id) => sum + vspRates[id].idle, 0) / filteredStudios.length;
             
             // Cost per member per month considering utilization + commission
             const sessionHoursPerMember = sessionsPm * sessionLengthHrs;
@@ -2890,11 +3511,19 @@
             const netArpm = arpm * (1 - totalFeePct);
             const contrib = netArpm - totalLaborCostPerMember;
             
+<<<<<<< Updated upstream
             // Average fixed cost per studio (rent + other + ad spend) + management overhead spread across studios
             const avgRent = safeDivide(STUDIO_IDS.reduce((sum, id) => sum + rents[id], 0), STUDIO_IDS.length, 3000);
             const avgAdSpendCalc = safeDivide(STUDIO_IDS.reduce((sum, id) => sum + adSpend[id], 0), STUDIO_IDS.length, 2000);
             const avgFixed = avgRent + otherFixed + avgAdSpendCalc + safeDivide(totalMgmtCost, STUDIO_IDS.length, 2000);
             const breakEven = Math.ceil(safeDivide(avgFixed, contrib, 999));
+=======
+            // Average fixed cost per studio (rent + other + ad spend) + management overhead spread across filtered studios
+            const avgRent = filteredStudios.reduce((sum, id) => sum + rents[id], 0) / filteredStudios.length;
+            const avgAdSpendCalc = filteredStudios.reduce((sum, id) => sum + adSpend[id], 0) / filteredStudios.length;
+            const avgFixed = avgRent + otherFixed + avgAdSpendCalc + (totalMgmtCost / filteredStudios.length);
+            const breakEven = Math.ceil(avgFixed / contrib);
+>>>>>>> Stashed changes
             
             // Break-even revenue per studio
             const breakEvenRevenue = breakEven * arpm;
@@ -2925,7 +3554,7 @@
             setHtml('bench-arpm', '$' + Math.round(arpm));
             
             // Update staff cost per member
-            updateStaffCostPerMember(laborCosts, projectionData.total);
+            updateStaffCostPerMember(laborCosts, filteredTotal);
             
             // Update ARPM badge
             const arpmBadge = document.getElementById('bench-arpm-badge');
@@ -2945,22 +3574,40 @@
                 }
             }
 
-            // Determine active studios per month
+            // Determine active filtered studios per month
             const activeStudios = months.map((_, i) => 
-                STUDIO_IDS.filter(id => projectionData[id][i].members > 0).length
+                filteredStudios.filter(id => projectionData[id][i].members > 0).length
             );
 
-            // Finance table - revenue based on calculated ARPM
-            const grossRevenue = projectionData.total.map(t => t * arpm);
+            // Finance table - revenue based on calculated ARPM using filtered totals
+            const grossRevenue = filteredTotal.map(t => t * arpm);
             const feesCosts = grossRevenue.map(r => r * totalFeePct);
             const netRevenue = grossRevenue.map((r, i) => r - feesCosts[i]);
             const studioFixed = months.map((_, i) => totalRent[i] + (activeStudios[i] * otherFixed));
             const mgmtCosts = Array(months.length).fill(totalMgmtCost);
-            const fixedTotal = studioFixed.map((sf, i) => sf + mgmtCosts[i] + totalAdSpend[i]);
+            const fixedTotal = studioFixed.map((sf, i) => sf + mgmtCosts[i] + totalAdSpend[i] + totalDebtService[i]);
             const profit = netRevenue.map((r, i) => r - varCosts[i] - fixedTotal[i]);
 
+            // Calculate per-studio debt service arrays for the table (only studios with debt > 0)
+            const studioDebtServiceRows = filteredStudios
+                .filter(id => debtService[id] > 0)
+                .map(id => {
+                    const studioDebt = months.map((_, i) => 
+                        projectionData[id][i].members > 0 ? debtService[id] : 0
+                    );
+                    return { 
+                        label: `  💳 ${STUDIO_NAMES[id]}`, 
+                        data: studioDebt, 
+                        format: 'currency', 
+                        style: 'color: #6f42c1; font-size: 0.85em; padding-left: 1rem;' 
+                    };
+                });
+            
+            // Only show debt service rows if there's any debt
+            const hasAnyDebt = totalDebtService.some(d => d > 0);
+
             const rows = [
-                { label: 'Total Members', data: projectionData.total },
+                { label: filteredStudios.length === 1 ? STUDIO_NAMES[filteredStudios[0]] + ' Members' : 'Total Members', data: filteredTotal },
                 { label: 'Gross Revenue', data: grossRevenue, format: 'currency' },
                 { label: 'Fees (Royalty/Brand/CC/Momence)', data: feesCosts, format: 'currency', style: 'color: #856404' },
                 { label: 'Net Revenue', data: netRevenue, format: 'currency', style: 'font-weight: 600' },
@@ -2970,6 +3617,8 @@
                 { label: 'Other Studio Fixed', data: activeStudios.map(s => s * otherFixed), format: 'currency' },
                 { label: 'Ad Spend', data: totalAdSpend, format: 'currency' },
                 { label: 'GM + Owners', data: mgmtCosts, format: 'currency' },
+                ...(hasAnyDebt ? [{ label: '💳 Debt Service', data: totalDebtService, format: 'currency', style: 'color: #6f42c1; font-weight: 600;' }] : []),
+                ...studioDebtServiceRows,
                 { label: 'Net Profit', data: profit, format: 'currency', highlight: true }
             ];
 
@@ -2983,6 +3632,25 @@
                 return `<tr class="${cls}"><td>${row.label}</td>${cells.join('')}</tr>`;
             }).join('');
             setHtml('financeTableBody', tableHtml);
+            
+            // Generate Quarterly Table
+            const quarterlyData = aggregateToQuarterly(rows);
+            const quarterHeaders = quarterlyData.labels.map(q => `<th>${q}</th>`).join('');
+            setHtml('financeTableHeadQuarterly', `<tr><th>Metric</th>${quarterHeaders}</tr>`);
+            
+            const quarterlyTableHtml = rows.map(row => {
+                const cls = row.highlight ? 'total-row' : '';
+                // For member counts (no format), use end-of-quarter value; for financials, sum
+                const isMembers = !row.format;
+                const qData = aggregateRowToQuarterly(row.data, quarterlyData.quarters, isMembers);
+                const cells = qData.map(v => {
+                    const val = row.format === 'currency' ? formatCurrency(v) : v;
+                    const cellStyle = row.style ? row.style : (row.highlight && v < 0 ? 'color: #dc3545' : row.highlight && v > 0 ? 'color: #28a745' : '');
+                    return `<td style="${cellStyle}">${val}</td>`;
+                });
+                return `<tr class="${cls}"><td>${row.label}</td>${cells.join('')}</tr>`;
+            }).join('');
+            setHtml('financeTableBodyQuarterly', quarterlyTableHtml);
 
             // P&L Chart
             if (charts.pl) charts.pl.destroy();
@@ -3093,6 +3761,7 @@
             const studioBreakEvenData = {};
             const mgmtAllocationPerStudio = totalMgmtCost / Math.max(1, Math.max(...activeStudios));
             
+            // Calculate for ALL studios (needed for data), but display only filtered
             STUDIO_IDS.forEach(id => {
                 const def = DEFAULTS.studios[id];
                 const name = STUDIO_NAMES[id];
@@ -3100,7 +3769,7 @@
                 const rent = projectionData.rents[id];
                 const studioAdSpend = projectionData.adSpend[id];
                 const studioAdSpendAccel = projectionData.adSpendAccel?.[id] || studioAdSpend;
-                const isNewStudio = def.opens !== undefined;
+                const isNewStudio = def.isNew;
                 const opensMonth = isNewStudio ? getVal(`${id}-opens`, def.opens) : 0;
                 
                 // Calculate per-studio P&L for each month
@@ -3113,8 +3782,8 @@
                     const netRev = grossRev - fees;
                     
                     // Labor costs (proportional to members)
-                    const studioLabor = laborCosts[i] * (members / (projectionData.total[i] || 1));
-                    const studioCommission = commissionCosts[i] * (members / (projectionData.total[i] || 1));
+                    const studioLabor = laborCosts[i] * (members / (filteredTotal[i] || 1));
+                    const studioCommission = commissionCosts[i] * (members / (filteredTotal[i] || 1));
                     
                     // Fixed costs for this studio
                     const studioFixedCosts = rent + otherFixed + mgmtAllocationPerStudio;
@@ -3161,11 +3830,11 @@
                 };
             });
             
-            // Generate break-even cards
-            const breakEvenCardsHtml = STUDIO_IDS.map(id => {
+            // Generate break-even cards - FILTERED STUDIOS ONLY
+            const breakEvenCardsHtml = filteredStudios.map(id => {
                 const data = studioBreakEvenData[id];
                 const def = DEFAULTS.studios[id];
-                const isNewStudio = def.opens !== undefined;
+                const isNewStudio = def.isNew;
                 
                 let statusClass = 'danger';
                 let statusText = 'Not Profitable';
@@ -3196,11 +3865,11 @@
             }).join('');
             setHtml('studioBreakEvenCards', breakEvenCardsHtml);
             
-            // Break-Even Timeline Chart
+            // Break-Even Timeline Chart - FILTERED STUDIOS ONLY
             if (charts.breakEvenTimeline) charts.breakEvenTimeline.destroy();
             const beTimelineCtx = document.getElementById('breakEvenTimelineChart')?.getContext('2d');
             if (beTimelineCtx) {
-                const datasets = STUDIO_IDS.map(id => {
+                const datasets = filteredStudios.map(id => {
                     const data = studioBreakEvenData[id];
                     return {
                         label: data.name,
@@ -3252,6 +3921,7 @@
         }
 
         function updateOperations() {
+            const filteredStudios = getActiveStudios();
             const sessionLen = getVal('session-length-fin', DEFAULTS.costs.sessionLength);
             const sessionsPm = getVal('sessions-pm', DEFAULTS.costs.sessionsPm);
             
@@ -3304,22 +3974,33 @@
                 membersPerVspPerStudio[id] = Math.floor(safeDivide(fteSessionsPerMonth, sessionsPm, 10));
             });
 
+<<<<<<< Updated upstream
             // Average blended rate across studios (using per-studio rates)
             const avgUtil = safeDivide(STUDIO_IDS.reduce((sum, id) => sum + utils[id], 0), STUDIO_IDS.length, 0.50);
             const avgStretch = safeDivide(STUDIO_IDS.reduce((sum, id) => sum + vspRates[id].stretch, 0), STUDIO_IDS.length, 23);
             const avgIdle = safeDivide(STUDIO_IDS.reduce((sum, id) => sum + vspRates[id].idle, 0), STUDIO_IDS.length, 13);
+=======
+            // Average blended rate across FILTERED studios (using per-studio rates)
+            const avgUtil = filteredStudios.reduce((sum, id) => sum + utils[id], 0) / filteredStudios.length;
+            const avgStretch = filteredStudios.reduce((sum, id) => sum + vspRates[id].stretch, 0) / filteredStudios.length;
+            const avgIdle = filteredStudios.reduce((sum, id) => sum + vspRates[id].idle, 0) / filteredStudios.length;
+>>>>>>> Stashed changes
             const avgBlended = (avgStretch * avgUtil) + (avgIdle * (1 - avgUtil));
             setHtml('avg-blended-rate', '$' + avgBlended.toFixed(2));
 
-            // Total capacity and headroom based on per-studio utilization
+            // Total capacity and headroom based on FILTERED studios
             let totalCapacity = 0;
-            STUDIO_IDS.forEach(id => {
+            filteredStudios.forEach(id => {
                 if (projectionData[id][getFinalMonthIndex()].members > 0) {
                     totalCapacity += maxMembersPerStudio[id];
                 }
             });
             
-            const headroom = totalCapacity - projectionData.total[getFinalMonthIndex()];
+            // Calculate filtered total for final month
+            const filteredFinalTotal = filteredStudios.reduce((sum, id) => 
+                sum + (projectionData[id]?.[getFinalMonthIndex()]?.members || 0), 0
+            );
+            const headroom = totalCapacity - filteredFinalTotal;
 
             setHtml('total-capacity', totalCapacity);
             setHtml('headroom', (headroom >= 0 ? '+' : '') + headroom);
@@ -3342,8 +4023,8 @@
                 });
             });
 
-            // Build staffing rows with FTE/PT notation
-            const staffingRows = STUDIO_IDS.map(id => {
+            // Build staffing rows with FTE/PT notation - FILTERED STUDIOS ONLY
+            const staffingRows = filteredStudios.map(id => {
                 const data = staffingData[id];
                 const cells = data.map(d => {
                     if (d.total === 0) return '-';
@@ -3353,24 +4034,24 @@
                 return `<tr><td>${STUDIO_NAMES[id]}</td>${cells.map(c => `<td>${c}</td>`).join('')}</tr>`;
             });
 
-            // Add a row showing calculated members per VSP (FTE) per studio
+            // Add a row showing calculated members per VSP (FTE) per studio - FILTERED
             const membersPerVspRow = `<tr style="background: #e8f5e9; font-size: 0.8rem;"><td>Members/FTE</td>${
-                STUDIO_IDS.map(id => 
+                filteredStudios.map(id => 
                     `<td colspan="3" style="text-align: center;">${STUDIO_NAMES[id].split(' ')[0]}: ${membersPerVspPerStudio[id]}</td>`
                 ).join('')
             }<td></td></tr>`;
 
-            // Total VSPs row
+            // Total VSPs row - FILTERED STUDIOS
             const totalVsps = months.map((_, i) => 
-                STUDIO_IDS.reduce((sum, id) => sum + staffingData[id][i].total, 0)
+                filteredStudios.reduce((sum, id) => sum + staffingData[id][i].total, 0)
             );
             
             const totalFte = months.map((_, i) => 
-                STUDIO_IDS.reduce((sum, id) => sum + staffingData[id][i].fte, 0)
+                filteredStudios.reduce((sum, id) => sum + staffingData[id][i].fte, 0)
             );
             
             const totalPt = months.map((_, i) => 
-                STUDIO_IDS.reduce((sum, id) => sum + staffingData[id][i].pt, 0)
+                filteredStudios.reduce((sum, id) => sum + staffingData[id][i].pt, 0)
             );
             
             staffingRows.push(`<tr class="total-row"><td>TOTAL FTE</td>${totalFte.map(v => `<td>${v}</td>`).join('')}</tr>`);
@@ -3379,10 +4060,10 @@
             
             setHtml('staffingTableBody', staffingRows.join(''));
             
-            // Staffing Comparison: Initial Setup vs Current Month Requirements
-            const comparisonHtml = STUDIO_IDS.map(id => {
+            // Staffing Comparison: Initial Setup vs Current Month Requirements - FILTERED
+            const comparisonHtml = filteredStudios.map(id => {
                 const def = DEFAULTS.studios[id];
-                const isNewStudio = def.opens !== undefined;
+                const isNewStudio = def.isNew;
                 const opensMonth = isNewStudio ? getVal(`${id}-opens`, def.opens) : 0;
                 
                 // Get current month's required staffing (index 0 = Dec-25)
@@ -3461,11 +4142,11 @@
             projectionData.membersPerVsp = membersPerVspPerStudio;
             projectionData.staffing = staffingData;
 
-            // Utilization chart - show actual per-studio utilization vs capacity
+            // Utilization chart - show actual per-studio utilization vs capacity - FILTERED
             const utilizationData = months.map((_, i) => {
                 let totalUsed = 0;
                 let totalCap = 0;
-                STUDIO_IDS.forEach(id => {
+                filteredStudios.forEach(id => {
                     if (projectionData[id][i].members > 0) {
                         totalUsed += projectionData[id][i].members;
                         totalCap += maxMembersPerStudio[id];
@@ -3499,7 +4180,7 @@
             // Track members at last hire for delta calculation (start with month 0 members)
             const lastHireMembers = Object.fromEntries(STUDIO_IDS.map(id => [id, projectionData[id][0].members]));
             
-            STUDIO_IDS.forEach(id => {
+            filteredStudios.forEach(id => {
                 const projData = projectionData[id];
                 
                 for (let i = 0; i < projData.length; i++) {
@@ -3793,7 +4474,7 @@
             const results = {};
             STUDIO_IDS.forEach(id => {
                 const def = DEFAULTS.studios[id];
-                const isNewStudio = def.opens !== undefined;
+                const isNewStudio = def.isNew;
                 const startMonth = isNewStudio ? 1 : getVal(`${id}-month`, def.month);
                 const opensMonth = isNewStudio ? getVal(`${id}-opens`, def.opens) : 0;
                 results[id] = calculateStudio(getVal(`${id}-current`, def.current), startMonth, ramp, maint, churn, seasonality, opensMonth);
@@ -4580,23 +5261,13 @@
             if (!container) return;
             
             // Find studios with 'opens' property and add delay buttons at the beginning
-            const newStudios = STUDIO_IDS.filter(id => DEFAULTS.studios[id].opens !== undefined);
+            const newStudios = STUDIO_IDS.filter(id => DEFAULTS.studios[id].isNew);
             const buttons = newStudios.map(id => 
                 `<button class="whatif-btn" data-whatif="${id}-delay" title="${STUDIO_NAMES[id]} opens 2 months later">🏢 ${STUDIO_NAMES[id]} Delays 2mo</button>`
             ).join('');
             
             container.insertAdjacentHTML('afterbegin', buttons);
         }
-        
-        // Add event listeners to dynamically generated inputs
-        document.querySelectorAll('#studioCardsContainer input, #studioCardsContainer select').forEach(el => {
-            el.addEventListener('input', updateAll);
-            el.addEventListener('change', updateAll);
-            el.addEventListener('change', () => {
-                clearTimeout(saveTimeout);
-                saveTimeout = setTimeout(saveSettings, 1000);
-            });
-        });
 
         // Generate seasonality dropdowns dynamically
         (function initSeasonalityDropdowns() {
