@@ -55,7 +55,7 @@ The Vital Stretch Dashboard is a B2B franchise analytics platform for The Vital 
 | **Attendance** | Staff clock-in/out records |
 | **Customer Referral Rewards** | Referral tracking |
 
-### Upload Order (Recommended)
+### Upload Order Or all together (Recommended)
 
 For best results, upload files in this order:
 1. **Appointments/Attendance** - Creates sessions, practitioners, customers
