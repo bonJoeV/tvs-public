@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Main monitor service - runs continuously with --daemon
   sheets-monitor:
@@ -11,7 +9,6 @@ services:
       - SENT_TRACKER_FILE=/data/sent_entries.json
       - LOG_DIR=/data/logs
       - CONFIG_FILE=/app/config.json
-      - CHECK_INTERVAL_MINUTES=${CHECK_INTERVAL_MINUTES:-15}
     volumes:
       - ./data:/data
       - ./config.json:/app/config.json:ro

@@ -1,0 +1,60 @@
+{
+  "settings": {
+    "log_retention_days": 7,
+    "api_timeout_seconds": 60,
+    "retry_max_attempts": 3,
+    "retry_base_delay_seconds": 1.0
+  },
+  "tenants": {
+    "MyStudio": {
+      "host_id": "12345",
+      "token": "your-leads-token",
+      "schedule": {
+        "check_interval_biz_hours": 5,
+        "check_interval_off_hours": 30,
+        "business_hours": {
+          "monday": [9, 17],
+          "tuesday": [9, 17],
+          "wednesday": [9, 17],
+          "thursday": [9, 17],
+          "friday": [9, 17],
+          "saturday": [10, 14],
+          "sunday": null
+        }
+      }
+    },
+    "AnotherStudio": {
+      "host_id": "67890",
+      "token": "another-token",
+      "schedule": {
+        "check_interval_biz_hours": 10,
+        "check_interval_off_hours": 60,
+        "business_hours": {
+          "monday": [8, 20],
+          "tuesday": [8, 20],
+          "wednesday": [8, 20],
+          "thursday": [8, 20],
+          "friday": [8, 20],
+          "saturday": [9, 15],
+          "sunday": [10, 14]
+        }
+      }
+    }
+  },
+  "sheets": [
+    {
+      "spreadsheet_id": "your-google-spreadsheet-id",
+      "gid": "0",
+      "name": "Location Name",
+      "tenant": "MyStudio",
+      "lead_source_id": 123456
+    },
+    {
+      "spreadsheet_id": "your-google-spreadsheet-id",
+      "gid": "12345",
+      "name": "Another Location",
+      "tenant": "AnotherStudio",
+      "lead_source_id": 789012
+    }
+  ]
+}

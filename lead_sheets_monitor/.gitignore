@@ -5,10 +5,12 @@ __pycache__/
 
 # Credentials (never commit!)
 credentials/
-*.json
+config.json
+sent_entries.json
 
-# Data
+# Data and logs
 data/
+logs/
 
 # IDE
 .vscode/

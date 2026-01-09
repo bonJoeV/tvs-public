@@ -3,11 +3,11 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Install dependencies
-COPY requirements.txt .
+COPY lead_sheets_monitor/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application
-COPY monitor.py .
+COPY lead_sheets_monitor/monitor.py .
 
 # Create directory for tracker persistence
 RUN mkdir -p /data
