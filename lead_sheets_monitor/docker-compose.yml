@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  # Main monitor service - runs continuously with --daemon
+  sheets-monitor:
+    build: .
+    container_name: sheets-monitor
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - SENT_TRACKER_FILE=/data/sent_entries.json
+      - LOG_DIR=/data/logs
+      - CONFIG_FILE=/app/config.json
+      - CHECK_INTERVAL_MINUTES=${CHECK_INTERVAL_MINUTES:-15}
+    volumes:
+      - ./data:/data
+      - ./config.json:/app/config.json:ro
+    command: ["python", "monitor.py", "--daemon", "--verbose"]
+
+  # CLI service - for debugging and one-off runs
+  sheets-monitor-cli:
+    build: .
+    container_name: sheets-monitor-cli
+    profiles: ["cli"]
+    env_file: .env
+    environment:
+      - SENT_TRACKER_FILE=/data/sent_entries.json
+      - LOG_DIR=/data/logs
+      - CONFIG_FILE=/app/config.json
+    volumes:
+      - ./data:/data
+      - ./config.json:/app/config.json:ro
+    command: ["python", "monitor.py", "--dry-run", "--verbose"]
