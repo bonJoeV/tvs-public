@@ -1,0 +1,70 @@
+# Git
+.git
+.gitignore
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+secrets/
+credentials/
+*.encryption_key
+.encryption_key
+
+# Data and logs
+data/
+logs/
+*.db
+*.db-wal
+*.db-shm
+sent_entries.json
+failed_queue.json
+*.lock
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+.venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# Testing (not needed in production image)
+tests/
+pytest.ini
+.pytest_cache/
+.coverage
+htmlcov/
+requirements-dev.txt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Documentation
+README.md
+*.md
+docs/
+
+# Example files (keep only config.example.json for reference)
+# config.example.json  # Uncomment to exclude
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp files
+tmpclaude-*
+*.tmp
+*.bak
+
+# Type checking
+.mypy_cache/
+.dmypy.json

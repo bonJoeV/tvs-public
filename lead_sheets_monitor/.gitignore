@@ -1,21 +1,60 @@
 # Environment
 .env
+.env.local
 venv/
+.venv/
+env/
 __pycache__/
+*.pyc
+*.pyo
+*.pyd
 
-# Credentials (never commit!)
+# Credentials and secrets (never commit!)
 credentials/
 config.json
 sent_entries.json
+failed_queue.json
+secrets/*
+!secrets/.gitkeep
+*.encryption_key
+.encryption_key
 
 # Data and logs
 data/
 logs/
+*.db
+*.db-wal
+*.db-shm
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
 
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo
 
 # OS
 .DS_Store
 Thumbs.db
+
+# Lock files
+*.lock
+
+# Temp files
+tmpclaude-*
+*.tmp
+*.bak
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+
+# Build artifacts
+*.egg-info/
+dist/
+build/

@@ -1,407 +1,342 @@
 #!/usr/bin/env python3
 """
-Google Sheets Monitor - Watches for new entries and pushes leads to Momence CRM.
-Tracks sent entries to prevent duplicates. Supports multiple tenants (hosts).
+Lead Sheets Monitor - Main Entry Point
+
+Monitors Google Sheets for new Facebook Lead Ads entries and
+pushes them to Momence CRM via their Customer Leads API.
+
+Usage:
+    python monitor.py                    # Single run
+    python monitor.py --daemon           # Continuous daemon mode
+    python monitor.py --dry-run          # Test without making changes
+    python monitor.py --queue-status     # Show failed queue status
+    python monitor.py --retry-failed     # Force retry all failed entries
 """
 
-import os
-import sys
-import json
-import time
-import hashlib
 import argparse
-import logging
-import random
-import requests
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Optional, Dict, Any
+import json
+import signal
+import sys
+import time
+from typing import Dict, Any, List
 
-from google.oauth2.service_account import Credentials
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
-
-# Configuration
-SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
-SENT_TRACKER_FILE = os.getenv('SENT_TRACKER_FILE', './sent_entries.json')
-LOG_DIR = os.getenv('LOG_DIR', './logs')
-CONFIG_FILE = os.getenv('CONFIG_FILE', './config.json')
-
-
-def load_config():
-    """Load tenants and sheets config from JSON file."""
-    config_path = Path(CONFIG_FILE)
-    if config_path.exists():
-        with open(config_path, 'r') as f:
-            return json.load(f)
-    return {'tenants': {}, 'sheets': [], 'schedule': {}}
+# Import from modules
+from config import (
+    MOMENCE_TENANTS, SHEETS_CONFIG, DLQ_ENABLED,
+    LOG_DIR, IS_CLOUD_RUN, GRACEFUL_SHUTDOWN_TIMEOUT,
+    validate_startup_requirements, log_startup_warnings, StartupValidationError
+)
+from utils import utc_now, setup_logging, logger
+from failed_queue import (
+    generate_row_hash, add_to_failed_queue, process_failed_queue, list_dead_letters
+)
+from sheets import (
+    get_google_sheets_service, get_sheet_name_by_gid, fetch_sheet_data,
+    build_momence_lead_data
+)
+from momence import create_momence_lead, close_session
+from notifications import send_error_digest, send_location_leads_digest
+from web import start_health_server, update_health_state
+from config import RATE_LIMIT_DELAY, HEALTH_SERVER_ENABLED, HEALTH_SERVER_PORT
+import storage
 
 
-# Load configuration
-_config = load_config()
-MOMENCE_TENANTS = _config.get('tenants', {})
-SHEETS_CONFIG = _config.get('sheets', [])
-
-# Global settings from config
-_settings = _config.get('settings', {})
-LOG_RETENTION_DAYS = _settings.get('log_retention_days', 7)
-API_TIMEOUT_SECONDS = _settings.get('api_timeout_seconds', 120)
-RETRY_MAX_ATTEMPTS = _settings.get('retry_max_attempts', 3)
-RETRY_BASE_DELAY = _settings.get('retry_base_delay_seconds', 2.0)
-
-# Day name to number mapping
-DAY_NAME_TO_NUM = {'monday': 0, 'tuesday': 1, 'wednesday': 2, 'thursday': 3, 'friday': 4, 'saturday': 5, 'sunday': 6}
-
-
-def parse_business_hours(biz_hours_config: dict) -> dict:
-    """Parse business hours config into day number -> (open, close) tuple."""
-    result = {}
-    for day_name, hours in biz_hours_config.items():
-        day_num = DAY_NAME_TO_NUM.get(day_name.lower())
-        if day_num is not None:
-            result[day_num] = tuple(hours) if hours else None
-    return result
-
-
-def setup_logging():
-    """Configure logging with YYYYMMDD.log format and 7-day retention."""
-    log_dir = Path(LOG_DIR)
-    log_dir.mkdir(parents=True, exist_ok=True)
-
-    # Use YYYYMMDD.log format
-    today = datetime.now().strftime('%Y%m%d')
-    log_file = log_dir / f'{today}.log'
-
-    # Create formatter
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-
-    # File handler - use basic FileHandler since we name by date
-    file_handler = logging.FileHandler(log_file, encoding='utf-8')
-    file_handler.setFormatter(formatter)
-    file_handler.setLevel(logging.INFO)
-
-    # Console handler
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(formatter)
-    console_handler.setLevel(logging.INFO)
-
-    # Configure root logger
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-    logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
-
-    # Clean up old log files
-    cleanup_old_logs(log_dir, keep_days=LOG_RETENTION_DAYS)
-
-    return logging.getLogger(__name__)
-
-
-def cleanup_old_logs(log_dir: Path, keep_days: int = 7):
-    """Remove log files older than keep_days."""
-    cutoff_date = datetime.now() - timedelta(days=keep_days)
-
-    for log_file in log_dir.glob('*.log'):
-        # Parse YYYYMMDD from filename
-        try:
-            date_str = log_file.stem
-            file_date = datetime.strptime(date_str, '%Y%m%d')
-            if file_date < cutoff_date:
-                log_file.unlink()
-                print(f"Removed old log file: {log_file.name}")
-        except ValueError:
-            # Skip files that don't match YYYYMMDD format
-            pass
-
-
-# Initialize logger
-logger = setup_logging()
-
-
-# Browser signatures for rotating user agents
-USER_AGENTS = [
-    # Chrome on Windows
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-    # Chrome on Mac
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-    # Firefox on Windows
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0",
-    # Firefox on Mac
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:121.0) Gecko/20100101 Firefox/121.0",
-    # Safari on Mac
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
-    # Edge on Windows
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
-]
-
-
-def get_browser_headers() -> dict:
-    """Get randomized browser headers to avoid detection."""
-    return {
-        "Content-Type": "application/json",
-        "Accept": "application/json, text/plain, */*",
-        "User-Agent": random.choice(USER_AGENTS),
-        "Origin": "https://www.momence.com",
-        "Referer": "https://www.momence.com/",
-    }
-
-
-# ============================================================================
-# Momence Lead Creation
-# ============================================================================
-
-def get_tenant_config(tenant_name: str) -> Optional[Dict[str, str]]:
-    """Get tenant configuration by name."""
-    return MOMENCE_TENANTS.get(tenant_name)
-
-
-def create_momence_lead(lead_data: Dict[str, Any], tenant_name: str, dry_run: bool = False) -> Optional[Dict]:
+def run_cleanup_tasks():
     """
-    Create a lead in Momence using the Customer Leads API.
+    Run all database cleanup tasks.
 
-    Endpoint: POST https://api.momence.com/integrations/customer-leads/{hostId}/collect
+    This removes old/expired data to prevent unbounded database growth:
+    - Old sent hashes (default: 90 days)
+    - Old admin activity logs (default: 90 days)
+    - Old daily lead metrics (default: 365 days)
+    - Expired dead letter entries (default: 90 days)
+    - Expired web sessions
+    - Expired CSRF tokens
+
+    Called once per monitor run in daemon mode.
+    Each cleanup task is run independently so one failure doesn't block others.
     """
-    tenant = get_tenant_config(tenant_name)
-    if not tenant:
-        logger.error(f"Tenant '{tenant_name}' not found in MOMENCE_TENANTS config")
-        return None
+    cleanup_results = {}
 
-    host_id = tenant.get('host_id')
-    token = tenant.get('token')
-
-    if not host_id or not token:
-        logger.error(f"Tenant '{tenant_name}' missing host_id or token")
-        return None
-
-    if dry_run:
-        logger.info(f"[DRY RUN] Would create Momence lead for tenant '{tenant_name}': {json.dumps(lead_data, indent=2)}")
-        return {"dry_run": True}
-
-    lead_source_id = lead_data.get('leadSourceId')
-    if not lead_source_id:
-        logger.error("No leadSourceId in lead data")
-        return None
-
+    # Clean up old sent hashes (keep 90 days)
     try:
-        url = f"https://api.momence.com/integrations/customer-leads/{host_id}/collect"
+        hashes_cleaned = storage.cleanup_old_hashes(days=90)
+        cleanup_results['sent_hashes'] = hashes_cleaned
+        if hashes_cleaned > 0:
+            logger.info(f"Cleaned up {hashes_cleaned} old sent hashes")
+    except Exception as e:
+        logger.error(f"Error cleaning up sent hashes: {type(e).__name__}: {e}")
+        cleanup_results['sent_hashes'] = f"error: {e}"
 
-        payload = {
-            "token": token,
-            "email": lead_data.get('email', ''),
-            "firstName": lead_data.get('firstName', ''),
-            "lastName": lead_data.get('lastName', ''),
-            "sourceId": lead_source_id,
-        }
-
-        if lead_data.get('phoneNumber'):
-            payload["phoneNumber"] = lead_data['phoneNumber']
-        if lead_data.get('zipCode'):
-            payload["zipCode"] = lead_data['zipCode']
-        if lead_data.get('discoveryAnswer'):
-            payload["discoveryAnswer"] = lead_data['discoveryAnswer']
-
-        response = requests.post(url, headers=get_browser_headers(), json=payload, timeout=30)
-        response.raise_for_status()
-
-        logger.info(f"Created Momence lead for tenant '{tenant_name}': {lead_data.get('email')}")
-        return response.json() if response.text else {"success": True}
-
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Failed to create Momence lead for tenant '{tenant_name}': {e}")
-        return None
-
-
-def build_momence_lead_data(headers: list, row: list, sheet_config: dict) -> Optional[Dict[str, Any]]:
-    """Build Momence lead data from sheet row."""
-    data = {}
-    for i, value in enumerate(row):
-        if i < len(headers) and value:
-            data[headers[i].lower()] = value
-
-    lead_source_id = sheet_config.get('lead_source_id')
-    if not lead_source_id:
-        logger.warning(f"No lead_source_id configured for sheet: {sheet_config.get('name')}")
-        return None
-
-    email = data.get('email')
-    if not email:
-        logger.warning("Cannot create lead without email")
-        return None
-
-    first_name = data.get('first_name', '')
-    last_name = data.get('last_name', '')
-
-    phone = data.get('phone_number', '')
-    if phone.startswith('p:'):
-        phone = phone[2:]
-
-    lead_data = {
-        "leadSourceId": lead_source_id,
-        "firstName": first_name,
-        "lastName": last_name,
-        "email": email,
-    }
-
-    if phone:
-        lead_data["phoneNumber"] = phone
-    if data.get('zip_code') or data.get('zipcode'):
-        lead_data["zipCode"] = data.get('zip_code') or data.get('zipcode')
-    if data.get('discovery_answer') or data.get('discoveryanswer'):
-        lead_data["discoveryAnswer"] = data.get('discovery_answer') or data.get('discoveryanswer')
-
-    return lead_data
-
-
-# ============================================================================
-# Google Sheets Functions
-# ============================================================================
-
-def retry_with_backoff(func, max_retries: int = None, base_delay: float = None):
-    """Execute a function with exponential backoff retry logic."""
-    if max_retries is None:
-        max_retries = RETRY_MAX_ATTEMPTS
-    if base_delay is None:
-        base_delay = RETRY_BASE_DELAY
-    last_exception = None
-    for attempt in range(max_retries):
-        try:
-            return func()
-        except (TimeoutError, ConnectionError, HttpError) as e:
-            last_exception = e
-            if attempt < max_retries - 1:
-                delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
-                logger.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {delay:.1f}s...")
-                time.sleep(delay)
-            else:
-                logger.error(f"All {max_retries} attempts failed: {e}")
-    raise last_exception
-
-
-def get_sheet_name_by_gid(service, spreadsheet_id: str, gid: str) -> Optional[str]:
-    """Get the actual sheet name from its gid."""
+    # Clean up old admin activity logs (keep 90 days)
     try:
-        def fetch():
-            return service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+        activity_cleaned = storage.cleanup_old_admin_activity(days=90)
+        cleanup_results['admin_activity'] = activity_cleaned
+        if activity_cleaned > 0:
+            logger.info(f"Cleaned up {activity_cleaned} old admin activity entries")
+    except Exception as e:
+        logger.error(f"Error cleaning up admin activity: {type(e).__name__}: {e}")
+        cleanup_results['admin_activity'] = f"error: {e}"
 
-        spreadsheet = retry_with_backoff(fetch)
-        for sheet in spreadsheet.get('sheets', []):
-            if str(sheet['properties']['sheetId']) == gid:
-                return sheet['properties']['title']
-        return None
-    except (HttpError, TimeoutError) as e:
-        logger.error(f"Error getting sheet name: {e}")
-        return None
-
-
-def get_google_sheets_service():
-    """Create and return Google Sheets API service with timeout."""
-    import httplib2
-    from google_auth_httplib2 import AuthorizedHttp
-
-    creds_json = os.getenv('GOOGLE_CREDENTIALS_JSON')
-    if not creds_json:
-        raise ValueError("GOOGLE_CREDENTIALS_JSON environment variable not set")
-
-    creds_data = json.loads(creds_json)
-    credentials = Credentials.from_service_account_info(creds_data, scopes=SCOPES)
-
-    # Create http with configurable timeout and authorize it
-    http = httplib2.Http(timeout=API_TIMEOUT_SECONDS)
-    authed_http = AuthorizedHttp(credentials, http=http)
-
-    return build('sheets', 'v4', http=authed_http, cache_discovery=False)
-
-
-def fetch_sheet_data(service, spreadsheet_id: str, sheet_name: str) -> list:
-    """Fetch all data from a specific sheet."""
+    # Clean up old daily metrics (keep 1 year)
     try:
-        def fetch():
-            return service.spreadsheets().values().get(
-                spreadsheetId=spreadsheet_id,
-                range=f"'{sheet_name}'!A:Z"
-            ).execute()
+        metrics_cleaned = storage.cleanup_old_metrics(days=365)
+        cleanup_results['metrics'] = metrics_cleaned
+        if metrics_cleaned > 0:
+            logger.info(f"Cleaned up {metrics_cleaned} old metrics entries")
+    except Exception as e:
+        logger.error(f"Error cleaning up metrics: {type(e).__name__}: {e}")
+        cleanup_results['metrics'] = f"error: {e}"
 
-        result = retry_with_backoff(fetch)
-        return result.get('values', [])
-    except (HttpError, TimeoutError) as e:
-        logger.error(f"Error fetching sheet data: {e}")
-        return []
+    # Clean up expired dead letter entries (keep 90 days)
+    try:
+        from failed_queue import cleanup_expired_dead_letters
+        dead_letters_cleaned = cleanup_expired_dead_letters(ttl_days=90)
+        cleanup_results['dead_letters'] = dead_letters_cleaned
+        if dead_letters_cleaned > 0:
+            logger.info(f"Cleaned up {dead_letters_cleaned} expired dead letter entries")
+    except Exception as e:
+        logger.error(f"Error cleaning up dead letters: {type(e).__name__}: {e}")
+        cleanup_results['dead_letters'] = f"error: {e}"
+
+    # Clean up expired web sessions
+    try:
+        sessions_cleaned = storage.cleanup_expired_sessions()
+        cleanup_results['sessions'] = sessions_cleaned
+        if sessions_cleaned > 0:
+            logger.info(f"Cleaned up {sessions_cleaned} expired web sessions")
+    except Exception as e:
+        logger.error(f"Error cleaning up sessions: {type(e).__name__}: {e}")
+        cleanup_results['sessions'] = f"error: {e}"
+
+    # Clean up expired CSRF tokens
+    try:
+        csrf_cleaned = storage.cleanup_expired_csrf_tokens()
+        cleanup_results['csrf_tokens'] = csrf_cleaned
+        if csrf_cleaned > 0:
+            logger.info(f"Cleaned up {csrf_cleaned} expired CSRF tokens")
+    except Exception as e:
+        logger.error(f"Error cleaning up CSRF tokens: {type(e).__name__}: {e}")
+        cleanup_results['csrf_tokens'] = f"error: {e}"
+
+    # Log summary if any errors occurred
+    errors = [k for k, v in cleanup_results.items() if isinstance(v, str) and v.startswith('error:')]
+    if errors:
+        logger.warning(f"Cleanup completed with errors in: {', '.join(errors)}")
+
+    return cleanup_results
 
 
 # ============================================================================
-# Tracker Functions
+# Support Report Generation
 # ============================================================================
 
-def load_sent_tracker() -> dict:
-    """Load the tracker of previously sent entries."""
-    tracker_path = Path(SENT_TRACKER_FILE)
-    if tracker_path.exists():
-        try:
-            with open(tracker_path, 'r') as f:
-                data = json.load(f)
-                # Ensure location_counts exists for backwards compatibility
-                if 'location_counts' not in data:
-                    data['location_counts'] = {}
-                if 'cache_built_at' not in data:
-                    data['cache_built_at'] = datetime.now().isoformat()
-                return data
-        except (json.JSONDecodeError, IOError) as e:
-            logger.warning(f"Could not load tracker file: {e}. Starting fresh.")
-    return {'sent_hashes': [], 'last_check': None, 'location_counts': {}, 'cache_built_at': datetime.now().isoformat()}
+def generate_support_report(output_file: str = None) -> str:
+    """
+    Generate a comprehensive support report for Momence API issues.
+
+    Args:
+        output_file: Optional file path to write the report to
+
+    Returns:
+        The report as a string
+    """
+    failed_queue = storage.get_failed_queue_entries()
+    dead_letters = storage.get_dead_letters()
+
+    all_errors = failed_queue + dead_letters
+
+    if not all_errors:
+        return "No errors recorded. Run the monitor to capture error details."
+
+    # Build the report
+    lines = []
+    lines.append("=" * 80)
+    lines.append("MOMENCE API SUPPORT REPORT")
+    lines.append(f"Generated: {utc_now().isoformat()}")
+    lines.append("=" * 80)
+    lines.append("")
+
+    # Summary
+    lines.append("SUMMARY")
+    lines.append("-" * 40)
+    lines.append(f"Failed Queue Entries: {len(failed_queue)}")
+    lines.append(f"Dead Letter Entries: {len(dead_letters)}")
+    lines.append(f"Total Errors: {len(all_errors)}")
+    lines.append("")
+
+    # Unique error types
+    error_types = {}
+    for entry in all_errors:
+        err_type = entry.get('last_error', 'unknown')
+        error_types[err_type] = error_types.get(err_type, 0) + 1
+    lines.append("Error Types:")
+    for err_type, count in sorted(error_types.items(), key=lambda x: -x[1]):
+        lines.append(f"  {err_type}: {count}")
+    lines.append("")
+
+    # Configuration info (sanitized)
+    lines.append("CONFIGURATION")
+    lines.append("-" * 40)
+    for tenant_name, tenant_config in MOMENCE_TENANTS.items():
+        lines.append(f"Tenant: {tenant_name}")
+        lines.append(f"  Host ID: {tenant_config.get('host_id', 'N/A')}")
+        lines.append(f"  Token: {'***' + tenant_config.get('token', '')[-4:] if tenant_config.get('token') else 'N/A'}")
+        lines.append(f"  Enabled: {tenant_config.get('enabled', True)}")
+    lines.append("")
+
+    # Lead sources
+    lines.append("Lead Sources Configured:")
+    for sheet in SHEETS_CONFIG:
+        lines.append(f"  {sheet.get('name')}: sourceId={sheet.get('lead_source_id')}")
+    lines.append("")
+
+    # Detailed error samples (first 5)
+    lines.append("DETAILED ERROR SAMPLES (up to 5)")
+    lines.append("-" * 40)
+
+    for i, entry in enumerate(all_errors[:5], 1):
+        error_details = entry.get('last_error_details', {})
+        lead_data = entry.get('lead_data', {})
+
+        lines.append(f"\n[ERROR {i}]")
+        lines.append(f"Email: {lead_data.get('email', 'N/A')}")
+        lines.append(f"Sheet: {lead_data.get('sheetName', 'N/A')}")
+        lines.append(f"Tenant: {entry.get('tenant', 'N/A')}")
+        lines.append(f"Attempts: {entry.get('attempts', 0)}")
+        lines.append(f"First Failed: {entry.get('first_failed_at', 'N/A')}")
+        lines.append(f"Last Attempt: {entry.get('last_attempted_at', 'N/A')}")
+        lines.append("")
+
+        if error_details:
+            lines.append("Request Details:")
+            lines.append(f"  URL: {error_details.get('request_url', 'N/A')}")
+            lines.append(f"  Method: {error_details.get('request_method', 'POST')}")
+            lines.append(f"  Timestamp: {error_details.get('request_timestamp', 'N/A')}")
+            lines.append(f"  Duration: {error_details.get('request_duration_ms', 'N/A')}ms")
+            lines.append("")
+
+            # Request headers
+            req_headers = error_details.get('request_headers', {})
+            if req_headers:
+                lines.append("  Request Headers:")
+                for k, v in req_headers.items():
+                    lines.append(f"    {k}: {v}")
+            lines.append("")
+
+            # Request payload (with token masked)
+            payload = error_details.get('request_payload', {})
+            if payload:
+                lines.append("  Request Payload:")
+                for k, v in payload.items():
+                    display_val = '***' if k == 'token' else v
+                    lines.append(f"    {k}: {display_val}")
+            lines.append("")
+
+            lines.append("Response Details:")
+            lines.append(f"  HTTP Status: {error_details.get('status_code', 'N/A')} {error_details.get('status_text', '')}")
+            lines.append(f"  CF-Ray: {error_details.get('cf_ray', 'N/A')}")
+            lines.append(f"  Content-Type: {error_details.get('response_content_type', 'N/A')}")
+            lines.append(f"  Content-Length: {error_details.get('response_content_length', 'N/A')}")
+            lines.append("")
+
+            # Response headers
+            resp_headers = error_details.get('response_headers', {})
+            if resp_headers:
+                lines.append("  Response Headers:")
+                for k, v in resp_headers.items():
+                    lines.append(f"    {k}: {v}")
+            lines.append("")
+
+            lines.append(f"  Response Body: {error_details.get('response_body', '(empty)')}")
+        else:
+            lines.append("  (No detailed error information available)")
+
+        lines.append("")
+        lines.append("-" * 40)
+
+    # Curl command for reproduction
+    if all_errors:
+        first_error = all_errors[0]
+        error_details = first_error.get('last_error_details', {})
+        if error_details:
+            lines.append("")
+            lines.append("CURL COMMAND FOR REPRODUCTION")
+            lines.append("-" * 40)
+            lines.append("# Replace YOUR_TOKEN with your actual token")
+            url = error_details.get('request_url', 'https://api.momence.com/integrations/customer-leads/HOST_ID/collect')
+            payload = error_details.get('request_payload', {})
+            # Build curl-friendly payload with masked token
+            curl_payload = {k: ('YOUR_TOKEN' if k == 'token' else v) for k, v in payload.items()}
+            lines.append(f'curl -v "{url}" \\')
+            lines.append('  -H "Content-Type: application/json" \\')
+            lines.append('  -H "Accept: application/json" \\')
+            lines.append(f"  -d '{json.dumps(curl_payload)}'")
+
+    lines.append("")
+    lines.append("=" * 80)
+    lines.append("END OF REPORT")
+    lines.append("=" * 80)
+
+    report = "\n".join(lines)
+
+    # Write to file if specified
+    if output_file:
+        with open(output_file, 'w') as f:
+            f.write(report)
+        print(f"Report written to: {output_file}")
+
+    return report
 
 
-def save_sent_tracker(tracker: dict):
-    """Save the tracker of sent entries."""
-    tracker_path = Path(SENT_TRACKER_FILE)
-    tracker_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(tracker_path, 'w') as f:
-        json.dump(tracker, f, indent=2, default=str)
-    logger.info(f"Tracker saved with {len(tracker['sent_hashes'])} entries")
+def requeue_dead_letters() -> int:
+    """
+    Move all dead letters back to the failed queue for retry.
 
-
-def generate_row_hash(sheet_id: str, gid: str, row_index: int, row_data: list) -> str:
-    """Generate a unique hash for a row to track if it's been sent."""
-    content = f"{sheet_id}:{gid}:{row_index}:{json.dumps(row_data)}"
-    return hashlib.sha256(content.encode()).hexdigest()[:16]
+    Returns:
+        Number of entries requeued
+    """
+    return storage.requeue_dead_letters()
 
 
 # ============================================================================
 # Main Processing
 # ============================================================================
 
-def check_for_new_entries(service, tracker: dict, verbose: bool = False, check_all_tenants: bool = False) -> tuple[list, dict]:
-    """Check all configured sheets for new entries.
+def check_for_new_entries(service, verbose: bool = False) -> list:
+    """
+    Check all configured sheets for new entries.
+
+    Iterates through all configured sheets, fetches current data, and identifies
+    rows that haven't been processed yet based on their hash.
 
     Args:
         service: Google Sheets API service
-        tracker: Tracker dict for sent entries
         verbose: Enable verbose logging
-        check_all_tenants: If True, check all sheets regardless of business hours.
-                          If False (default), only check sheets for tenants in business hours.
+
+    Returns:
+        List of new entries to process
     """
     new_entries = []
 
     for sheet_config in SHEETS_CONFIG:
+        # Skip disabled sheets
+        if not sheet_config.get('enabled', True):
+            logger.debug(f"Sheet '{sheet_config.get('name')}' is disabled, skipping")
+            continue
+
         spreadsheet_id = sheet_config['spreadsheet_id']
         gid = sheet_config['gid']
         tenant = sheet_config.get('tenant')
 
         if not tenant:
-            logger.warning(f"Sheet '{sheet_config.get('name')}' has no tenant configured, skipping")
+            logger.error(f"Sheet '{sheet_config.get('name')}' has no tenant configured, skipping")
             continue
 
-        # Skip sheets for tenants outside business hours (unless check_all_tenants is True)
-        if not check_all_tenants and not is_business_hours_for_tenant(tenant):
-            if verbose:
-                logger.info(f"Skipping sheet '{sheet_config.get('name')}' - tenant '{tenant}' is outside business hours")
+        # Skip if tenant is disabled
+        tenant_cfg = MOMENCE_TENANTS.get(tenant, {})
+        if not tenant_cfg.get('enabled', True):
+            logger.debug(f"Tenant '{tenant}' is disabled, skipping sheet '{sheet_config.get('name')}'")
             continue
 
         sheet_name = get_sheet_name_by_gid(service, spreadsheet_id, gid)
@@ -425,9 +360,9 @@ def check_for_new_entries(service, tracker: dict, verbose: bool = False, check_a
             if not any(cell.strip() if isinstance(cell, str) else cell for cell in row):
                 continue
 
-            row_hash = generate_row_hash(spreadsheet_id, gid, row_index, row)
+            row_hash = generate_row_hash(spreadsheet_id, gid, headers, row)
 
-            if row_hash not in tracker['sent_hashes']:
+            if not storage.hash_exists(row_hash):
                 new_entries.append({
                     'sheet_config': sheet_config,
                     'sheet_name': sheet_name,
@@ -441,19 +376,37 @@ def check_for_new_entries(service, tracker: dict, verbose: bool = False, check_a
                 })
                 logger.info(f"  NEW ENTRY at row {row_index}")
 
-    return new_entries, tracker
+    return new_entries
 
 
-def process_new_entries(new_entries: list, tracker: dict, dry_run: bool = False) -> dict:
-    """Process new entries: push to Momence."""
+def process_new_entries(new_entries: list, dry_run: bool = False) -> tuple[List[Dict], Dict[str, List[Dict]]]:
+    """
+    Process new entries by pushing them to Momence CRM.
+
+    For each entry, builds the lead data and attempts to create it in Momence.
+    Successful entries are marked in the database. Failed entries are collected
+    for error reporting and will be retried on the next cycle.
+
+    Args:
+        new_entries: List of entry dicts from check_for_new_entries
+        dry_run: If True, log actions without making API calls
+
+    Returns:
+        Tuple of (errors list, leads_by_location dict)
+    """
+    errors: List[Dict[str, Any]] = []
+    leads_by_location: Dict[str, List[Dict[str, Any]]] = {}
+
     if not new_entries:
         logger.info("No new entries to process")
-        return tracker
+        return errors, leads_by_location
 
     logger.info(f"Processing {len(new_entries)} new entries")
 
+    posts_made = 0
     for entry in new_entries:
         location = entry['sheet_config'].get('name', entry['tenant'])
+        tenant = entry['tenant']
 
         lead_data = build_momence_lead_data(
             entry['headers'],
@@ -461,26 +414,71 @@ def process_new_entries(new_entries: list, tracker: dict, dry_run: bool = False)
             entry['sheet_config']
         )
         if lead_data:
-            result = create_momence_lead(lead_data, entry['tenant'], dry_run=dry_run)
-            if result:
+            # Add delay between POST requests to avoid rate limiting
+            if posts_made > 0:
+                time.sleep(RATE_LIMIT_DELAY)
+            result = create_momence_lead(lead_data, tenant, dry_run=dry_run)
+            posts_made += 1
+
+            # Track lead for location email notification (regardless of success/failure)
+            sync_success = result.get('success', False)
+            lead_record = {**lead_data, 'success': sync_success}
+            if location not in leads_by_location:
+                leads_by_location[location] = []
+            leads_by_location[location].append(lead_record)
+
+            if sync_success:
                 # Mark as processed and increment location count
-                if entry['hash'] not in tracker['sent_hashes']:
-                    tracker['sent_hashes'].append(entry['hash'])
-                    tracker['location_counts'][location] = tracker['location_counts'].get(location, 0) + 1
+                if not storage.hash_exists(entry['hash']):
+                    storage.add_sent_hash(entry['hash'], location)
+                    storage.increment_location_count(location)
+                # Record daily metric using the lead's created date from spreadsheet
+                lead_created_date = lead_data.get('created_time')  # From spreadsheet 'created_time' column
+                storage.record_lead_metric(location, tenant, lead_date=lead_created_date, success=True)
+            else:
+                # Collect error for admin digest with full debugging data
+                error_info = result.get('error', {})
+                errors.append({
+                    'tenant': tenant,
+                    'lead_email': lead_data.get('email'),
+                    'sheet_name': lead_data.get('sheetName'),
+                    'error_type': error_info.get('type', 'unknown'),
+                    'exception_type': error_info.get('exception_type'),
+                    'status_code': error_info.get('status_code'),
+                    'cf_ray': error_info.get('cf_ray', 'N/A'),
+                    'response_headers': error_info.get('response_headers', {}),
+                    'response_body': error_info.get('response_body', ''),
+                    'message': error_info.get('message', ''),
+                    'request_url': error_info.get('request_url'),
+                    'request_payload': error_info.get('request_payload'),
+                    'request_timestamp': error_info.get('request_timestamp'),
+                    'request_duration_ms': error_info.get('request_duration_ms'),
+                    'timestamp': utc_now().isoformat()
+                })
+                # Add to failed queue for retry with backoff (if DLQ enabled)
+                if DLQ_ENABLED:
+                    add_to_failed_queue(lead_data, tenant, error_info, entry['hash'])
+                    logger.warning(f"Lead '{lead_data.get('email')}' failed, added to retry queue")
+                else:
+                    logger.warning(f"Lead '{lead_data.get('email')}' failed (DLQ disabled, will retry on next cycle)")
+                # Record failed metric using the lead's created date from spreadsheet
+                lead_created_date = lead_data.get('created_time')  # From spreadsheet 'created_time' column
+                storage.record_lead_metric(location, tenant, lead_date=lead_created_date, success=False)
         else:
-            # Still mark as processed to avoid retrying
-            if entry['hash'] not in tracker['sent_hashes']:
-                tracker['sent_hashes'].append(entry['hash'])
-                tracker['location_counts'][location] = tracker['location_counts'].get(location, 0) + 1
+            # No valid lead data (missing email, etc.) - mark as processed to avoid retrying
+            if not storage.hash_exists(entry['hash']):
+                storage.add_sent_hash(entry['hash'], location)
+                storage.increment_location_count(location)
 
-    tracker['last_check'] = datetime.now().isoformat()
-    return tracker
+    storage.update_tracker_metadata(last_check=utc_now().isoformat())
+    return errors, leads_by_location
 
 
-def log_location_counts(tracker: dict):
+def log_location_counts():
     """Log cumulative location counts since cache was built."""
-    location_counts = tracker.get('location_counts', {})
-    cache_built_at = tracker.get('cache_built_at', 'unknown')
+    metadata = storage.get_tracker_metadata()
+    location_counts = metadata.get('location_counts', {})
+    cache_built_at = metadata.get('cache_built_at', 'unknown')
 
     if not location_counts:
         logger.info("Location counts: No entries processed yet")
@@ -494,8 +492,24 @@ def log_location_counts(tracker: dict):
     logger.info(f"  TOTAL: {total}")
 
 
-def run_monitor(dry_run: bool = False, verbose: bool = False, reset_tracker: bool = False):
-    """Main monitoring function - single run."""
+def run_monitor(dry_run: bool = False, verbose: bool = False, reset_tracker: bool = False) -> bool:
+    """
+    Main monitoring function - single run.
+
+    Connects to Google Sheets, checks for new entries, processes them through
+    Momence API, and sends notification emails.
+
+    Args:
+        dry_run: If True, log actions without making API calls or saving
+        verbose: Enable verbose logging
+        reset_tracker: If True, clear the tracker and treat all entries as new
+
+    Returns:
+        True if run completed successfully, False on error
+    """
+    # Re-setup logging to handle date rotation
+    setup_logging()
+
     logger.info("=" * 50)
     logger.info(f"Lead Sheets Monitor (dry_run={dry_run})")
     logger.info(f"Tenants configured: {list(MOMENCE_TENANTS.keys())}")
@@ -503,112 +517,184 @@ def run_monitor(dry_run: bool = False, verbose: bool = False, reset_tracker: boo
 
     if reset_tracker:
         logger.warning("Resetting tracker - all entries will be treated as new!")
-        tracker = {'sent_hashes': [], 'last_check': None, 'location_counts': {}, 'cache_built_at': datetime.now().isoformat()}
+        # Reset by clearing the database tables
+        storage.init_database()  # Ensure tables exist
+        # Note: For a full reset, you would need to clear the tables
+        # For now, just update metadata to indicate fresh start
+        storage.update_tracker_metadata(
+            last_check=None,
+            cache_built_at=utc_now().isoformat(),
+            location_counts={}
+        )
     else:
-        tracker = load_sent_tracker()
-        logger.info(f"Loaded tracker with {len(tracker['sent_hashes'])} entries")
+        hash_count = storage.get_sent_hash_count()
+        logger.info(f"Loaded tracker with {hash_count} entries")
+        if DLQ_ENABLED:
+            failed_queue = storage.get_failed_queue_entries()
+            dead_letters = storage.get_dead_letters()
+            if failed_queue:
+                logger.info(f"Failed queue has {len(failed_queue)} entries pending retry")
+            if dead_letters:
+                logger.info(f"Dead letters: {len(dead_letters)} entries")
 
     try:
+        # Process failed queue first (retry previously failed leads)
+        if DLQ_ENABLED:
+            failed_queue = storage.get_failed_queue_entries()
+            if failed_queue:
+                logger.info("Processing failed queue...")
+                dlq_success, dlq_failed, dlq_errors = process_failed_queue(dry_run=dry_run)
+                if dlq_success or dlq_failed:
+                    logger.info(f"Failed queue: {dlq_success} retried successfully, {dlq_failed} still failing")
+
         logger.info("Connecting to Google Sheets API...")
         service = get_google_sheets_service()
         logger.info("Connected")
 
-        new_entries, tracker = check_for_new_entries(service, tracker, verbose=verbose)
-        tracker = process_new_entries(new_entries, tracker, dry_run=dry_run)
+        new_entries = check_for_new_entries(service, verbose=verbose)
+        errors, leads_by_location = process_new_entries(new_entries, dry_run=dry_run)
 
         if not dry_run:
-            save_sent_tracker(tracker)
+            # Send error digest to admin if there were errors (only once per day)
+            if errors:
+                metadata = storage.get_tracker_metadata()
+                last_error_email = metadata.get('last_error_email_sent')
+                today = utc_now().strftime('%Y-%m-%d')
+
+                if last_error_email and last_error_email.startswith(today):
+                    logger.info(f"Skipping error digest - already sent today at {last_error_email} ({len(errors)} errors queued)")
+                else:
+                    logger.info(f"Sending error digest email ({len(errors)} errors)...")
+                    if send_error_digest(errors):
+                        storage.update_tracker_metadata(last_error_email_sent=utc_now().isoformat())
+
+            # Send leads digest for each location
+            for location_name, leads in leads_by_location.items():
+                if leads:
+                    logger.info(f"Sending leads digest for location '{location_name}' ({len(leads)} leads)...")
+                    send_location_leads_digest(location_name, leads)
         else:
-            logger.info("[DRY RUN] Tracker not saved")
+            logger.info("[DRY RUN] Tracker not saved, emails not sent")
 
         # Log cumulative location counts
-        log_location_counts(tracker)
+        log_location_counts()
+
+        # Update health state
+        metadata = storage.get_tracker_metadata()
+        update_health_state(metadata, success=True)
 
         logger.info("Monitor run completed")
         return True
 
     except Exception as e:
         logger.exception(f"Monitor run failed: {e}")
+        metadata = storage.get_tracker_metadata()
+        update_health_state(metadata, success=False)
         return False
 
 
-def is_business_hours_for_tenant(tenant_name: str) -> bool:
-    """Check if current time is within business hours for a tenant."""
-    tenant = MOMENCE_TENANTS.get(tenant_name, {})
-    schedule = tenant.get('schedule', {})
-    biz_hours_config = schedule.get('business_hours', {})
-    business_hours = parse_business_hours(biz_hours_config)
-
-    if not business_hours:
-        return True  # No schedule defined, assume always business hours
-
-    now = datetime.now()
-    day_of_week = now.weekday()  # 0=Monday, 6=Sunday
-    hours = business_hours.get(day_of_week)
-
-    if hours is None:
-        return False  # Closed today
-
-    open_hour, close_hour = hours
-    return open_hour <= now.hour < close_hour
-
-
-def get_check_interval() -> tuple[int, list[str]]:
-    """Get the appropriate check interval based on which tenants are in business hours.
+def get_check_interval() -> int:
+    """Get the check interval from config.
 
     Returns:
-        tuple: (interval_minutes, list_of_active_tenant_names)
+        int: interval in minutes
     """
-    active_tenants = []
-    active_intervals = []
-
-    for tenant_name, tenant in MOMENCE_TENANTS.items():
+    # Use shortest interval among all tenants
+    intervals = []
+    for tenant in MOMENCE_TENANTS.values():
         schedule = tenant.get('schedule', {})
-        if is_business_hours_for_tenant(tenant_name):
-            active_tenants.append(tenant_name)
-            active_intervals.append(schedule.get('check_interval_biz_hours', 5))
+        intervals.append(schedule.get('check_interval_minutes', 5))
 
-    if active_tenants:
-        # Use shortest interval among active tenants
-        return min(active_intervals), active_tenants
-    else:
-        # All tenants off-hours: use shortest off-hours interval
-        off_interval = 30  # default
-        for tenant in MOMENCE_TENANTS.values():
-            schedule = tenant.get('schedule', {})
-            off_interval = min(off_interval, schedule.get('check_interval_off_hours', 30))
-        return off_interval, []
+    return min(intervals) if intervals else 5
+
+
+class GracefulShutdown:
+    """Handler for graceful shutdown signals (SIGTERM, SIGINT)."""
+
+    def __init__(self):
+        self.should_stop = False
+        signal.signal(signal.SIGTERM, self._handle_signal)
+        signal.signal(signal.SIGINT, self._handle_signal)
+
+    def _handle_signal(self, signum, frame):
+        """Handle shutdown signal."""
+        signal_name = signal.Signals(signum).name
+        logger.info(f"Received {signal_name}, initiating graceful shutdown...")
+        self.should_stop = True
 
 
 def run_daemon(dry_run: bool = False, verbose: bool = False):
-    """Run monitor continuously with dynamic interval based on business hours.
-
-    Only checks sheets for tenants that are currently in business hours.
-    This saves API calls when some tenants are closed.
     """
+    Run monitor continuously in daemon mode.
+
+    Executes run_monitor() at regular intervals based on tenant configuration.
+    Handles graceful shutdown via SIGTERM (sent by Cloud Run).
+
+    Args:
+        dry_run: If True, log actions without making API calls
+        verbose: Enable verbose logging
+    """
+    interval_minutes = get_check_interval()
+    shutdown_handler = GracefulShutdown()
+
     logger.info("=" * 50)
     logger.info("Starting Lead Sheets Monitor Daemon")
+    if IS_CLOUD_RUN:
+        logger.info(f"Running on Cloud Run (graceful shutdown: {GRACEFUL_SHUTDOWN_TIMEOUT}s)")
     logger.info(f"Log directory: {LOG_DIR}")
+    logger.info(f"Check interval: {interval_minutes} minutes")
     logger.info(f"Tenants configured: {list(MOMENCE_TENANTS.keys())}")
-    for tenant_name, tenant in MOMENCE_TENANTS.items():
-        schedule = tenant.get('schedule', {})
-        logger.info(f"  {tenant_name}: biz={schedule.get('check_interval_biz_hours', 5)}min, off={schedule.get('check_interval_off_hours', 30)}min")
-    logger.info("Per-tenant checking enabled: only active tenant sheets will be checked")
+    if HEALTH_SERVER_ENABLED:
+        logger.info(f"Health server: enabled on port {HEALTH_SERVER_PORT}")
     logger.info("=" * 50)
 
-    while True:
+    # Initialize database
+    storage.init_database()
+
+    # Start health server if enabled
+    metadata = storage.get_tracker_metadata()
+    health_server = start_health_server(metadata)
+
+    while not shutdown_handler.should_stop:
         try:
             run_monitor(dry_run=dry_run, verbose=verbose, reset_tracker=False)
+
+            # Run all cleanup tasks periodically (once per monitor run)
+            run_cleanup_tasks()
+
         except Exception as e:
             logger.exception(f"Error during monitor run: {e}")
 
-        interval_minutes, active_tenants = get_check_interval()
-        if active_tenants:
-            biz_status = f"business hours: {', '.join(active_tenants)}"
-        else:
-            biz_status = "off hours (all tenants)"
-        logger.info(f"Next check in {interval_minutes} minutes ({biz_status})...")
-        time.sleep(interval_minutes * 60)
+        if shutdown_handler.should_stop:
+            break
+
+        # Sleep in smaller increments to respond to shutdown faster
+        logger.info(f"Next check in {interval_minutes} minutes...")
+        sleep_seconds = interval_minutes * 60
+        while sleep_seconds > 0 and not shutdown_handler.should_stop:
+            time.sleep(min(5, sleep_seconds))  # Check every 5 seconds
+            sleep_seconds -= 5
+
+    # Graceful shutdown
+    logger.info("Shutting down gracefully...")
+
+    # Stop health server
+    if health_server:
+        try:
+            health_server.shutdown()
+            logger.info("Health server stopped")
+        except Exception as e:
+            logger.error(f"Error stopping health server: {e}")
+
+    # Close HTTP session to clean up connections
+    try:
+        close_session()
+        logger.debug("HTTP session closed")
+    except Exception as e:
+        logger.error(f"Error closing HTTP session: {e}")
+
+    logger.info("Shutdown complete")
+    sys.exit(0)
 
 
 def main():
@@ -618,7 +704,122 @@ def main():
     parser.add_argument('--reset-tracker', '-r', action='store_true', help='Reset tracker')
     parser.add_argument('--daemon', action='store_true', help='Run continuously with dynamic check intervals')
 
+    # Dead-letter queue management
+    parser.add_argument('--retry-failed', action='store_true',
+                        help='Force retry all entries in failed queue (ignoring backoff)')
+    parser.add_argument('--list-dead-letters', action='store_true',
+                        help='List all entries in dead letters')
+    parser.add_argument('--requeue-dead-letters', action='store_true',
+                        help='Move all dead letters back to failed queue for retry')
+    parser.add_argument('--queue-status', action='store_true',
+                        help='Show failed queue and dead letters status')
+    parser.add_argument('--support-report', nargs='?', const='momence_support_report.txt',
+                        metavar='FILE',
+                        help='Generate detailed support report for Momence (optionally specify output file)')
+
     args = parser.parse_args()
+
+    # Handle dead-letter queue management commands
+    if args.list_dead_letters:
+        list_dead_letters()
+        return
+
+    if args.support_report:
+        report = generate_support_report(args.support_report)
+        print(report)
+        return
+
+    if args.requeue_dead_letters:
+        count = requeue_dead_letters()
+        if count > 0:
+            print(f"Requeued {count} dead letters to failed queue")
+        return
+
+    if args.queue_status:
+        storage.init_database()
+        failed_queue = storage.get_failed_queue_entries()
+        dead_letters = storage.get_dead_letters()
+        failed_count = len(failed_queue)
+        dead_count = len(dead_letters)
+        sent_count = storage.get_sent_hash_count()
+        print(f"\nQueue Status:")
+        print(f"  Failed queue: {failed_count} entries")
+        print(f"  Dead letters: {dead_count} entries")
+        print(f"  Total sent: {sent_count} entries")
+        if failed_count > 0:
+            print(f"\nFailed Queue Entries:")
+            print("-" * 80)
+            for i, entry in enumerate(failed_queue, 1):
+                lead = entry.get('lead_data', {})
+                error_details = entry.get('last_error_details', {})
+
+                print(f"\n[{i}] {lead.get('email', 'N/A')}")
+                print(f"    Tenant: {entry.get('tenant', 'N/A')}")
+                print(f"    Attempts: {entry.get('attempts', 0)}")
+                print(f"    First Failed: {entry.get('first_failed_at', 'N/A')}")
+                print(f"    Last Attempt: {entry.get('last_attempted_at', 'N/A')}")
+                print(f"    Error Type: {entry.get('last_error', 'N/A')}")
+
+                if error_details:
+                    print(f"    HTTP Status: {error_details.get('status_code', 'N/A')}")
+                    print(f"    CF-Ray: {error_details.get('cf_ray', 'N/A')}")
+                    print(f"    Request URL: {error_details.get('request_url', 'N/A')}")
+                    print(f"    Duration: {error_details.get('request_duration_ms', 'N/A')}ms")
+
+                    # Show request payload (with sensitive data masked)
+                    payload = error_details.get('request_payload', {})
+                    if payload:
+                        print(f"    Request Payload:")
+                        for key, value in payload.items():
+                            # Mask email partially for privacy
+                            if key == 'email' and value and '@' in str(value):
+                                parts = str(value).split('@')
+                                masked = parts[0][:2] + '***@' + parts[1]
+                                print(f"      {key}: {masked}")
+                            else:
+                                print(f"      {key}: {value}")
+
+                    # Show response body if present
+                    response_body = error_details.get('response_body', '')
+                    if response_body:
+                        print(f"    Response Body: {response_body[:200]}")
+                    else:
+                        print(f"    Response Body: (empty)")
+
+                    # Show response headers if present
+                    resp_headers = error_details.get('response_headers', {})
+                    if resp_headers:
+                        print(f"    Response Headers: {json.dumps(resp_headers, indent=6)}")
+                else:
+                    print(f"    (No detailed error info available)")
+
+            print("-" * 80)
+        return
+
+    if args.retry_failed:
+        storage.init_database()
+        failed_queue = storage.get_failed_queue_entries()
+        if not failed_queue:
+            print("No entries in failed queue")
+            return
+        print(f"Force retrying {len(failed_queue)} entries...")
+        success, failed, errors = process_failed_queue(
+            dry_run=args.dry_run, force_retry=True
+        )
+        print(f"Results: {success} successful, {failed} failed")
+        return
+
+    # Validate startup requirements (skip for dry-run which doesn't need credentials)
+    try:
+        warnings = validate_startup_requirements(require_google_creds=not args.dry_run)
+        log_startup_warnings(warnings, logger)
+    except StartupValidationError as e:
+        logger.error(str(e))
+        print(f"ERROR: {e}", file=sys.stderr)
+        exit(1)
+
+    # Initialize database
+    storage.init_database()
 
     if args.daemon:
         run_daemon(dry_run=args.dry_run, verbose=args.verbose)
