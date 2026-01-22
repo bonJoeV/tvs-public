@@ -5,7 +5,7 @@
     "retry_max_attempts": 3,
     "retry_base_delay_seconds": 1.0
   },
-  "tenants": {
+  "momence_hosts": {
     "MyStudio": {
       "host_id": "12345",
       "token": "your-leads-token",
@@ -26,14 +26,14 @@
       "spreadsheet_id": "your-google-spreadsheet-id",
       "gid": "0",
       "name": "Location Name",
-      "tenant": "MyStudio",
+      "momence_host": "MyStudio",
       "lead_source_id": 123456
     },
     {
       "spreadsheet_id": "your-google-spreadsheet-id",
       "gid": "12345",
       "name": "Another Location",
-      "tenant": "AnotherStudio",
+      "momence_host": "AnotherStudio",
       "lead_source_id": 789012
     }
   ]

@@ -1,0 +1,23 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '--build-arg'
+      - 'APP_VERSION=${SHORT_SHA}'
+      - '--build-arg'
+      - 'BUILD_TIME=${_BUILD_TIME}'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/lead-sheets-monitor:latest'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/lead-sheets-monitor:${SHORT_SHA}'
+      - '.'
+
+images:
+  - 'gcr.io/$PROJECT_ID/lead-sheets-monitor:latest'
+  - 'gcr.io/$PROJECT_ID/lead-sheets-monitor:${SHORT_SHA}'
+
+substitutions:
+  _BUILD_TIME: ''
+
+options:
+  logging: CLOUD_LOGGING_ONLY

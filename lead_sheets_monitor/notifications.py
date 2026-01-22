@@ -11,7 +11,7 @@ from email.mime.multipart import MIMEMultipart
 from typing import Dict, Any, List
 
 from config import (
-    get_tenant_config, get_sheet_config_by_name, get_smtp_config,
+    get_host_config, get_sheet_config_by_name, get_smtp_config,
     resolve_email_list, get_email_config, ERROR_BODY_TRUNCATE_CHARS
 )
 from utils import utc_now, escape_html, logger
@@ -77,26 +77,28 @@ def build_error_digest_html(errors: List[Dict[str, Any]]) -> str:
 
     # Group errors by type for summary
     error_types: Dict[str, int] = {}
-    error_tenants: Dict[str, int] = {}
+    error_hosts: Dict[str, int] = {}
     for err in errors:
         err_type = err.get('error_type', 'unknown')
         error_types[err_type] = error_types.get(err_type, 0) + 1
-        tenant = err.get('tenant', 'Unknown')
-        error_tenants[tenant] = error_tenants.get(tenant, 0) + 1
+        momence_host = err.get('momence_host', 'Unknown')
+        error_hosts[momence_host] = error_hosts.get(momence_host, 0) + 1
 
-    # Build summary stats
-    summary_items = ""
+    # Build summary stats using list + join (more memory efficient than string concat)
+    summary_items_list = []
     for err_type, count in sorted(error_types.items(), key=lambda x: -x[1]):
         badge_color = "#dc2626" if count > 2 else "#f59e0b"
-        summary_items += f"""
+        summary_items_list.append(f"""
         <div style="display: inline-block; margin: 4px;">
             <span style="background: {badge_color}; color: white; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 500;">
                 {escape_html(err_type)}: {count}
             </span>
         </div>
-        """
+        """)
+    summary_items = ''.join(summary_items_list)
 
-    error_cards = ""
+    # Build error cards using list + join (more memory efficient than string concat)
+    error_cards_list = []
     for i, err in enumerate(errors, 1):
         headers_display = escape_html(json.dumps(dict(err.get('response_headers', {})), indent=2)) if err.get('response_headers') else 'N/A'
         payload_display = escape_html(json.dumps(err.get('request_payload', {}), indent=2)) if err.get('request_payload') else 'N/A'
@@ -105,7 +107,7 @@ def build_error_digest_html(errors: List[Dict[str, Any]]) -> str:
         # Escape all user-provided data
         lead_email = escape_html(err.get('lead_email', 'N/A'))
         sheet_name = escape_html(err.get('sheet_name', 'N/A'))
-        tenant = escape_html(err.get('tenant', 'N/A'))
+        momence_host = escape_html(err.get('momence_host', 'N/A'))
         error_type = escape_html(err.get('error_type', 'N/A'))
         cf_ray = escape_html(err.get('cf_ray', 'N/A'))
         request_url = escape_html(err.get('request_url', 'N/A'))
@@ -130,7 +132,7 @@ def build_error_digest_html(errors: List[Dict[str, Any]]) -> str:
             border_color = "#dc2626"
             status_bg = "#fee2e2"
 
-        error_cards += f"""
+        error_cards_list.append(f"""
         <div style="background: #fef2f2; border-radius: 8px; padding: 16px; margin-bottom: 16px; border-left: 4px solid {border_color};">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
                 <div>
@@ -148,8 +150,8 @@ def build_error_digest_html(errors: List[Dict[str, Any]]) -> str:
 
             <table style="width: 100%; font-size: 13px; color: #475569; border-collapse: collapse;">
                 <tr>
-                    <td style="padding: 6px 0; width: 120px; vertical-align: top;"><strong>Tenant:</strong></td>
-                    <td style="padding: 6px 0;">{tenant}</td>
+                    <td style="padding: 6px 0; width: 120px; vertical-align: top;"><strong>Momence Host:</strong></td>
+                    <td style="padding: 6px 0;">{momence_host}</td>
                 </tr>
                 <tr>
                     <td style="padding: 6px 0; vertical-align: top;"><strong>Error Type:</strong></td>
@@ -188,7 +190,8 @@ def build_error_digest_html(errors: List[Dict[str, Any]]) -> str:
                 <pre style="background: #f1f5f9; padding: 10px; border-radius: 6px; font-size: 11px; overflow-x: auto; margin-top: 8px; white-space: pre-wrap;">{response_body}</pre>
             </details>
         </div>
-        """
+        """)
+    error_cards = ''.join(error_cards_list)
 
     html = f"""
     <!DOCTYPE html>
@@ -214,7 +217,7 @@ def build_error_digest_html(errors: List[Dict[str, Any]]) -> str:
                 <div style="font-size: 13px; font-weight: 600; color: #991b1b; margin-bottom: 8px;">ERROR SUMMARY</div>
                 <div style="margin-bottom: 8px;">{summary_items}</div>
                 <div style="font-size: 12px; color: #64748b;">
-                    Affected tenants: {', '.join(error_tenants.keys())}
+                    Affected Momence hosts: {', '.join(error_hosts.keys())}
                 </div>
             </div>
 
@@ -227,7 +230,7 @@ def build_error_digest_html(errors: List[Dict[str, Any]]) -> str:
                     <div style="font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 8px;">TROUBLESHOOTING</div>
                     <ul style="margin: 0; padding-left: 20px; font-size: 12px; color: #64748b; line-height: 1.8;">
                         <li><strong>429 Rate Limited:</strong> Increase RATE_LIMIT_DELAY in config</li>
-                        <li><strong>401/403:</strong> Check API token validity in tenant config</li>
+                        <li><strong>401/403:</strong> Check API token validity in Momence host config</li>
                         <li><strong>5xx Server Error:</strong> Momence API may be temporarily unavailable</li>
                         <li><strong>Cloudflare Block:</strong> May need to adjust request headers/timing</li>
                     </ul>
@@ -250,12 +253,12 @@ def build_error_digest_html(errors: List[Dict[str, Any]]) -> str:
     return html
 
 
-def build_leads_digest_html(tenant_name: str, leads: List[Dict[str, Any]], host_id: str = None) -> str:
+def build_leads_digest_html(host_name: str, leads: List[Dict[str, Any]], host_id: str = None) -> str:
     """
-    Build a pretty HTML email for new leads digest (sent to tenant).
+    Build a pretty HTML email for new leads digest.
 
     Args:
-        tenant_name: Name of the tenant
+        host_name: Name of the Momence host or location
         leads: List of lead dictionaries
         host_id: Optional Momence host ID for dashboard links
 
@@ -275,16 +278,18 @@ def build_leads_digest_html(tenant_name: str, leads: List[Dict[str, Any]], host_
             leads_by_source[source] = []
         leads_by_source[source].append(lead)
 
-    # Build source summary badges
-    source_badges = ""
+    # Build source summary badges using list + join (more memory efficient)
+    source_badges_list = []
     for source, source_leads in sorted(leads_by_source.items(), key=lambda x: -len(x[1])):
-        source_badges += f"""
+        source_badges_list.append(f"""
         <span style="display: inline-block; background: #e0e7ff; color: #4338ca; padding: 4px 10px; border-radius: 12px; font-size: 12px; margin: 4px;">
             {escape_html(source)}: {len(source_leads)}
         </span>
-        """
+        """)
+    source_badges = ''.join(source_badges_list)
 
-    lead_cards = ""
+    # Build lead cards using list + join (more memory efficient)
+    lead_cards_list = []
     for lead in leads:
         status_bg = '#d1fae5' if lead.get('success') else '#fef3c7'
         status_color = '#059669' if lead.get('success') else '#d97706'
@@ -335,7 +340,7 @@ def build_leads_digest_html(tenant_name: str, leads: List[Dict[str, Any]], host_
             </a>
             """
 
-        lead_cards += f"""
+        lead_cards_list.append(f"""
             <div style="background: #ffffff; border-radius: 12px; padding: 20px; margin-bottom: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
                     <div>
@@ -367,7 +372,8 @@ def build_leads_digest_html(tenant_name: str, leads: List[Dict[str, Any]], host_
                 {extra_fields_html}
                 {momence_link_html}
             </div>
-        """
+        """)
+    lead_cards = ''.join(lead_cards_list)
 
     # Status summary section
     status_summary = ""
@@ -393,21 +399,21 @@ def build_leads_digest_html(tenant_name: str, leads: List[Dict[str, Any]], host_
                     New Leads Received
                 </h1>
                 <p style="color: rgba(255,255,255,0.85); margin: 8px 0 0 0; font-size: 15px;">
-                    {escape_html(tenant_name)}
+                    {escape_html(host_name)}
                 </p>
             </div>
 
             <!-- Stats Bar -->
-            <div style="background: white; padding: 20px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: center; gap: 32px;">
-                <div style="text-align: center;">
+            <div style="background: white; padding: 20px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: center; gap: 48px;">
+                <div style="text-align: center; min-width: 70px;">
                     <div style="font-size: 32px; font-weight: 700; color: #6366f1;">{len(leads)}</div>
                     <div style="font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Total</div>
                 </div>
-                <div style="text-align: center;">
+                <div style="text-align: center; min-width: 70px;">
                     <div style="font-size: 32px; font-weight: 700; color: #059669;">{successful_count}</div>
                     <div style="font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Synced</div>
                 </div>
-                {f'''<div style="text-align: center;">
+                {f'''<div style="text-align: center; min-width: 70px;">
                     <div style="font-size: 32px; font-weight: 700; color: #d97706;">{pending_count}</div>
                     <div style="font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Pending</div>
                 </div>''' if pending_count > 0 else ''}
@@ -464,73 +470,46 @@ def send_error_digest(errors: List[Dict[str, Any]]) -> bool:
 def send_location_leads_digest(location_name: str, leads: List[Dict[str, Any]]) -> bool:
     """
     Send new leads digest email for a specific location.
-    Uses location email if configured, otherwise falls back to tenant email.
+    Only sends if location has notification_email configured.
     """
     sheet_cfg = get_sheet_config_by_name(location_name)
     if not sheet_cfg:
         logger.warning(f"No sheet config found for location '{location_name}'")
         return False
 
-    tenant_name = sheet_cfg.get('tenant', '')
-    tenant_cfg = get_tenant_config(tenant_name) if tenant_name else None
+    momence_host_name = sheet_cfg.get('momence_host', '')
+    host_cfg = get_host_config(momence_host_name) if momence_host_name else None
 
-    # Try location-specific email first
+    # Only send if location has email configured
     location_email = sheet_cfg.get('notification_email', '').strip()
-    if location_email:
-        recipients = resolve_email_list([location_email])
-        if recipients:
-            if not leads:
-                return True
-            host_id = tenant_cfg.get('host_id') if tenant_cfg else None
-            html = build_leads_digest_html(location_name, leads, host_id=host_id)
-            subject = f"{len(leads)} New Lead(s) - {location_name}"
-            logger.info(f"Sending location email for '{location_name}' to {recipients}")
-            return send_email(recipients, subject, html)
-
-    # Fall back to tenant email
-    if tenant_cfg:
-        email_cfg = tenant_cfg.get('email', {})
-        if not email_cfg.get('enabled', True):
-            logger.debug(f"Email notifications disabled for tenant '{tenant_name}'")
-            return False
-
-        tenant_emails = resolve_email_list(email_cfg.get('recipients', []))
-        if tenant_emails:
-            if not leads:
-                return True
-            host_id = tenant_cfg.get('host_id')
-            html = build_leads_digest_html(location_name, leads, host_id=host_id)
-            subject = f"{len(leads)} New Lead(s) - {location_name}"
-            logger.info(f"Sending tenant email for '{location_name}' to {tenant_emails}")
-            return send_email(tenant_emails, subject, html)
-
-    logger.debug(f"No email recipients configured for location '{location_name}'")
-    return False
-
-
-def send_leads_digest(tenant_name: str, leads: List[Dict[str, Any]]) -> bool:
-    """Send new leads digest email to tenant (legacy, used for retries)."""
-    tenant_cfg = get_tenant_config(tenant_name)
-    if not tenant_cfg:
+    if not location_email:
+        logger.debug(f"No notification_email configured for location '{location_name}'")
         return False
 
-    email_cfg = tenant_cfg.get('email', {})
-    if not email_cfg.get('enabled', True):
-        logger.debug(f"Email notifications disabled for tenant '{tenant_name}'")
-        return False
-
-    tenant_emails = resolve_email_list(email_cfg.get('recipients', []))
-    if not tenant_emails:
-        logger.debug(f"No email recipients configured for tenant '{tenant_name}'")
+    recipients = resolve_email_list([location_email])
+    if not recipients:
+        logger.debug(f"No valid email recipients for location '{location_name}'")
         return False
 
     if not leads:
         return True
 
-    host_id = tenant_cfg.get('host_id')
-    html = build_leads_digest_html(tenant_name, leads, host_id=host_id)
-    subject = f"{len(leads)} New Lead(s) - {tenant_name}"
-    return send_email(tenant_emails, subject, html)
+    host_id = host_cfg.get('host_id') if host_cfg else None
+    html = build_leads_digest_html(location_name, leads, host_id=host_id)
+    subject = f"{len(leads)} New Lead(s) - {location_name}"
+    logger.info(f"Sending location email for '{location_name}' to {recipients}")
+    return send_email(recipients, subject, html)
+
+
+def send_leads_digest(host_name: str, leads: List[Dict[str, Any]]) -> bool:
+    """
+    Send new leads digest email (legacy, used for retries).
+    Note: Host-level email is no longer supported. This function now does nothing
+    since retried leads don't have location context. Consider removing this function
+    or updating retry logic to track location.
+    """
+    logger.debug(f"send_leads_digest called for host '{host_name}' - host-level email no longer supported")
+    return False
 
 
 def send_test_location_email(location_name: str) -> Dict[str, Any]:
@@ -547,24 +526,17 @@ def send_test_location_email(location_name: str) -> Dict[str, Any]:
     if not sheet_cfg:
         return {'success': False, 'error': f"Location '{location_name}' not found"}
 
-    tenant_name = sheet_cfg.get('tenant', '')
-    tenant_cfg = get_tenant_config(tenant_name) if tenant_name else None
+    momence_host_name = sheet_cfg.get('momence_host', '')
+    host_cfg = get_host_config(momence_host_name) if momence_host_name else None
 
-    # Determine recipients (same logic as send_location_leads_digest)
-    recipients = []
+    # Only use location-specific email
     location_email = sheet_cfg.get('notification_email', '').strip()
+    if not location_email:
+        return {'success': False, 'error': 'No notification_email configured for this location'}
 
-    if location_email:
-        recipients = resolve_email_list([location_email])
-
-    if not recipients and tenant_cfg:
-        email_cfg = tenant_cfg.get('email', {})
-        if not email_cfg.get('enabled', True):
-            return {'success': False, 'error': f"Email notifications disabled for tenant '{tenant_name}'"}
-        recipients = resolve_email_list(email_cfg.get('recipients', []))
-
+    recipients = resolve_email_list([location_email])
     if not recipients:
-        return {'success': False, 'error': 'No email recipients configured for this location or tenant'}
+        return {'success': False, 'error': 'Invalid email address configured for this location'}
 
     # Build test email with sample lead data
     timestamp = utc_now().strftime('%Y-%m-%d %H:%M:%S UTC')
@@ -578,7 +550,7 @@ def send_test_location_email(location_name: str) -> Dict[str, Any]:
         'created': timestamp,
     }]
 
-    host_id = tenant_cfg.get('host_id') if tenant_cfg else None
+    host_id = host_cfg.get('host_id') if host_cfg else None
     html = build_leads_digest_html(location_name, sample_leads, host_id=host_id)
     subject = f"[TEST] Email Notification Test - {location_name}"
 

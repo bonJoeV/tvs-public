@@ -3,6 +3,7 @@ Configuration module for Lead Sheets Monitor.
 Handles loading settings, constants, and tenant/sheet configuration.
 
 Designed for Google Cloud Run deployment with environment-based configuration.
+Supports Google Cloud Secret Manager for secure secret storage.
 """
 
 import os
@@ -16,6 +17,17 @@ from typing import Dict, Any, List, Optional
 
 from dotenv import load_dotenv
 
+# Import secret_manager module for Secret Manager integration
+try:
+    from secret_manager import (
+        get_secret, get_google_credentials_json, get_smtp_password,
+        get_dashboard_credentials, get_encryption_key, IS_CLOUD_RUN as SECRETS_CLOUD_RUN
+    )
+    SECRETS_MODULE_AVAILABLE = True
+except ImportError:
+    SECRETS_MODULE_AVAILABLE = False
+    SECRETS_CLOUD_RUN = False
+
 # Optional encryption support
 try:
     from cryptography.fernet import Fernet
@@ -23,12 +35,16 @@ try:
 except ImportError:
     ENCRYPTION_AVAILABLE = False
 
-# Optional schema validation
+# Schema validation - required for secure configuration
 try:
     from jsonschema import validate, ValidationError as SchemaValidationError
     SCHEMA_VALIDATION_AVAILABLE = True
 except ImportError:
     SCHEMA_VALIDATION_AVAILABLE = False
+    logging.getLogger(__name__).warning(
+        "jsonschema module not installed - config validation disabled. "
+        "Install with: pip install jsonschema"
+    )
 
 # Load environment variables
 load_dotenv()
@@ -38,7 +54,8 @@ load_dotenv()
 # ============================================================================
 
 # API timeouts and limits
-DEFAULT_API_TIMEOUT_SECONDS = 120
+# Note: Keep timeout under Cloud Run's 60s graceful shutdown window
+DEFAULT_API_TIMEOUT_SECONDS = 60
 DEFAULT_REQUEST_TIMEOUT_SECONDS = 30
 DEFAULT_RATE_LIMIT_DELAY_SECONDS = 3.0
 DEFAULT_RETRY_MAX_ATTEMPTS = 3
@@ -190,16 +207,16 @@ def get_app_settings() -> AppSettings:
 CONFIG_SCHEMA = {
     "type": "object",
     "properties": {
-        "tenants": {
+        "momence_hosts": {
             "type": "object",
             "additionalProperties": {
                 "type": "object",
                 "properties": {
                     "host_id": {"type": "string", "minLength": 1},
-                    "token": {"type": "string", "minLength": 1},
+                    "token": {"type": "string", "minLength": 1},  # Optional if using Secret Manager
                     "enabled": {"type": "boolean"}
                 },
-                "required": ["host_id", "token"]
+                "required": ["host_id"]  # token can come from Secret Manager
             }
         },
         "sheets": {
@@ -211,12 +228,12 @@ CONFIG_SCHEMA = {
                     "spreadsheet_id": {"type": "string", "minLength": 10},
                     "gid": {"type": "string"},
                     "tab_name": {"type": "string"},
-                    "tenant": {"type": "string", "minLength": 1},
+                    "momence_host": {"type": "string", "minLength": 1},
                     "lead_source_id": {"type": ["string", "integer"]},
                     "enabled": {"type": "boolean"},
                     "notification_email": {"type": "string"}
                 },
-                "required": ["spreadsheet_id", "tenant", "lead_source_id"]
+                "required": ["spreadsheet_id", "momence_host", "lead_source_id"]
             }
         },
         "settings": {
@@ -261,7 +278,13 @@ CONFIG_SCHEMA = {
 
 def _get_or_create_encryption_key() -> Optional[bytes]:
     """
-    Get encryption key from environment or file, creating one if needed.
+    Get encryption key from Secret Manager, environment, or file.
+
+    Priority order:
+    1. Google Cloud Secret Manager (on Cloud Run)
+    2. ENCRYPTION_KEY environment variable
+    3. Local key file (.encryption_key)
+    4. Generate new key (local development only)
 
     Returns:
         Encryption key bytes, or None if encryption is not available
@@ -270,7 +293,16 @@ def _get_or_create_encryption_key() -> Optional[bytes]:
         logging.getLogger(__name__).debug("Encryption not available - cryptography module not installed")
         return None
 
-    # First try environment variable
+    # First try Secret Manager (on Cloud Run)
+    if SECRETS_MODULE_AVAILABLE:
+        secret_key = get_encryption_key()
+        if secret_key:
+            logging.getLogger(__name__).debug("Using encryption key from Secret Manager")
+            if isinstance(secret_key, str):
+                return secret_key.encode('utf-8')
+            return secret_key
+
+    # Then try environment variable
     env_key = os.getenv('ENCRYPTION_KEY')
     if env_key:
         # If passed as string in env, convert to bytes
@@ -404,19 +436,19 @@ def validate_config(config: Dict[str, Any]) -> None:
                 f"Invalid spreadsheet_id '{spreadsheet_id}': contains path characters"
             )
 
-    # Validate tenant references exist
-    tenant_names = set(config.get('tenants', {}).keys())
+    # Validate momence_host references exist
+    host_names = set(config.get('momence_hosts', {}).keys())
     for sheet in config.get('sheets', []):
-        tenant = sheet.get('tenant')
-        if tenant and tenant not in tenant_names:
+        momence_host = sheet.get('momence_host')
+        if momence_host and momence_host not in host_names:
             raise ConfigValidationError(
-                f"Sheet '{sheet.get('name', 'unnamed')}' references unknown tenant '{tenant}'"
+                f"Sheet '{sheet.get('name', 'unnamed')}' references unknown momence_host '{momence_host}'"
             )
 
 
 def load_config(validate_schema: bool = True) -> Dict[str, Any]:
     """
-    Load tenants and sheets config from JSON file.
+    Load Momence hosts and sheets config from JSON file.
 
     Args:
         validate_schema: Whether to validate against schema (default True)
@@ -425,16 +457,21 @@ def load_config(validate_schema: bool = True) -> Dict[str, Any]:
         Configuration dictionary
 
     Raises:
-        ConfigValidationError: If validation fails
+        ConfigValidationError: If validation fails or JSON is malformed
     """
     config_path = Path(CONFIG_FILE)
     if config_path.exists():
-        with open(config_path, 'r') as f:
-            config = json.load(f)
-            if validate_schema:
-                validate_config(config)
-            return config
-    return {'tenants': {}, 'sheets': [], 'schedule': {}}
+        try:
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+        except json.JSONDecodeError as e:
+            raise ConfigValidationError(f"Config file is not valid JSON: {e}")
+        except OSError as e:
+            raise ConfigValidationError(f"Cannot read config file: {e}")
+        if validate_schema:
+            validate_config(config)
+        return config
+    return {'momence_hosts': {}, 'sheets': [], 'schedule': {}}
 
 
 def save_config(config: Dict[str, Any]) -> None:
@@ -446,7 +483,7 @@ def save_config(config: Dict[str, Any]) -> None:
 
 def reload_config() -> Dict[str, Any]:
     """Reload configuration from file and update global state."""
-    global _config, MOMENCE_TENANTS, SHEETS_CONFIG, _settings
+    global _config, MOMENCE_HOSTS, SHEETS_CONFIG, _settings
     global LOG_RETENTION_DAYS, API_TIMEOUT_SECONDS, RETRY_MAX_ATTEMPTS
     global RETRY_BASE_DELAY, RATE_LIMIT_DELAY, DLQ_ENABLED
     global DLQ_MAX_RETRY_ATTEMPTS, DLQ_RETRY_BACKOFF_HOURS
@@ -454,8 +491,9 @@ def reload_config() -> Dict[str, Any]:
     global DEFAULT_SPREADSHEET_ID, _smtp_config, _email_config
 
     _config = load_config()
-    MOMENCE_TENANTS = _config.get('tenants', {})
-    SHEETS_CONFIG = _config.get('sheets', [])
+    # Note: MOMENCE_HOSTS and SHEETS_CONFIG are now loaded from database
+    # via get_momence_hosts() and get_sheets_config() functions
+    # The global vars remain as fallback/cache that gets updated by web server
 
     _settings = _config.get('settings', {})
     LOG_RETENTION_DAYS = _settings.get('log_retention_days', DEFAULT_LOG_RETENTION_DAYS)
@@ -484,7 +522,7 @@ def reload_config() -> Dict[str, Any]:
 
 # Load initial configuration
 _config = load_config()
-MOMENCE_TENANTS = _config.get('tenants', {})
+MOMENCE_HOSTS = _config.get('momence_hosts', {})
 SHEETS_CONFIG = _config.get('sheets', [])
 
 # Global settings from config
@@ -518,17 +556,80 @@ _email_config = _settings.get('email', {})
 
 
 # ============================================================================
-# Tenant/Sheet Config Helpers
+# Momence Host/Sheet Config Helpers (Database-first with config.json fallback)
 # ============================================================================
 
-def get_tenant_config(tenant_name: str) -> Optional[Dict[str, Any]]:
-    """Get tenant configuration by name."""
-    return MOMENCE_TENANTS.get(tenant_name)
+def _get_hosts_from_db() -> Optional[Dict[str, Dict[str, Any]]]:
+    """
+    Try to load hosts from database.
+
+    Returns:
+        Dict of hosts if database has data, None otherwise
+    """
+    try:
+        # Lazy import to avoid circular dependency
+        import storage
+        if not storage.database_exists():
+            return None
+        hosts = storage.get_hosts_as_config_dict()
+        if hosts:
+            return hosts
+        return None
+    except Exception:
+        return None
+
+
+def _get_sheets_from_db() -> Optional[List[Dict[str, Any]]]:
+    """
+    Try to load sheets from database.
+
+    Returns:
+        List of sheets if database has data, None otherwise
+    """
+    try:
+        # Lazy import to avoid circular dependency
+        import storage
+        if not storage.database_exists():
+            return None
+        sheets = storage.get_sheets_as_config_list()
+        if sheets:
+            return sheets
+        return None
+    except Exception:
+        return None
+
+
+def get_momence_hosts() -> Dict[str, Dict[str, Any]]:
+    """
+    Get Momence hosts configuration from database.
+
+    Returns:
+        Dictionary of host configurations (empty if database not available)
+    """
+    db_hosts = _get_hosts_from_db()
+    return db_hosts if db_hosts else {}
+
+
+def get_sheets_config() -> List[Dict[str, Any]]:
+    """
+    Get sheets configuration from database.
+
+    Returns:
+        List of sheet configurations (empty if database not available)
+    """
+    db_sheets = _get_sheets_from_db()
+    return db_sheets if db_sheets else []
+
+
+def get_host_config(host_name: str) -> Optional[Dict[str, Any]]:
+    """Get Momence host configuration by name."""
+    hosts = get_momence_hosts()
+    return hosts.get(host_name)
 
 
 def get_sheet_config(spreadsheet_id: str, tab_name: str) -> Optional[Dict[str, Any]]:
     """Get sheet configuration by spreadsheet ID and tab name."""
-    for sheet in SHEETS_CONFIG:
+    for sheet in get_sheets_config():
         if sheet.get('spreadsheet_id') == spreadsheet_id and sheet.get('tab_name') == tab_name:
             return sheet
     return None
@@ -536,7 +637,7 @@ def get_sheet_config(spreadsheet_id: str, tab_name: str) -> Optional[Dict[str, A
 
 def get_sheet_config_by_name(name: str) -> Optional[Dict[str, Any]]:
     """Get sheet configuration by display name."""
-    for sheet in SHEETS_CONFIG:
+    for sheet in get_sheets_config():
         if sheet.get('name') == name:
             return sheet
     return None
@@ -544,30 +645,72 @@ def get_sheet_config_by_name(name: str) -> Optional[Dict[str, Any]]:
 
 def get_enabled_sheets() -> List[Dict[str, Any]]:
     """Get list of enabled sheet configurations."""
-    return [s for s in SHEETS_CONFIG if s.get('enabled', True)]
+    return [s for s in get_sheets_config() if s.get('enabled', True)]
+
+
+# Whitelist of allowed environment variables for ENV: prefix resolution
+# This prevents config files from reading arbitrary env vars
+ALLOWED_ENV_VARS = frozenset({
+    'SMTP_PASSWORD',
+    'SMTP_USERNAME',
+    'SMTP_HOST',
+    'SMTP_FROM_ADDRESS',
+    'SLACK_WEBHOOK_URL',
+    'DASHBOARD_API_KEY',
+    'DASHBOARD_USERNAME',
+    'DASHBOARD_PASSWORD',
+    'GOOGLE_CREDENTIALS_JSON',
+    'ENCRYPTION_KEY',
+    'ADMIN_EMAIL',
+    'NOTIFICATION_EMAIL',
+})
 
 
 def resolve_env_value(value: str) -> str:
-    """Resolve ENV: prefixed values from environment variables."""
+    """
+    Resolve ENV: prefixed values from environment variables.
+
+    Only allows whitelisted environment variables to prevent
+    config files from reading arbitrary sensitive env vars.
+    """
     if isinstance(value, str) and value.startswith('ENV:'):
         env_var = value[4:]
+        if env_var not in ALLOWED_ENV_VARS:
+            logging.getLogger(__name__).warning(
+                f"Env var '{env_var}' not in allowed list - ignoring. "
+                f"Allowed: {', '.join(sorted(ALLOWED_ENV_VARS))}"
+            )
+            return ''
         return os.getenv(env_var, '')
     return value
 
 
 def get_smtp_config() -> Dict[str, Any]:
     """
-    Get SMTP configuration with environment variable resolution.
+    Get SMTP configuration with Secret Manager and environment variable resolution.
 
-    Security: SMTP password must be provided via environment variable.
+    Security: SMTP password must be provided via Secret Manager or environment variable.
     If password is specified directly in config (not ENV: prefix), it will be ignored
     with a warning logged.
+
+    Priority order for password:
+    1. Google Cloud Secret Manager (on Cloud Run)
+    2. ENV: prefix in config
+    3. SMTP_PASSWORD environment variable
     """
     raw_password = _smtp_config.get('password', '')
 
-    # Security check: password must use ENV: prefix or be loaded from env var
+    # Security check: password must come from secure source
     password = ''
-    if raw_password:
+
+    # First try Secret Manager (on Cloud Run)
+    if SECRETS_MODULE_AVAILABLE:
+        secret_password = get_smtp_password()
+        if secret_password:
+            password = secret_password
+
+    # Then try ENV: prefix or direct env var
+    if not password and raw_password:
         if isinstance(raw_password, str) and raw_password.startswith('ENV:'):
             password = resolve_env_value(raw_password)
         elif os.getenv('SMTP_PASSWORD'):
@@ -621,6 +764,8 @@ def validate_startup_requirements(require_google_creds: bool = True) -> List[str
     """
     Validate that required configuration is present at startup.
 
+    Checks Secret Manager first (on Cloud Run), then falls back to environment variables.
+
     Args:
         require_google_creds: Whether to require Google credentials (default True)
 
@@ -635,19 +780,28 @@ def validate_startup_requirements(require_google_creds: bool = True) -> List[str
 
     # Check Google credentials if required
     if require_google_creds:
-        google_creds = os.getenv('GOOGLE_CREDENTIALS_JSON')
+        # Try Secret Manager first, then env var
+        google_creds = None
+        if SECRETS_MODULE_AVAILABLE:
+            google_creds = get_google_credentials_json()
         if not google_creds:
-            errors.append("GOOGLE_CREDENTIALS_JSON environment variable is required")
+            google_creds = os.getenv('GOOGLE_CREDENTIALS_JSON')
+
+        if not google_creds:
+            errors.append(
+                "Google credentials not found. Set 'google-credentials-json' in Secret Manager "
+                "or GOOGLE_CREDENTIALS_JSON environment variable"
+            )
         else:
             # Validate it's valid JSON
             try:
                 creds_data = json.loads(google_creds)
                 if not creds_data.get('client_email'):
-                    errors.append("GOOGLE_CREDENTIALS_JSON is missing 'client_email' field")
+                    errors.append("Google credentials missing 'client_email' field")
                 if not creds_data.get('private_key'):
-                    errors.append("GOOGLE_CREDENTIALS_JSON is missing 'private_key' field")
+                    errors.append("Google credentials missing 'private_key' field")
             except json.JSONDecodeError as e:
-                errors.append(f"GOOGLE_CREDENTIALS_JSON is not valid JSON: {e}")
+                errors.append(f"Google credentials is not valid JSON: {e}")
 
     # Check config file exists
     config_path = Path(CONFIG_FILE)
@@ -661,15 +815,29 @@ def validate_startup_requirements(require_google_creds: bool = True) -> List[str
             if not os.getenv('SMTP_PASSWORD'):
                 warnings.append("SMTP username configured but password not set (set SMTP_PASSWORD env var)")
 
-    # Check dashboard authentication
-    dashboard_api_key = os.getenv('DASHBOARD_API_KEY')
-    dashboard_username = os.getenv('DASHBOARD_USERNAME')
-    dashboard_password = os.getenv('DASHBOARD_PASSWORD')
+    # Check dashboard authentication (Secret Manager or env vars)
+    dashboard_api_key = None
+    dashboard_username = None
+    dashboard_password = None
+
+    if SECRETS_MODULE_AVAILABLE:
+        creds = get_dashboard_credentials()
+        dashboard_api_key = creds.get('api_key')
+        dashboard_username = creds.get('username')
+        dashboard_password = creds.get('password')
+
+    # Fall back to env vars
+    if not dashboard_api_key:
+        dashboard_api_key = os.getenv('DASHBOARD_API_KEY')
+    if not dashboard_username:
+        dashboard_username = os.getenv('DASHBOARD_USERNAME')
+    if not dashboard_password:
+        dashboard_password = os.getenv('DASHBOARD_PASSWORD')
 
     if not dashboard_api_key and not (dashboard_username and dashboard_password):
         warnings.append(
-            "Dashboard authentication not configured! Set DASHBOARD_API_KEY or "
-            "DASHBOARD_USERNAME/DASHBOARD_PASSWORD environment variables for security."
+            "Dashboard authentication not configured! Set secrets in Secret Manager or "
+            "DASHBOARD_API_KEY/DASHBOARD_USERNAME/DASHBOARD_PASSWORD environment variables."
         )
 
     # Check data directory is writable

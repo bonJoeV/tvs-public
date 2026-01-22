@@ -306,6 +306,9 @@ def compute_entry_hash(entry: dict, sheet_id: str = '', gid: str = '') -> str:
     Handles both camelCase (from Momence API) and snake_case (from sheets) field names.
     Uses SHA256 for better collision resistance.
 
+    NOTE: Does NOT include created_time in hash - this field can vary between fetches
+    causing the same lead to get different hashes after container restarts.
+
     Args:
         entry: Dictionary containing lead data
         sheet_id: Optional spreadsheet ID for additional uniqueness
@@ -318,15 +321,14 @@ def compute_entry_hash(entry: dict, sheet_id: str = '', gid: str = '') -> str:
     def get_field(camel: str, snake: str) -> str:
         return str(entry.get(camel, entry.get(snake, ''))).strip().lower()
 
-    # Use key fields that identify a unique lead (normalized to lowercase)
+    # Use only stable identity fields (NOT created_time which can vary)
     email = get_field('email', 'email')
     first_name = get_field('firstName', 'first_name')
     last_name = get_field('lastName', 'last_name')
     phone = get_field('phoneNumber', 'phone_number')
-    created_time = get_field('created_time', 'created_time')
 
-    # Build hash input with consistent ordering
-    parts = [email, first_name, last_name, phone, created_time]
+    # Build hash input with consistent ordering - only stable identity fields
+    parts = [email, first_name, last_name, phone]
 
     # Include sheet identifiers if provided (for row-level uniqueness across sheets)
     if sheet_id or gid:

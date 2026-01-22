@@ -207,25 +207,3 @@ class TestBuildLeadData:
 
         result = build_momence_lead_data(headers, row, config)
         assert result.get('zipCode') == '54321'
-
-
-class TestNonRetryableError:
-    """Tests for NonRetryableError exception."""
-
-    def test_non_retryable_error_with_status(self):
-        """Test NonRetryableError with status code."""
-        from sheets import NonRetryableError
-
-        error = NonRetryableError('Unauthorized', status_code=401)
-
-        assert str(error) == 'Unauthorized'
-        assert error.status_code == 401
-
-    def test_non_retryable_error_with_original(self):
-        """Test NonRetryableError preserves original error."""
-        from sheets import NonRetryableError
-
-        original = ValueError('Original error')
-        error = NonRetryableError('Wrapped', original_error=original)
-
-        assert error.original_error == original

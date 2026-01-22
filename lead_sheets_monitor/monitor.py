@@ -14,6 +14,7 @@ Usage:
 """
 
 import argparse
+import gc
 import json
 import signal
 import sys
@@ -22,9 +23,9 @@ from typing import Dict, Any, List
 
 # Import from modules
 from config import (
-    MOMENCE_TENANTS, SHEETS_CONFIG, DLQ_ENABLED,
-    LOG_DIR, IS_CLOUD_RUN, GRACEFUL_SHUTDOWN_TIMEOUT,
-    validate_startup_requirements, log_startup_warnings, StartupValidationError
+    DLQ_ENABLED, LOG_DIR, IS_CLOUD_RUN, GRACEFUL_SHUTDOWN_TIMEOUT,
+    validate_startup_requirements, log_startup_warnings, StartupValidationError,
+    get_momence_hosts, get_sheets_config
 )
 from utils import utc_now, setup_logging, logger
 from failed_queue import (
@@ -36,8 +37,8 @@ from sheets import (
 )
 from momence import create_momence_lead, close_session
 from notifications import send_error_digest, send_location_leads_digest
-from web import start_health_server, update_health_state
-from config import RATE_LIMIT_DELAY, HEALTH_SERVER_ENABLED, HEALTH_SERVER_PORT
+from web import start_health_server, update_health_state, cleanup_web_caches
+from config import RATE_LIMIT_DELAY, HEALTH_SERVER_ENABLED, HEALTH_SERVER_PORT, DATABASE_FILE
 import storage
 
 
@@ -58,14 +59,16 @@ def run_cleanup_tasks():
     """
     cleanup_results = {}
 
+    import sqlite3
+
     # Clean up old sent hashes (keep 90 days)
     try:
         hashes_cleaned = storage.cleanup_old_hashes(days=90)
         cleanup_results['sent_hashes'] = hashes_cleaned
         if hashes_cleaned > 0:
             logger.info(f"Cleaned up {hashes_cleaned} old sent hashes")
-    except Exception as e:
-        logger.error(f"Error cleaning up sent hashes: {type(e).__name__}: {e}")
+    except sqlite3.Error as e:
+        logger.error(f"Database error cleaning up sent hashes: {type(e).__name__}: {e}")
         cleanup_results['sent_hashes'] = f"error: {e}"
 
     # Clean up old admin activity logs (keep 90 days)
@@ -74,8 +77,8 @@ def run_cleanup_tasks():
         cleanup_results['admin_activity'] = activity_cleaned
         if activity_cleaned > 0:
             logger.info(f"Cleaned up {activity_cleaned} old admin activity entries")
-    except Exception as e:
-        logger.error(f"Error cleaning up admin activity: {type(e).__name__}: {e}")
+    except sqlite3.Error as e:
+        logger.error(f"Database error cleaning up admin activity: {type(e).__name__}: {e}")
         cleanup_results['admin_activity'] = f"error: {e}"
 
     # Clean up old daily metrics (keep 1 year)
@@ -84,8 +87,8 @@ def run_cleanup_tasks():
         cleanup_results['metrics'] = metrics_cleaned
         if metrics_cleaned > 0:
             logger.info(f"Cleaned up {metrics_cleaned} old metrics entries")
-    except Exception as e:
-        logger.error(f"Error cleaning up metrics: {type(e).__name__}: {e}")
+    except sqlite3.Error as e:
+        logger.error(f"Database error cleaning up metrics: {type(e).__name__}: {e}")
         cleanup_results['metrics'] = f"error: {e}"
 
     # Clean up expired dead letter entries (keep 90 days)
@@ -95,8 +98,8 @@ def run_cleanup_tasks():
         cleanup_results['dead_letters'] = dead_letters_cleaned
         if dead_letters_cleaned > 0:
             logger.info(f"Cleaned up {dead_letters_cleaned} expired dead letter entries")
-    except Exception as e:
-        logger.error(f"Error cleaning up dead letters: {type(e).__name__}: {e}")
+    except sqlite3.Error as e:
+        logger.error(f"Database error cleaning up dead letters: {type(e).__name__}: {e}")
         cleanup_results['dead_letters'] = f"error: {e}"
 
     # Clean up expired web sessions
@@ -105,8 +108,8 @@ def run_cleanup_tasks():
         cleanup_results['sessions'] = sessions_cleaned
         if sessions_cleaned > 0:
             logger.info(f"Cleaned up {sessions_cleaned} expired web sessions")
-    except Exception as e:
-        logger.error(f"Error cleaning up sessions: {type(e).__name__}: {e}")
+    except sqlite3.Error as e:
+        logger.error(f"Database error cleaning up sessions: {type(e).__name__}: {e}")
         cleanup_results['sessions'] = f"error: {e}"
 
     # Clean up expired CSRF tokens
@@ -115,8 +118,8 @@ def run_cleanup_tasks():
         cleanup_results['csrf_tokens'] = csrf_cleaned
         if csrf_cleaned > 0:
             logger.info(f"Cleaned up {csrf_cleaned} expired CSRF tokens")
-    except Exception as e:
-        logger.error(f"Error cleaning up CSRF tokens: {type(e).__name__}: {e}")
+    except sqlite3.Error as e:
+        logger.error(f"Database error cleaning up CSRF tokens: {type(e).__name__}: {e}")
         cleanup_results['csrf_tokens'] = f"error: {e}"
 
     # Log summary if any errors occurred
@@ -178,16 +181,16 @@ def generate_support_report(output_file: str = None) -> str:
     # Configuration info (sanitized)
     lines.append("CONFIGURATION")
     lines.append("-" * 40)
-    for tenant_name, tenant_config in MOMENCE_TENANTS.items():
-        lines.append(f"Tenant: {tenant_name}")
-        lines.append(f"  Host ID: {tenant_config.get('host_id', 'N/A')}")
-        lines.append(f"  Token: {'***' + tenant_config.get('token', '')[-4:] if tenant_config.get('token') else 'N/A'}")
-        lines.append(f"  Enabled: {tenant_config.get('enabled', True)}")
+    for host_name, host_config in get_momence_hosts().items():
+        lines.append(f"Momence Host: {host_name}")
+        lines.append(f"  Host ID: {host_config.get('host_id', 'N/A')}")
+        lines.append(f"  Token: {'***' + host_config.get('token', '')[-4:] if host_config.get('token') else 'N/A'}")
+        lines.append(f"  Enabled: {host_config.get('enabled', True)}")
     lines.append("")
 
     # Lead sources
     lines.append("Lead Sources Configured:")
-    for sheet in SHEETS_CONFIG:
+    for sheet in get_sheets_config():
         lines.append(f"  {sheet.get('name')}: sourceId={sheet.get('lead_source_id')}")
     lines.append("")
 
@@ -202,7 +205,7 @@ def generate_support_report(output_file: str = None) -> str:
         lines.append(f"\n[ERROR {i}]")
         lines.append(f"Email: {lead_data.get('email', 'N/A')}")
         lines.append(f"Sheet: {lead_data.get('sheetName', 'N/A')}")
-        lines.append(f"Tenant: {entry.get('tenant', 'N/A')}")
+        lines.append(f"Momence Host: {entry.get('momence_host', 'N/A')}")
         lines.append(f"Attempts: {entry.get('attempts', 0)}")
         lines.append(f"First Failed: {entry.get('first_failed_at', 'N/A')}")
         lines.append(f"Last Attempt: {entry.get('last_attempted_at', 'N/A')}")
@@ -303,23 +306,28 @@ def requeue_dead_letters() -> int:
 # Main Processing
 # ============================================================================
 
-def check_for_new_entries(service, verbose: bool = False) -> list:
+def check_for_new_entries(
+    service,
+    verbose: bool = False,
+    full_scan: bool = False
+) -> List[Dict[str, Any]]:
     """
-    Check all configured sheets for new entries.
+    Check all configured sheets for new entries using incremental fetching.
 
-    Iterates through all configured sheets, fetches current data, and identifies
-    rows that haven't been processed yet based on their hash.
+    Uses row progress tracking to fetch only new rows since last check.
+    Falls back to full scan on first run or when --full-scan is specified.
 
     Args:
         service: Google Sheets API service
         verbose: Enable verbose logging
+        full_scan: If True, ignore progress and fetch entire sheet
 
     Returns:
         List of new entries to process
     """
-    new_entries = []
+    new_entries: List[Dict[str, Any]] = []
 
-    for sheet_config in SHEETS_CONFIG:
+    for sheet_config in get_sheets_config():
         # Skip disabled sheets
         if not sheet_config.get('enabled', True):
             logger.debug(f"Sheet '{sheet_config.get('name')}' is disabled, skipping")
@@ -327,16 +335,16 @@ def check_for_new_entries(service, verbose: bool = False) -> list:
 
         spreadsheet_id = sheet_config['spreadsheet_id']
         gid = sheet_config['gid']
-        tenant = sheet_config.get('tenant')
+        momence_host = sheet_config.get('momence_host')
 
-        if not tenant:
-            logger.error(f"Sheet '{sheet_config.get('name')}' has no tenant configured, skipping")
+        if not momence_host:
+            logger.error(f"Sheet '{sheet_config.get('name')}' has no momence_host configured, skipping")
             continue
 
-        # Skip if tenant is disabled
-        tenant_cfg = MOMENCE_TENANTS.get(tenant, {})
-        if not tenant_cfg.get('enabled', True):
-            logger.debug(f"Tenant '{tenant}' is disabled, skipping sheet '{sheet_config.get('name')}'")
+        # Skip if momence_host is disabled
+        host_cfg = get_momence_hosts().get(momence_host, {})
+        if not host_cfg.get('enabled', True):
+            logger.debug(f"Momence host '{momence_host}' is disabled, skipping sheet '{sheet_config.get('name')}'")
             continue
 
         sheet_name = get_sheet_name_by_gid(service, spreadsheet_id, gid)
@@ -344,37 +352,86 @@ def check_for_new_entries(service, verbose: bool = False) -> list:
             logger.warning(f"Could not find sheet with gid={gid}")
             continue
 
-        logger.info(f"Checking sheet: {sheet_name} (gid={gid}, tenant={tenant})")
+        # Determine start row for incremental fetching
+        if full_scan:
+            start_row = 1
+            logger.info(f"Checking sheet: {sheet_name} (FULL SCAN)")
+        else:
+            last_row = storage.get_sheet_progress(spreadsheet_id, gid)
+            # start_row is the first data row to fetch (row 2 = first data row after headers)
+            # If last_row is 0 (never processed), fetch from row 2 (all data)
+            # If last_row is N, fetch from row N+1 (new rows only)
+            start_row = max(last_row + 1, 2) if last_row > 0 else 1
+            if last_row > 0:
+                logger.info(f"Checking sheet: {sheet_name} (incremental from row {start_row})")
+            else:
+                logger.info(f"Checking sheet: {sheet_name} (first scan)")
 
-        data = fetch_sheet_data(service, spreadsheet_id, sheet_name)
+        data = fetch_sheet_data(service, spreadsheet_id, sheet_name, start_row=start_row if start_row > 1 else 1)
         if not data:
             continue
 
         headers = data[0] if data else []
         rows = data[1:] if len(data) > 1 else []
 
-        if verbose:
-            logger.info(f"  Found {len(rows)} data rows")
+        if not rows:
+            if verbose:
+                logger.info(f"  No new rows found")
+            continue
 
-        for row_index, row in enumerate(rows, start=2):
-            if not any(cell.strip() if isinstance(cell, str) else cell for cell in row):
+        # Calculate actual row indices
+        # If incremental (start_row > 1), first data row is at start_row
+        # If full scan (start_row = 1), first data row is at row 2
+        first_data_row = start_row if start_row > 1 else 2
+
+        logger.info(f"  Fetched {len(rows)} rows (starting at row {first_data_row})")
+
+        # Filter out empty rows and build row data with indices
+        valid_rows = []
+        for idx, row in enumerate(rows):
+            if any(cell.strip() if isinstance(cell, str) else cell for cell in row):
+                row_index = first_data_row + idx
+                valid_rows.append((row_index, row))
+
+        if not valid_rows:
+            if verbose:
+                logger.info(f"  No non-empty rows found")
+            continue
+
+        # Batch hash generation for all valid rows
+        row_hashes = [
+            generate_row_hash(spreadsheet_id, gid, headers, row)
+            for _, row in valid_rows
+        ]
+
+        # Batch hash lookup (single DB query instead of N queries)
+        existing_hashes = storage.get_existing_hashes(row_hashes)
+
+        # Process only truly new rows (handles crash recovery case)
+        for (row_index, row), row_hash in zip(valid_rows, row_hashes):
+            if row_hash in existing_hashes:
+                if verbose:
+                    logger.debug(f"  Row {row_index} already processed (hash exists)")
                 continue
 
-            row_hash = generate_row_hash(spreadsheet_id, gid, headers, row)
+            new_entries.append({
+                'sheet_config': sheet_config,
+                'sheet_name': sheet_name,
+                'gid': gid,
+                'spreadsheet_id': spreadsheet_id,
+                'row_index': row_index,
+                'headers': headers,
+                'data': row,
+                'hash': row_hash,
+                'momence_host': momence_host
+            })
+            logger.info(f"  NEW ENTRY at row {row_index}")
 
-            if not storage.hash_exists(row_hash):
-                new_entries.append({
-                    'sheet_config': sheet_config,
-                    'sheet_name': sheet_name,
-                    'gid': gid,
-                    'spreadsheet_id': spreadsheet_id,
-                    'row_index': row_index,
-                    'headers': headers,
-                    'data': row,
-                    'hash': row_hash,
-                    'tenant': tenant
-                })
-                logger.info(f"  NEW ENTRY at row {row_index}")
+        # Update progress tracking (last row we've seen)
+        if valid_rows:
+            last_processed_row = valid_rows[-1][0]  # Last row index
+            total_rows = last_processed_row  # Approximate total (actual row count)
+            storage.update_sheet_progress(spreadsheet_id, gid, last_processed_row, total_rows)
 
     return new_entries
 
@@ -405,8 +462,8 @@ def process_new_entries(new_entries: list, dry_run: bool = False) -> tuple[List[
 
     posts_made = 0
     for entry in new_entries:
-        location = entry['sheet_config'].get('name', entry['tenant'])
-        tenant = entry['tenant']
+        location = entry['sheet_config'].get('name', entry['momence_host'])
+        momence_host = entry['momence_host']
 
         lead_data = build_momence_lead_data(
             entry['headers'],
@@ -414,10 +471,16 @@ def process_new_entries(new_entries: list, dry_run: bool = False) -> tuple[List[
             entry['sheet_config']
         )
         if lead_data:
+            # Idempotency protection: Mark as in-progress BEFORE making API call
+            # This prevents duplicate submissions if process crashes mid-request
+            # and restarts before the response is processed
+            if not dry_run and not storage.hash_exists(entry['hash']):
+                storage.add_sent_hash(entry['hash'], location)
+
             # Add delay between POST requests to avoid rate limiting
             if posts_made > 0:
                 time.sleep(RATE_LIMIT_DELAY)
-            result = create_momence_lead(lead_data, tenant, dry_run=dry_run)
+            result = create_momence_lead(lead_data, momence_host, dry_run=dry_run)
             posts_made += 1
 
             # Track lead for location email notification (regardless of success/failure)
@@ -428,18 +491,18 @@ def process_new_entries(new_entries: list, dry_run: bool = False) -> tuple[List[
             leads_by_location[location].append(lead_record)
 
             if sync_success:
-                # Mark as processed and increment location count
-                if not storage.hash_exists(entry['hash']):
-                    storage.add_sent_hash(entry['hash'], location)
-                    storage.increment_location_count(location)
+                # Hash already added before API call for idempotency
+                # Just increment the location count
+                storage.increment_location_count(location)
                 # Record daily metric using the lead's created date from spreadsheet
                 lead_created_date = lead_data.get('created_time')  # From spreadsheet 'created_time' column
-                storage.record_lead_metric(location, tenant, lead_date=lead_created_date, success=True)
+                storage.record_lead_metric(location, momence_host, lead_date=lead_created_date, success=True)
             else:
-                # Collect error for admin digest with full debugging data
+                # Collect error for admin digest with capped sizes to limit memory usage
                 error_info = result.get('error', {})
+                response_body = error_info.get('response_body', '')
                 errors.append({
-                    'tenant': tenant,
+                    'momence_host': momence_host,
                     'lead_email': lead_data.get('email'),
                     'sheet_name': lead_data.get('sheetName'),
                     'error_type': error_info.get('type', 'unknown'),
@@ -447,8 +510,8 @@ def process_new_entries(new_entries: list, dry_run: bool = False) -> tuple[List[
                     'status_code': error_info.get('status_code'),
                     'cf_ray': error_info.get('cf_ray', 'N/A'),
                     'response_headers': error_info.get('response_headers', {}),
-                    'response_body': error_info.get('response_body', ''),
-                    'message': error_info.get('message', ''),
+                    'response_body': response_body[:500] if response_body else '',  # Cap at 500 chars
+                    'message': error_info.get('message', '')[:500],  # Cap at 500 chars
                     'request_url': error_info.get('request_url'),
                     'request_payload': error_info.get('request_payload'),
                     'request_timestamp': error_info.get('request_timestamp'),
@@ -456,19 +519,23 @@ def process_new_entries(new_entries: list, dry_run: bool = False) -> tuple[List[
                     'timestamp': utc_now().isoformat()
                 })
                 # Add to failed queue for retry with backoff (if DLQ enabled)
+                # Note: Hash already added before API call for idempotency, so lead won't be
+                # picked up as NEW again. Failed queue handles the retry separately.
                 if DLQ_ENABLED:
-                    add_to_failed_queue(lead_data, tenant, error_info, entry['hash'])
+                    add_to_failed_queue(lead_data, momence_host, error_info, entry['hash'])
                     logger.warning(f"Lead '{lead_data.get('email')}' failed, added to retry queue")
                 else:
-                    logger.warning(f"Lead '{lead_data.get('email')}' failed (DLQ disabled, will retry on next cycle)")
+                    logger.warning(f"Lead '{lead_data.get('email')}' failed (DLQ disabled, will not be retried)")
                 # Record failed metric using the lead's created date from spreadsheet
                 lead_created_date = lead_data.get('created_time')  # From spreadsheet 'created_time' column
-                storage.record_lead_metric(location, tenant, lead_date=lead_created_date, success=False)
+                storage.record_lead_metric(location, momence_host, lead_date=lead_created_date, success=False)
         else:
             # No valid lead data (missing email, etc.) - mark as processed to avoid retrying
+            # The hash was already added for idempotency if lead_data existed, so only
+            # add it here if there was no lead_data at all
             if not storage.hash_exists(entry['hash']):
                 storage.add_sent_hash(entry['hash'], location)
-                storage.increment_location_count(location)
+            storage.increment_location_count(location)
 
     storage.update_tracker_metadata(last_check=utc_now().isoformat())
     return errors, leads_by_location
@@ -492,7 +559,12 @@ def log_location_counts():
     logger.info(f"  TOTAL: {total}")
 
 
-def run_monitor(dry_run: bool = False, verbose: bool = False, reset_tracker: bool = False) -> bool:
+def run_monitor(
+    dry_run: bool = False,
+    verbose: bool = False,
+    reset_tracker: bool = False,
+    full_scan: bool = False
+) -> bool:
     """
     Main monitoring function - single run.
 
@@ -503,6 +575,7 @@ def run_monitor(dry_run: bool = False, verbose: bool = False, reset_tracker: boo
         dry_run: If True, log actions without making API calls or saving
         verbose: Enable verbose logging
         reset_tracker: If True, clear the tracker and treat all entries as new
+        full_scan: If True, ignore row progress and fetch entire sheets
 
     Returns:
         True if run completed successfully, False on error
@@ -512,13 +585,13 @@ def run_monitor(dry_run: bool = False, verbose: bool = False, reset_tracker: boo
 
     logger.info("=" * 50)
     logger.info(f"Lead Sheets Monitor (dry_run={dry_run})")
-    logger.info(f"Tenants configured: {list(MOMENCE_TENANTS.keys())}")
+    logger.info(f"Momence hosts configured: {list(get_momence_hosts().keys())}")
     logger.info("=" * 50)
 
     if reset_tracker:
         logger.warning("Resetting tracker - all entries will be treated as new!")
         # Reset by clearing the database tables
-        storage.init_database()  # Ensure tables exist
+        storage.init_database(allow_create=True)  # Ensure tables exist (create if needed)
         # Note: For a full reset, you would need to clear the tables
         # For now, just update metadata to indicate fresh start
         storage.update_tracker_metadata(
@@ -530,18 +603,20 @@ def run_monitor(dry_run: bool = False, verbose: bool = False, reset_tracker: boo
         hash_count = storage.get_sent_hash_count()
         logger.info(f"Loaded tracker with {hash_count} entries")
         if DLQ_ENABLED:
-            failed_queue = storage.get_failed_queue_entries()
-            dead_letters = storage.get_dead_letters()
-            if failed_queue:
-                logger.info(f"Failed queue has {len(failed_queue)} entries pending retry")
-            if dead_letters:
-                logger.info(f"Dead letters: {len(dead_letters)} entries")
+            # Use count-only queries to avoid loading all entries into memory
+            failed_count = storage.get_failed_queue_count()
+            dead_count = storage.get_dead_letter_count()
+            if failed_count:
+                logger.info(f"Failed queue has {failed_count} entries pending retry")
+            if dead_count:
+                logger.info(f"Dead letters: {dead_count} entries")
 
     try:
         # Process failed queue first (retry previously failed leads)
         if DLQ_ENABLED:
-            failed_queue = storage.get_failed_queue_entries()
-            if failed_queue:
+            # Use count-only check to avoid loading all entries into memory
+            failed_count = storage.get_failed_queue_count()
+            if failed_count > 0:
                 logger.info("Processing failed queue...")
                 dlq_success, dlq_failed, dlq_errors = process_failed_queue(dry_run=dry_run)
                 if dlq_success or dlq_failed:
@@ -551,7 +626,7 @@ def run_monitor(dry_run: bool = False, verbose: bool = False, reset_tracker: boo
         service = get_google_sheets_service()
         logger.info("Connected")
 
-        new_entries = check_for_new_entries(service, verbose=verbose)
+        new_entries = check_for_new_entries(service, verbose=verbose, full_scan=full_scan)
         errors, leads_by_location = process_new_entries(new_entries, dry_run=dry_run)
 
         if not dry_run:
@@ -599,10 +674,10 @@ def get_check_interval() -> int:
     Returns:
         int: interval in minutes
     """
-    # Use shortest interval among all tenants
+    # Use shortest interval among all Momence hosts
     intervals = []
-    for tenant in MOMENCE_TENANTS.values():
-        schedule = tenant.get('schedule', {})
+    for host in get_momence_hosts().values():
+        schedule = host.get('schedule', {})
         intervals.append(schedule.get('check_interval_minutes', 5))
 
     return min(intervals) if intervals else 5
@@ -643,13 +718,38 @@ def run_daemon(dry_run: bool = False, verbose: bool = False):
         logger.info(f"Running on Cloud Run (graceful shutdown: {GRACEFUL_SHUTDOWN_TIMEOUT}s)")
     logger.info(f"Log directory: {LOG_DIR}")
     logger.info(f"Check interval: {interval_minutes} minutes")
-    logger.info(f"Tenants configured: {list(MOMENCE_TENANTS.keys())}")
+    logger.info(f"Momence hosts configured: {list(get_momence_hosts().keys())}")
     if HEALTH_SERVER_ENABLED:
         logger.info(f"Health server: enabled on port {HEALTH_SERVER_PORT}")
     logger.info("=" * 50)
 
-    # Initialize database
-    storage.init_database()
+    # Initialize database - don't auto-create to prevent race conditions
+    # On Cloud Run, this will download from GCS if available
+    # If no database exists, the monitor will wait for one to be created via dashboard
+    db_initialized = storage.init_database(allow_create=False)
+
+    if not db_initialized:
+        logger.warning(
+            "No database available. Monitor will wait for database to be created. "
+            "Use the dashboard to create a new database, or upload one to GCS."
+        )
+        # Start health server even without DB (will report degraded status)
+        health_server = start_health_server(None)
+
+        # Wait for database to appear
+        while not shutdown_handler.should_stop:
+            if storage.database_exists():
+                logger.info("Database detected! Initializing...")
+                db_initialized = storage.init_database(allow_create=False)
+                if db_initialized:
+                    break
+            time.sleep(10)  # Check every 10 seconds
+
+        if not db_initialized:
+            logger.error("Shutdown requested before database was available")
+            if health_server:
+                health_server.shutdown()
+            return
 
     # Start health server if enabled
     metadata = storage.get_tracker_metadata()
@@ -659,8 +759,22 @@ def run_daemon(dry_run: bool = False, verbose: bool = False):
         try:
             run_monitor(dry_run=dry_run, verbose=verbose, reset_tracker=False)
 
+            # Sync database to GCS after every run for crash protection
+            # This ensures data loss is limited to one check interval if container crashes
+            if IS_CLOUD_RUN and not dry_run:
+                from cloud_storage import upload_database
+                upload_database(DATABASE_FILE)
+
             # Run all cleanup tasks periodically (once per monitor run)
             run_cleanup_tasks()
+
+            # Cleanup web server in-memory caches (sessions, CSRF, rate limits)
+            # This prevents memory leaks when dashboard traffic is low
+            cleanup_web_caches()
+
+            # Force garbage collection to reclaim memory from processed data structures
+            # This helps prevent gradual memory growth from fragmentation
+            gc.collect()
 
         except Exception as e:
             logger.exception(f"Error during monitor run: {e}")
@@ -675,25 +789,56 @@ def run_daemon(dry_run: bool = False, verbose: bool = False):
             time.sleep(min(5, sleep_seconds))  # Check every 5 seconds
             sleep_seconds -= 5
 
-    # Graceful shutdown
-    logger.info("Shutting down gracefully...")
+    # Graceful shutdown with timeout enforcement
+    # Cloud Run sends SIGTERM with 60s hard timeout, so we must complete within GRACEFUL_SHUTDOWN_TIMEOUT
+    logger.info(f"Shutting down gracefully (timeout: {GRACEFUL_SHUTDOWN_TIMEOUT}s)...")
+    shutdown_start = time.time()
 
-    # Stop health server
+    def _check_shutdown_timeout(operation: str) -> bool:
+        """Check if we're approaching the shutdown timeout."""
+        elapsed = time.time() - shutdown_start
+        remaining = GRACEFUL_SHUTDOWN_TIMEOUT - elapsed
+        if remaining < 2:  # Less than 2 seconds remaining
+            logger.warning(f"Shutdown timeout approaching during {operation}, forcing exit")
+            return True
+        return False
+
+    # Stop health server first (fast operation)
     if health_server:
         try:
-            health_server.shutdown()
-            logger.info("Health server stopped")
+            if not _check_shutdown_timeout("health_server_shutdown"):
+                health_server.shutdown()
+                logger.info("Health server stopped")
         except Exception as e:
             logger.error(f"Error stopping health server: {e}")
 
     # Close HTTP session to clean up connections
     try:
-        close_session()
-        logger.debug("HTTP session closed")
+        if not _check_shutdown_timeout("session_close"):
+            close_session()
+            logger.debug("HTTP session closed")
     except Exception as e:
         logger.error(f"Error closing HTTP session: {e}")
 
-    logger.info("Shutdown complete")
+    # Close Google Sheets service to release httplib2 connections
+    try:
+        if not _check_shutdown_timeout("google_service_close"):
+            from sheets import close_google_service
+            close_google_service()
+            logger.debug("Google Sheets service closed")
+    except Exception as e:
+        logger.error(f"Error closing Google Sheets service: {e}")
+
+    # Close database connections
+    try:
+        if not _check_shutdown_timeout("db_close"):
+            storage.close_connection()
+            logger.debug("Database connection closed")
+    except Exception as e:
+        logger.error(f"Error closing database connection: {e}")
+
+    elapsed = time.time() - shutdown_start
+    logger.info(f"Shutdown complete in {elapsed:.1f}s")
     sys.exit(0)
 
 
@@ -703,6 +848,8 @@ def main():
     parser.add_argument('--verbose', '-v', action='store_true', help='Verbose output')
     parser.add_argument('--reset-tracker', '-r', action='store_true', help='Reset tracker')
     parser.add_argument('--daemon', action='store_true', help='Run continuously with dynamic check intervals')
+    parser.add_argument('--full-scan', action='store_true',
+                        help='Force full sheet rescan (ignore row progress tracking)')
 
     # Dead-letter queue management
     parser.add_argument('--retry-failed', action='store_true',
@@ -736,7 +883,7 @@ def main():
         return
 
     if args.queue_status:
-        storage.init_database()
+        storage.init_database(allow_create=False)
         failed_queue = storage.get_failed_queue_entries()
         dead_letters = storage.get_dead_letters()
         failed_count = len(failed_queue)
@@ -754,7 +901,7 @@ def main():
                 error_details = entry.get('last_error_details', {})
 
                 print(f"\n[{i}] {lead.get('email', 'N/A')}")
-                print(f"    Tenant: {entry.get('tenant', 'N/A')}")
+                print(f"    Momence Host: {entry.get('momence_host', 'N/A')}")
                 print(f"    Attempts: {entry.get('attempts', 0)}")
                 print(f"    First Failed: {entry.get('first_failed_at', 'N/A')}")
                 print(f"    Last Attempt: {entry.get('last_attempted_at', 'N/A')}")
@@ -797,7 +944,7 @@ def main():
         return
 
     if args.retry_failed:
-        storage.init_database()
+        storage.init_database(allow_create=False)
         failed_queue = storage.get_failed_queue_entries()
         if not failed_queue:
             print("No entries in failed queue")
@@ -818,16 +965,21 @@ def main():
         print(f"ERROR: {e}", file=sys.stderr)
         exit(1)
 
-    # Initialize database
-    storage.init_database()
-
+    # Daemon mode handles its own database initialization (with waiting logic)
     if args.daemon:
         run_daemon(dry_run=args.dry_run, verbose=args.verbose)
     else:
+        # For single-run mode, require database to exist (no waiting)
+        if not storage.init_database(allow_create=False):
+            logger.error("No database available. Use --reset-tracker to create a new database.")
+            print("ERROR: No database available. Use --reset-tracker to create a new database.", file=sys.stderr)
+            exit(1)
+
         success = run_monitor(
             dry_run=args.dry_run,
             verbose=args.verbose,
-            reset_tracker=args.reset_tracker
+            reset_tracker=args.reset_tracker,
+            full_scan=args.full_scan
         )
         exit(0 if success else 1)
 

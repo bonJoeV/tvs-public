@@ -1,0 +1,24 @@
+{
+  "settings": {
+    "default_spreadsheet_id": "10O3EWuwirq5ScqCbdM0CSkdWNfo6s76Mh8uNMh6oZVY",
+    "log_retention_days": 7,
+    "api_timeout_seconds": 15,
+    "retry_max_attempts": 2,
+    "retry_base_delay_seconds": 1.0,
+    "rate_limit_delay_seconds": 10.0,
+    "smtp": {
+      "host": "smtp.gmail.com",
+      "port": 587,
+      "username": "joe@thevitalstretch.com",
+      "from_address": "joe@thevitalstretch.com"
+    },
+    "email": {
+      "admin_recipients": [
+        "joe@thevitalstretch.com"
+      ]
+    },
+    "dlq_enabled": true,
+    "dlq_max_retry_attempts": 12,
+    "log_level": "INFO"
+  }
+}

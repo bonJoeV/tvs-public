@@ -33,7 +33,9 @@ class TestDatabaseInitialization:
             assert 'dead_letters' in table_names
             assert 'tracker_metadata' in table_names
             assert 'admin_activity' in table_names
-            assert 'leads_daily_metrics' in table_names
+            assert 'lead_metrics' in table_names
+            assert 'momence_hosts' in table_names
+            assert 'sheets' in table_names
 
     def test_init_database_idempotent(self, temp_dir, monkeypatch):
         """Test that init_database can be called multiple times."""
@@ -138,12 +140,12 @@ class TestFailedQueue:
         lead_data = {'email': 'test@example.com', 'firstName': 'John'}
         error_info = {'type': 'api_error', 'status_code': 500, 'message': 'Server error'}
 
-        storage.add_to_failed_queue('entry_hash_123', lead_data, 'TestTenant', error_info)
+        storage.add_to_failed_queue('entry_hash_123', lead_data, 'TestHost', error_info)
 
         entries = storage.get_failed_queue_entries()
         assert len(entries) == 1
         assert entries[0]['entry_hash'] == 'entry_hash_123'
-        assert entries[0]['tenant'] == 'TestTenant'
+        assert entries[0]['momence_host'] == 'TestHost'
         assert entries[0]['attempts'] == 1
 
     def test_update_failed_entry_increments_attempts(self, temp_dir, monkeypatch):
@@ -158,7 +160,7 @@ class TestFailedQueue:
         lead_data = {'email': 'test@example.com'}
         error_info = {'type': 'api_error', 'status_code': 500}
 
-        storage.add_to_failed_queue('entry_hash_123', lead_data, 'TestTenant', error_info)
+        storage.add_to_failed_queue('entry_hash_123', lead_data, 'TestHost', error_info)
 
         # Update with another error
         new_attempts = storage.update_failed_entry_attempt('entry_hash_123', {'type': 'api_error', 'status_code': 502})
@@ -177,7 +179,7 @@ class TestFailedQueue:
         lead_data = {'email': 'test@example.com'}
         error_info = {'type': 'api_error'}
 
-        storage.add_to_failed_queue('entry_hash_123', lead_data, 'TestTenant', error_info)
+        storage.add_to_failed_queue('entry_hash_123', lead_data, 'TestHost', error_info)
         assert storage.get_failed_queue_count() == 1
 
         storage.remove_from_failed_queue('entry_hash_123')
@@ -199,7 +201,7 @@ class TestDeadLetters:
         lead_data = {'email': 'test@example.com'}
         error_info = {'type': 'api_error'}
 
-        storage.add_to_failed_queue('entry_hash_123', lead_data, 'TestTenant', error_info)
+        storage.add_to_failed_queue('entry_hash_123', lead_data, 'TestHost', error_info)
         assert storage.get_failed_queue_count() == 1
 
         storage.move_to_dead_letters('entry_hash_123')
@@ -219,7 +221,7 @@ class TestDeadLetters:
         lead_data = {'email': 'test@example.com'}
         error_info = {'type': 'api_error'}
 
-        storage.add_to_failed_queue('entry_hash_123', lead_data, 'TestTenant', error_info)
+        storage.add_to_failed_queue('entry_hash_123', lead_data, 'TestHost', error_info)
         storage.move_to_dead_letters('entry_hash_123')
 
         assert storage.get_dead_letter_count() == 1
@@ -243,13 +245,13 @@ class TestDeadLetters:
         lead_data = {'email': 'test@example.com'}
         error_info = {'type': 'api_rate_limited'}
 
-        storage.add_to_failed_queue('hash1', lead_data, 'Tenant1', error_info)
+        storage.add_to_failed_queue('hash1', lead_data, 'Host1', error_info)
         storage.move_to_dead_letters('hash1')
 
         stats = storage.get_dead_letter_stats()
 
         assert stats['count'] == 1
-        assert 'Tenant1' in stats['tenants']
+        assert 'Host1' in stats['momence_hosts']
 
 
 class TestTrackerMetadata:
@@ -382,13 +384,275 @@ class TestDailyMetrics:
         importlib.reload(storage)
         storage.init_database()
 
-        storage.record_lead_metric('Location1', 'Tenant1', '2024-01-15', success=True)
-        storage.record_lead_metric('Location2', 'Tenant1', '2024-01-15', success=True)
+        storage.record_lead_metric('Location1', 'Host1', '2024-01-15', success=True)
+        storage.record_lead_metric('Location2', 'Host1', '2024-01-15', success=True)
 
         chart_data = storage.get_leads_chart_data(days=30)
 
         assert 'dates' in chart_data
         assert 'locations' in chart_data
         assert 'totals' in chart_data
+
+
+class TestMomenceHosts:
+    """Tests for Momence hosts storage operations."""
+
+    def test_create_and_get_host(self, temp_dir, monkeypatch):
+        """Test creating and retrieving a host."""
+        monkeypatch.setenv('DATABASE_FILE', str(temp_dir / 'test.db'))
+
+        import importlib
+        import storage
+        importlib.reload(storage)
+        storage.init_database()
+
+        host = storage.create_host(
+            name='TestHost',
+            host_id='12345',
+            token='test-token',
+            enabled=True
+        )
+
+        assert host['name'] == 'TestHost'
+        assert host['host_id'] == '12345'
+        assert host['enabled'] is True
+
+        retrieved = storage.get_host('TestHost')
+        assert retrieved['name'] == 'TestHost'
+        assert retrieved['host_id'] == '12345'
+
+    def test_get_all_hosts(self, temp_dir, monkeypatch):
+        """Test retrieving all hosts."""
+        monkeypatch.setenv('DATABASE_FILE', str(temp_dir / 'test.db'))
+
+        import importlib
+        import storage
+        importlib.reload(storage)
+        storage.init_database()
+
+        storage.create_host(name='Host1', host_id='111')
+        storage.create_host(name='Host2', host_id='222')
+
+        hosts = storage.get_all_hosts()
+        assert len(hosts) == 2
+        host_names = [h['name'] for h in hosts]
+        assert 'Host1' in host_names
+        assert 'Host2' in host_names
+
+    def test_update_host(self, temp_dir, monkeypatch):
+        """Test updating a host."""
+        monkeypatch.setenv('DATABASE_FILE', str(temp_dir / 'test.db'))
+
+        import importlib
+        import storage
+        importlib.reload(storage)
+        storage.init_database()
+
+        storage.create_host(name='TestHost', host_id='12345', enabled=True)
+
+        updated = storage.update_host('TestHost', host_id='67890', enabled=False)
+
+        assert updated['host_id'] == '67890'
+        assert updated['enabled'] is False
+
+    def test_delete_host(self, temp_dir, monkeypatch):
+        """Test deleting a host."""
+        monkeypatch.setenv('DATABASE_FILE', str(temp_dir / 'test.db'))
+
+        import importlib
+        import storage
+        importlib.reload(storage)
+        storage.init_database()
+
+        storage.create_host(name='TestHost', host_id='12345')
+        assert storage.get_host_count() == 1
+
+        deleted = storage.delete_host('TestHost')
+        assert deleted is True
+        assert storage.get_host_count() == 0
+
+    def test_create_duplicate_host_fails(self, temp_dir, monkeypatch):
+        """Test that creating duplicate host raises error."""
+        monkeypatch.setenv('DATABASE_FILE', str(temp_dir / 'test.db'))
+
+        import importlib
+        import storage
+        importlib.reload(storage)
+        storage.init_database()
+
+        storage.create_host(name='TestHost', host_id='12345')
+
+        with pytest.raises(ValueError):
+            storage.create_host(name='TestHost', host_id='67890')
+
+    def test_get_enabled_hosts(self, temp_dir, monkeypatch):
+        """Test getting only enabled hosts."""
+        monkeypatch.setenv('DATABASE_FILE', str(temp_dir / 'test.db'))
+
+        import importlib
+        import storage
+        importlib.reload(storage)
+        storage.init_database()
+
+        storage.create_host(name='EnabledHost', host_id='111', enabled=True)
+        storage.create_host(name='DisabledHost', host_id='222', enabled=False)
+
+        enabled = storage.get_enabled_hosts()
+        assert len(enabled) == 1
+        assert enabled[0]['name'] == 'EnabledHost'
+
+
+class TestSheets:
+    """Tests for sheets/locations storage operations."""
+
+    def test_create_and_get_sheet(self, temp_dir, monkeypatch):
+        """Test creating and retrieving a sheet."""
+        monkeypatch.setenv('DATABASE_FILE', str(temp_dir / 'test.db'))
+
+        import importlib
+        import storage
+        importlib.reload(storage)
+        storage.init_database()
+
+        # Create host first (required by foreign key)
+        storage.create_host(name='TestHost', host_id='12345')
+
+        sheet = storage.create_sheet(
+            spreadsheet_id='abc123def456ghi789jkl012',
+            gid='0',
+            name='TestLocation',
+            momence_host='TestHost',
+            lead_source_id='99999',
+            enabled=True
+        )
+
+        assert sheet['name'] == 'TestLocation'
+        assert sheet['momence_host'] == 'TestHost'
+
+        retrieved = storage.get_sheet(sheet['id'])
+        assert retrieved['name'] == 'TestLocation'
+
+    def test_get_all_sheets(self, temp_dir, monkeypatch):
+        """Test retrieving all sheets."""
+        monkeypatch.setenv('DATABASE_FILE', str(temp_dir / 'test.db'))
+
+        import importlib
+        import storage
+        importlib.reload(storage)
+        storage.init_database()
+
+        storage.create_host(name='TestHost', host_id='12345')
+        storage.create_sheet(spreadsheet_id='sheet1_id_abcdefghijklmn', gid='0', name='Location1', momence_host='TestHost', lead_source_id='111')
+        storage.create_sheet(spreadsheet_id='sheet2_id_abcdefghijklmn', gid='0', name='Location2', momence_host='TestHost', lead_source_id='222')
+
+        sheets = storage.get_all_sheets()
+        assert len(sheets) == 2
+
+    def test_update_sheet(self, temp_dir, monkeypatch):
+        """Test updating a sheet."""
+        monkeypatch.setenv('DATABASE_FILE', str(temp_dir / 'test.db'))
+
+        import importlib
+        import storage
+        importlib.reload(storage)
+        storage.init_database()
+
+        storage.create_host(name='TestHost', host_id='12345')
+        sheet = storage.create_sheet(
+            spreadsheet_id='abc123def456ghi789jkl012',
+            gid='0',
+            name='OldName',
+            momence_host='TestHost',
+            lead_source_id='99999'
+        )
+
+        updated = storage.update_sheet(sheet['id'], name='NewName', enabled=False)
+
+        assert updated['name'] == 'NewName'
+        assert updated['enabled'] is False
+
+    def test_delete_sheet(self, temp_dir, monkeypatch):
+        """Test deleting a sheet."""
+        monkeypatch.setenv('DATABASE_FILE', str(temp_dir / 'test.db'))
+
+        import importlib
+        import storage
+        importlib.reload(storage)
+        storage.init_database()
+
+        storage.create_host(name='TestHost', host_id='12345')
+        sheet = storage.create_sheet(
+            spreadsheet_id='abc123def456ghi789jkl012',
+            gid='0',
+            name='TestLocation',
+            momence_host='TestHost',
+            lead_source_id='99999'
+        )
+        assert storage.get_sheet_count() == 1
+
+        deleted = storage.delete_sheet(sheet['id'])
+        assert deleted is True
+        assert storage.get_sheet_count() == 0
+
+    def test_create_sheet_without_host_fails(self, temp_dir, monkeypatch):
+        """Test that creating sheet without valid host raises error."""
+        monkeypatch.setenv('DATABASE_FILE', str(temp_dir / 'test.db'))
+
+        import importlib
+        import storage
+        importlib.reload(storage)
+        storage.init_database()
+
+        with pytest.raises(ValueError):
+            storage.create_sheet(
+                spreadsheet_id='abc123def456ghi789jkl012',
+                gid='0',
+                name='TestLocation',
+                momence_host='NonExistentHost',
+                lead_source_id='99999'
+            )
+
+    def test_delete_host_with_sheets_fails(self, temp_dir, monkeypatch):
+        """Test that deleting host with associated sheets raises error."""
+        monkeypatch.setenv('DATABASE_FILE', str(temp_dir / 'test.db'))
+
+        import importlib
+        import storage
+        importlib.reload(storage)
+        storage.init_database()
+
+        storage.create_host(name='TestHost', host_id='12345')
+        storage.create_sheet(
+            spreadsheet_id='abc123def456ghi789jkl012',
+            gid='0',
+            name='TestLocation',
+            momence_host='TestHost',
+            lead_source_id='99999'
+        )
+
+        with pytest.raises(ValueError):
+            storage.delete_host('TestHost')
+
+    def test_get_sheets_by_host(self, temp_dir, monkeypatch):
+        """Test getting sheets for a specific host."""
+        monkeypatch.setenv('DATABASE_FILE', str(temp_dir / 'test.db'))
+
+        import importlib
+        import storage
+        importlib.reload(storage)
+        storage.init_database()
+
+        storage.create_host(name='Host1', host_id='111')
+        storage.create_host(name='Host2', host_id='222')
+
+        storage.create_sheet(spreadsheet_id='sheet1_id_abcdefghijklmn', gid='0', name='Location1', momence_host='Host1', lead_source_id='1')
+        storage.create_sheet(spreadsheet_id='sheet2_id_abcdefghijklmn', gid='0', name='Location2', momence_host='Host1', lead_source_id='2')
+        storage.create_sheet(spreadsheet_id='sheet3_id_abcdefghijklmn', gid='0', name='Location3', momence_host='Host2', lead_source_id='3')
+
+        host1_sheets = storage.get_sheets_by_host('Host1')
+        assert len(host1_sheets) == 2
+
+        host2_sheets = storage.get_sheets_by_host('Host2')
+        assert len(host2_sheets) == 1
 
 

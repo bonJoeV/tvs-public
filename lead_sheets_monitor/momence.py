@@ -9,7 +9,7 @@ import requests
 from typing import Optional, Dict, Any
 
 from config import (
-    get_tenant_config, DEFAULT_REQUEST_TIMEOUT_SECONDS,
+    get_host_config, DEFAULT_REQUEST_TIMEOUT_SECONDS,
     RESPONSE_BODY_TRUNCATE_CHARS, RESPONSE_BODY_LOG_CHARS
 )
 from utils import (
@@ -48,7 +48,7 @@ def close_session():
         _session = None
 
 
-def create_momence_lead(lead_data: Dict[str, Any], tenant_name: str, dry_run: bool = False) -> Dict[str, Any]:
+def create_momence_lead(lead_data: Dict[str, Any], host_name: str, dry_run: bool = False) -> Dict[str, Any]:
     """
     Create a lead in Momence using the Customer Leads API.
 
@@ -56,23 +56,32 @@ def create_momence_lead(lead_data: Dict[str, Any], tenant_name: str, dry_run: bo
 
     Args:
         lead_data: Dictionary containing lead information (email, firstName, lastName, etc.)
-        tenant_name: Name of the tenant configuration to use
+        host_name: Name of the Momence host configuration to use
         dry_run: If True, log the action without making API call
 
     Returns:
         Dict with 'success' bool and either result data or 'error' details including response headers
     """
-    tenant = get_tenant_config(tenant_name)
-    if not tenant:
-        logger.error(f"Tenant '{tenant_name}' not found in MOMENCE_TENANTS config")
-        return {'success': False, 'error': {'type': 'config_error', 'message': f"Tenant '{tenant_name}' not found"}}
+    host_config = get_host_config(host_name)
+    if not host_config:
+        logger.error(f"Momence host '{host_name}' not found in MOMENCE_HOSTS config")
+        return {'success': False, 'error': {'type': 'config_error', 'message': f"Momence host '{host_name}' not found"}}
 
-    host_id = tenant.get('host_id')
-    token = tenant.get('token')
+    host_id = host_config.get('host_id')
+
+    # Try to get token from Secret Manager first (on Cloud Run), then fall back to config
+    token = None
+    try:
+        from secret_manager import get_momence_token
+        token = get_momence_token(host_name)
+    except ImportError:
+        pass
+    if not token:
+        token = host_config.get('token')
 
     if not host_id or not token:
-        logger.error(f"Tenant '{tenant_name}' missing host_id or token")
-        return {'success': False, 'error': {'type': 'config_error', 'message': f"Tenant '{tenant_name}' missing credentials"}}
+        logger.error(f"Momence host '{host_name}' missing host_id or token")
+        return {'success': False, 'error': {'type': 'config_error', 'message': f"Momence host '{host_name}' missing credentials"}}
 
     # Validate email format before making API call
     email = lead_data.get('email', '')
@@ -196,13 +205,13 @@ def create_momence_lead(lead_data: Dict[str, Any], tenant_name: str, dry_run: bo
                 # Lead context
                 'lead_email': lead_data.get('email'),
                 'lead_sheet': lead_data.get('sheetName'),
-                'tenant': tenant_name,
+                'momence_host': host_name,
                 'host_id': host_id,
                 'source_id': lead_source_id,
             }
 
             retry_hint = " (retryable)" if is_retryable else " (permanent - will not retry)"
-            logger.error(f"Momence API error for tenant '{tenant_name}': {error_category}{retry_hint}")
+            logger.error(f"Momence API error for host '{host_name}': {error_category}{retry_hint}")
             logger.error(f"  Status: HTTP {response.status_code} {response.reason} | CF-Ray: {cf_ray}")
             logger.error(f"  Lead: {lead_data.get('email')} | Sheet: {lead_data.get('sheetName')}")
             if logger.isEnabledFor(logging.DEBUG):
@@ -215,7 +224,7 @@ def create_momence_lead(lead_data: Dict[str, Any], tenant_name: str, dry_run: bo
                 'error': error_info
             }
 
-        logger.info(f"Created Momence lead for tenant '{tenant_name}': {lead_data.get('email')} (Studio: {lead_data.get('sheetName')}, sourceId: {lead_source_id}) [{request_duration_ms}ms]")
+        logger.info(f"Created Momence lead for host '{host_name}': {lead_data.get('email')} (Studio: {lead_data.get('sheetName')}, sourceId: {lead_source_id}) [{request_duration_ms}ms]")
         return {'success': True, 'data': response.json() if response.text else {}}
 
     except (requests.exceptions.RequestException, TimeoutError, ConnectionError) as e:
@@ -239,7 +248,7 @@ def create_momence_lead(lead_data: Dict[str, Any], tenant_name: str, dry_run: bo
             error_category, is_retryable = categorize_error(status_code, dict(last_response.headers), last_response.text)
 
         retry_hint = " (retryable)" if is_retryable else " (permanent)"
-        logger.error(f"Failed to create Momence lead for tenant '{tenant_name}': {exception_type}{retry_hint}")
+        logger.error(f"Failed to create Momence lead for host '{host_name}': {exception_type}{retry_hint}")
         logger.error(f"  Lead: {lead_data.get('email')} | Sheet: {lead_data.get('sheetName')}")
         if last_response is not None:
             logger.error(f"  Last Status: HTTP {status_code} | CF-Ray: {cf_ray}")

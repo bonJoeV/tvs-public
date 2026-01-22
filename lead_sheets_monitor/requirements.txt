@@ -3,6 +3,12 @@ google-api-python-client==2.111.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.0
 
+# Google Cloud Secret Manager (for Cloud Run deployment)
+google-cloud-secret-manager==2.18.1
+
+# Google Cloud Storage (for persistent data on Cloud Run)
+google-cloud-storage==2.14.0
+
 # Configuration
 python-dotenv==1.0.0
 

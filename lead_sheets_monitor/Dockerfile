@@ -22,8 +22,15 @@ COPY momence.py .
 COPY failed_queue.py .
 COPY notifications.py .
 COPY error_types.py .
+COPY secret_manager.py .
+COPY cloud_storage.py .
 COPY monitor.py .
+COPY icon.png .
 COPY web/ ./web/
+
+# Copy config file for Cloud Run deployment
+# Note: Sensitive values (tokens, passwords) come from Secret Manager
+COPY config.cloudrun.json ./config.json
 
 # Create directory for data persistence with proper ownership
 # Note: For Cloud Run, use Cloud Storage or a mounted volume
@@ -31,9 +38,11 @@ COPY web/ ./web/
 RUN mkdir -p /data /data/logs /secrets \
     && chown -R appuser:appgroup /data /secrets /app
 
-# Build-time argument for version (set by docker build --build-arg)
+# Build-time arguments for version info (set by docker build --build-arg)
 ARG APP_VERSION=dev
+ARG BUILD_TIME
 ENV APP_VERSION=${APP_VERSION}
+ENV BUILD_TIME=${BUILD_TIME}
 
 # Set default environment variables for Cloud Run
 # Cloud Run sets PORT automatically; we use it via HEALTH_PORT
@@ -41,7 +50,7 @@ ENV DATABASE_FILE=/data/lead_monitor.db
 ENV SENT_TRACKER_FILE=/data/sent_entries.json
 ENV FAILED_QUEUE_FILE=/data/failed_queue.json
 ENV LOG_DIR=/data/logs
-ENV CONFIG_FILE=/app/config.json
+ENV CONFIG_FILE=./config.json
 
 # Encryption key should be provided via secrets mount or environment
 # Default location for mounted secrets
@@ -49,6 +58,12 @@ ENV ENCRYPTION_KEY_FILE=/secrets/.encryption_key
 
 # Default to JSON logging for Cloud Run structured logging
 ENV LOG_LEVEL=INFO
+
+# Google Cloud Project ID for Secret Manager
+ENV GCP_PROJECT_ID=tvs-dashboard
+
+# Cloud Storage bucket for persistent data
+ENV GCS_BUCKET=tvs-dashboard-lead-monitor-data
 
 # Cloud Run requires the container to listen on $PORT
 # The health server will use this port

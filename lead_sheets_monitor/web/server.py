@@ -12,15 +12,17 @@ import time
 import secrets
 import threading
 import urllib.parse
+from datetime import datetime
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Tuple
 
 from config import (
-    MOMENCE_TENANTS, SHEETS_CONFIG, CONFIG_FILE,
+    MOMENCE_HOSTS, SHEETS_CONFIG, CONFIG_FILE,
     DLQ_ENABLED, DLQ_MAX_RETRY_ATTEMPTS, DLQ_RETRY_BACKOFF_HOURS,
     RATE_LIMIT_DELAY, LOG_FORMAT, HEALTH_SERVER_ENABLED, HEALTH_SERVER_PORT,
-    DEFAULT_SPREADSHEET_ID, _config
+    DEFAULT_SPREADSHEET_ID, _config,
+    get_momence_hosts, get_sheets_config
 )
 from utils import utc_now, escape_html, logger
 import storage
@@ -54,19 +56,45 @@ def _get_git_version() -> str:
 
     return 'dev'
 
+
+def _get_build_time() -> str:
+    """Get the build timestamp (ISO format, set during Docker build)."""
+    return os.getenv('BUILD_TIME', '')
+
+
 APP_VERSION = _get_git_version()
+BUILD_TIME = _get_build_time()
 
 
 # ============================================================================
 # Authentication Configuration
 # ============================================================================
 
-# API Key from environment variable (recommended for production)
-DASHBOARD_API_KEY = os.getenv('DASHBOARD_API_KEY', '')
+# Try to load credentials from Secret Manager first (on Cloud Run), then env vars
+def _get_dashboard_credentials():
+    """Get dashboard credentials from Secret Manager or environment variables."""
+    api_key = os.getenv('DASHBOARD_API_KEY', '')
+    username = os.getenv('DASHBOARD_USERNAME', '')
+    password = os.getenv('DASHBOARD_PASSWORD', '')
 
-# Basic Auth credentials from environment variables
-DASHBOARD_USERNAME = os.getenv('DASHBOARD_USERNAME', '')
-DASHBOARD_PASSWORD = os.getenv('DASHBOARD_PASSWORD', '')
+    # Try Secret Manager if available
+    try:
+        from secret_manager import get_dashboard_credentials
+        creds = get_dashboard_credentials()
+        if creds.get('api_key'):
+            api_key = creds['api_key']
+        if creds.get('username'):
+            username = creds['username']
+        if creds.get('password'):
+            password = creds['password']
+    except ImportError:
+        pass
+    except Exception as e:
+        logger.warning(f"Failed to get dashboard credentials from Secret Manager: {e}")
+
+    return api_key, username, password
+
+DASHBOARD_API_KEY, DASHBOARD_USERNAME, DASHBOARD_PASSWORD = _get_dashboard_credentials()
 
 # Trusted proxy IPs/networks for X-Forwarded-For header handling
 # Format: comma-separated list of IPs or CIDR notation
@@ -129,14 +157,25 @@ def _create_session(username: str = 'admin', ip_address: str = 'unknown') -> str
     with _session_lock:
         _session_cache[token] = {
             'username': username,
-            'ip': ip_address
+            'ip': ip_address,
+            'created': time.time()
         }
-        # Cleanup cache if over limit
+        # Cleanup cache if over limit - remove expired sessions first
         if len(_session_cache) > SESSION_CACHE_MAX_SIZE:
-            # Remove oldest entries (arbitrary since we don't track access time in cache)
-            keys_to_remove = list(_session_cache.keys())[:len(_session_cache) - SESSION_CACHE_MAX_SIZE]
-            for key in keys_to_remove:
-                del _session_cache[key]
+            now = time.time()
+            # Remove sessions older than 24 hours first
+            expired = [k for k, v in _session_cache.items()
+                       if now - v.get('created', 0) > 86400]
+            for k in expired:
+                del _session_cache[k]
+            # If still over limit, remove oldest
+            if len(_session_cache) > SESSION_CACHE_MAX_SIZE:
+                # Sort by created time and remove oldest
+                sorted_keys = sorted(_session_cache.keys(),
+                                     key=lambda k: _session_cache[k].get('created', 0))
+                keys_to_remove = sorted_keys[:len(_session_cache) - SESSION_CACHE_MAX_SIZE]
+                for key in keys_to_remove:
+                    del _session_cache[key]
 
     return token
 
@@ -424,6 +463,7 @@ CSRF_TOKEN_EXPIRY_SECONDS = 3600  # 1 hour (also defined in storage.py)
 # In-memory cache for CSRF tokens (optional optimization)
 _csrf_cache: Dict[str, float] = {}  # token -> timestamp
 CSRF_CACHE_MAX_SIZE = 500
+CSRF_TOKEN_TTL = 3600  # 1 hour TTL for CSRF tokens
 
 
 def generate_csrf_token() -> str:
@@ -441,7 +481,11 @@ def generate_csrf_token() -> str:
     # Also cache in memory for faster lookups
     with _csrf_lock:
         _csrf_cache[token] = now
-        # Cleanup cache if over limit
+        # Cleanup expired tokens first (TTL-based)
+        expired = [t for t, ts in _csrf_cache.items() if now - ts > CSRF_TOKEN_TTL]
+        for t in expired:
+            del _csrf_cache[t]
+        # Then cleanup if still over limit
         if len(_csrf_cache) > CSRF_CACHE_MAX_SIZE:
             # Remove oldest entries
             sorted_tokens = sorted(_csrf_cache.items(), key=lambda x: x[1])
@@ -504,6 +548,7 @@ RATE_LIMIT_WINDOW_SECONDS = 60  # Window duration in seconds
 RATE_LIMIT_BURST_REQUESTS = 10  # Max burst requests per short window
 RATE_LIMIT_BURST_WINDOW_SECONDS = 5  # Burst window duration
 RATE_LIMIT_MAX_IPS = 10000  # Maximum IPs to track (memory protection)
+RATE_LIMIT_MAX_TIMESTAMPS_PER_IP = 100  # Maximum timestamps to keep per IP (memory protection)
 
 # Rate limit storage: {ip: [timestamp, ...]}
 _rate_limit_data: Dict[str, list] = {}
@@ -587,6 +632,10 @@ def _check_rate_limit(client_ip: str) -> Tuple[bool, Optional[int]]:
             if ts > window_start
         ]
 
+        # Trim to max timestamps per IP to prevent memory growth
+        if len(_rate_limit_data[client_ip]) > RATE_LIMIT_MAX_TIMESTAMPS_PER_IP:
+            _rate_limit_data[client_ip] = _rate_limit_data[client_ip][-RATE_LIMIT_MAX_TIMESTAMPS_PER_IP:]
+
         requests_in_window = len(_rate_limit_data[client_ip])
 
         # Check burst limit (short window)
@@ -624,6 +673,46 @@ def _cleanup_rate_limit_data_unsafe():
     ]
     for ip in empty_ips:
         del _rate_limit_data[ip]
+
+
+def cleanup_web_caches():
+    """
+    Periodic cleanup of in-memory caches.
+
+    This function should be called from the daemon loop to ensure caches
+    are cleaned even when there's low traffic to the web dashboard.
+    Prevents memory leaks from stale session, CSRF, and rate limit data.
+    """
+    now = time.time()
+    cleaned = {'sessions': 0, 'csrf': 0, 'rate_limit': 0}
+
+    # Cleanup expired sessions from cache
+    with _session_lock:
+        expired_sessions = [k for k, v in _session_cache.items()
+                           if now - v.get('created', 0) > SESSION_EXPIRY_SECONDS]
+        for k in expired_sessions:
+            del _session_cache[k]
+        cleaned['sessions'] = len(expired_sessions)
+
+    # Cleanup expired CSRF tokens from cache
+    with _csrf_lock:
+        expired_csrf = [t for t, ts in _csrf_cache.items() if now - ts > CSRF_TOKEN_TTL]
+        for t in expired_csrf:
+            del _csrf_cache[t]
+        cleaned['csrf'] = len(expired_csrf)
+
+    # Cleanup stale rate limit data
+    with _rate_limit_lock:
+        before_count = len(_rate_limit_data)
+        _cleanup_rate_limit_data_unsafe()
+        cleaned['rate_limit'] = before_count - len(_rate_limit_data)
+
+    total_cleaned = sum(cleaned.values())
+    if total_cleaned > 0:
+        logger.debug(f"Web cache cleanup: {cleaned['sessions']} sessions, "
+                     f"{cleaned['csrf']} CSRF tokens, {cleaned['rate_limit']} rate limit entries")
+
+    return cleaned
 
 
 # ============================================================================
@@ -696,8 +785,8 @@ def _check_authentication(handler) -> Tuple[bool, Optional[str]]:
 
 
 def _reload_config():
-    """Reload configuration from file."""
-    from config import load_config
+    """Reload configuration from database (with config.json fallback)."""
+    from config import load_config, get_momence_hosts, get_sheets_config
     global _config
     global DLQ_ENABLED, DLQ_MAX_RETRY_ATTEMPTS, RATE_LIMIT_DELAY
     global DEFAULT_SPREADSHEET_ID, LOG_FORMAT
@@ -705,10 +794,11 @@ def _reload_config():
     config_data = load_config()
     _config = config_data # Update global dict reference
 
-    MOMENCE_TENANTS.clear()
-    MOMENCE_TENANTS.update(config_data.get('tenants', {}))
+    # Load hosts and sheets from database (with config.json fallback)
+    MOMENCE_HOSTS.clear()
+    MOMENCE_HOSTS.update(get_momence_hosts())
     SHEETS_CONFIG.clear()
-    SHEETS_CONFIG.extend(config_data.get('sheets', []))
+    SHEETS_CONFIG.extend(get_sheets_config())
 
     # Update settings globals
     settings = config_data.get('settings', {})
@@ -723,7 +813,7 @@ def _save_config():
     """Save current configuration to file."""
     config_path = Path(CONFIG_FILE)
     config_to_save = {
-        'tenants': MOMENCE_TENANTS,
+        'momence_hosts': MOMENCE_HOSTS,
         'sheets': SHEETS_CONFIG,
         'settings': _config.get('settings', {}),
         'schedule': _config.get('schedule', {})
@@ -761,56 +851,63 @@ def _build_dashboard_html() -> str:
     last_check = tracker.get('last_check', 'Never')
     last_error_email = tracker.get('last_error_email_sent')
 
-    # Build tenant cards
-    tenant_cards = ""
-    for tenant_name, tenant_cfg in MOMENCE_TENANTS.items():
-        enabled = tenant_cfg.get('enabled', True)
-        host_id = tenant_cfg.get('host_id', 'N/A')
-        tenant_sheets = [s for s in SHEETS_CONFIG if s.get('tenant') == tenant_name]
-        enabled_sheets = sum(1 for s in tenant_sheets if s.get('enabled', True))
+    # Build Momence host rows (compact table view)
+    host_rows = ""
+    active_hosts = 0
+    total_hosts = len(MOMENCE_HOSTS)
+    for host_name, host_cfg in MOMENCE_HOSTS.items():
+        enabled = host_cfg.get('enabled', True)
+        if enabled:
+            active_hosts += 1
+        host_id = host_cfg.get('host_id', 'N/A')
+        host_sheets = [s for s in SHEETS_CONFIG if s.get('momence_host') == host_name]
+        enabled_sheets = sum(1 for s in host_sheets if s.get('enabled', True))
+        leads_sent = sum(location_counts.get(s.get('name', ''), 0) for s in host_sheets)
 
-        status_badge = '<span class="badge badge-success">Active</span>' if enabled else '<span class="badge badge-warning">Disabled</span>'
+        status_class = 'status-active' if enabled else 'status-disabled'
+        status_text = 'Active' if enabled else 'Disabled'
 
-        tenant_cards += f"""
-        <div class="card tenant-card" data-tenant="{escape_html(tenant_name)}">
-            <div class="card-header">
-                <h3>{escape_html(tenant_name)}</h3>
-                {status_badge}
-            </div>
-            <div class="card-body">
-                <p><strong>Host ID:</strong> <code>{escape_html(host_id)}</code></p>
-                <p><strong>Sheets:</strong> {enabled_sheets}/{len(tenant_sheets)} enabled</p>
-                <p><strong>Leads Sent:</strong> {sum(location_counts.get(s.get('name', ''), 0) for s in tenant_sheets)}</p>
-            </div>
-            <div class="card-actions">
-                <a href="https://momence.com/dashboard/{escape_html(host_id)}/leads?sortBy=createdAt&sortOrder=DESC" target="_blank" class="btn btn-sm">View Leads</a>
-                <button class="btn btn-sm btn-secondary" onclick="toggleTenant('{escape_html(tenant_name)}', {str(not enabled).lower()})">
+        host_rows += f"""
+        <tr class="host-row" data-host="{escape_html(host_name)}" data-enabled="{str(enabled).lower()}">
+            <td>
+                <strong>{escape_html(host_name)}</strong>
+            </td>
+            <td><code style="font-size:12px;">{escape_html(host_id)}</code></td>
+            <td>{enabled_sheets}/{len(host_sheets)}</td>
+            <td>{leads_sent}</td>
+            <td><span class="status {status_class}">{status_text}</span></td>
+            <td class="host-actions">
+                <a href="https://momence.com/dashboard/{escape_html(host_id)}/leads?sortBy=createdAt&sortOrder=DESC" target="_blank" class="btn btn-xs">Leads</a>
+                <button class="btn btn-xs btn-secondary" onclick="toggleHost('{escape_html(host_name)}', {str(not enabled).lower()})">
                     {'Enable' if not enabled else 'Disable'}
                 </button>
-                <button class="btn btn-sm btn-secondary" onclick="editTenant('{escape_html(tenant_name)}')">Edit</button>
-                <button class="btn btn-sm btn-danger" onclick="deleteTenant('{escape_html(tenant_name)}')">Delete</button>
-            </div>
-        </div>
+                <button class="btn btn-xs btn-secondary" onclick="editHost('{escape_html(host_name)}')">Edit</button>
+                <button class="btn btn-xs btn-danger" onclick="deleteHost('{escape_html(host_name)}')">Delete</button>
+            </td>
+        </tr>
         """
+
+    # Summary for collapsed view
+    host_summary = f"{active_hosts}/{total_hosts} active"
 
     # Build sheets table
     sheets_rows = ""
     for sheet in SHEETS_CONFIG:
         enabled = sheet.get('enabled', True)
         name = sheet.get('name', 'Unnamed')
-        tenant = sheet.get('tenant', 'N/A')
+        momence_host = sheet.get('momence_host', 'N/A')
         notification_email = sheet.get('notification_email', '')
         lead_count = location_counts.get(name, 0)
         status_class = 'status-active' if enabled else 'status-disabled'
         status_text = 'Active' if enabled else 'Disabled'
 
-        # Show notification email or indicate using tenant email
-        email_display = escape_html(notification_email) if notification_email else '<span class="text-muted">(tenant)</span>'
+        # Show notification email or indicate none configured
+        email_display = escape_html(notification_email) if notification_email else '<span class="text-muted">(none)</span>'
 
         sheets_rows += f"""
         <tr data-sheet-name="{escape_html(name)}">
             <td>{escape_html(name)}</td>
-            <td>{escape_html(tenant)}</td>
+            <td>{escape_html(momence_host)}</td>
             <td>{email_display}</td>
             <td>{lead_count}</td>
             <td><span class="status {status_class}">{status_text}</span></td>
@@ -839,7 +936,7 @@ def _build_dashboard_html() -> str:
         request_duration = error_details.get('request_duration_ms', '')
         entry_hash = entry.get('entry_hash', '')
         email = lead.get('email', 'N/A')
-        tenant = entry.get('tenant', 'N/A')
+        momence_host = entry.get('momence_host') or entry.get('tenant', 'N/A')  # Support old 'tenant' key
         attempts = entry.get('attempts', 0)
         last_attempted = entry.get('last_attempted_at', '')
 
@@ -856,7 +953,7 @@ def _build_dashboard_html() -> str:
         failed_rows += f"""
         <tr class="failed-row" data-email="{escape_html(email.lower())}" data-attempts="{attempts}" data-timestamp="{escape_html(last_attempted)}" data-hash="{escape_html(entry_hash)}">
             <td onclick="toggleErrorDetails('error-details-{idx}')" style="cursor:pointer;">{escape_html(email)}</td>
-            <td>{escape_html(tenant)}</td>
+            <td>{escape_html(momence_host)}</td>
             <td>{attempts}</td>
             <td><span class="status {error_badge_class}">{error_type}</span></td>
             <td>{status_code or 'N/A'}</td>
@@ -1018,12 +1115,76 @@ def _build_dashboard_html() -> str:
                 gap: 8px;
             }}
 
-            .tenant-grid {{
+            .host-grid {{
                 display: grid;
                 grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
                 gap: 16px;
             }}
-            .tenant-card {{ margin-bottom: 0; }}
+            .host-card {{ margin-bottom: 0; }}
+
+            /* Collapsible sections */
+            .section-collapsible {{
+                cursor: pointer;
+                user-select: none;
+            }}
+            .section-collapsible:hover {{
+                background: #f8fafc;
+            }}
+            .section-toggle {{
+                display: inline-block;
+                width: 20px;
+                transition: transform 0.2s;
+                color: #64748b;
+            }}
+            .section-toggle.collapsed {{
+                transform: rotate(-90deg);
+            }}
+            .section-content {{
+                overflow: hidden;
+                transition: max-height 0.3s ease-out;
+            }}
+            .section-content.collapsed {{
+                max-height: 0 !important;
+                padding: 0;
+            }}
+            .section-summary {{
+                display: none;
+                font-size: 13px;
+                color: #64748b;
+                margin-left: 8px;
+            }}
+            .section-summary.visible {{
+                display: inline;
+            }}
+            .host-actions {{
+                white-space: nowrap;
+            }}
+            .host-row td {{
+                padding: 10px 12px;
+            }}
+            .host-filter {{
+                display: flex;
+                gap: 8px;
+                margin-bottom: 12px;
+            }}
+            .host-filter-btn {{
+                padding: 4px 12px;
+                border-radius: 16px;
+                font-size: 12px;
+                border: 1px solid #e2e8f0;
+                background: white;
+                cursor: pointer;
+                transition: all 0.2s;
+            }}
+            .host-filter-btn:hover {{
+                border-color: #6366f1;
+                color: #6366f1;
+            }}
+            .host-filter-btn.active {{
+                background: #6366f1;
+                color: white;
+                border-color: #6366f1;
+            }}
 
             table {{
                 width: 100%;
@@ -1491,6 +1652,62 @@ def _build_dashboard_html() -> str:
                 font-family: 'SF Mono', Monaco, monospace;
                 letter-spacing: 0.02em;
             }}
+            /* Collapsible panels */
+            .collapsible-header {{
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }}
+            .collapsible-header::after {{
+                content: '\u25BC';
+                font-size: 0.7em;
+                transition: transform 0.2s;
+            }}
+            .collapsible-header.collapsed::after {{
+                transform: rotate(-90deg);
+            }}
+            .collapsible-content {{
+                overflow: hidden;
+                max-height: 2000px;
+                transition: max-height 0.3s ease-out, opacity 0.2s ease-out;
+                opacity: 1;
+            }}
+            .collapsible-content.collapsed {{
+                max-height: 0 !important;
+                opacity: 0;
+            }}
+            /* Logs panel */
+            .logs-output {{
+                background: #1e293b;
+                color: #e2e8f0;
+                padding: 16px;
+                border-radius: 6px;
+                font-family: 'SF Mono', Monaco, 'Consolas', monospace;
+                font-size: 12px;
+                line-height: 1.5;
+                overflow-x: auto;
+                white-space: pre;
+                max-height: 400px;
+                overflow-y: auto;
+                margin: 0;
+            }}
+            /* Status indicator */
+            .status-dot {{
+                width: 10px;
+                height: 10px;
+                border-radius: 50%;
+                display: inline-block;
+                margin-right: 6px;
+            }}
+            .status-dot.healthy {{ background: #10b981; }}
+            .status-dot.stale {{ background: #f59e0b; }}
+            .status-dot.error {{ background: #dc2626; }}
+            .last-updated {{
+                font-size: 0.85em;
+                color: #e2e8f0;
+                margin-left: 12px;
+            }}
         </style>
     </head>
     <body>
@@ -1498,7 +1715,12 @@ def _build_dashboard_html() -> str:
             <header>
                 <div class="header-content">
                     <h1>Lead Monitor Dashboard</h1>
-                    <p>Last check: <span class="utc-time" data-utc="{escape_html(str(last_check))}">{escape_html(str(last_check))}</span> | Uptime: {uptime_str}</p>
+                    <p>
+                        <span class="status-dot healthy" id="status-dot" title="Monitor is running"></span>
+                        Last check: <span class="utc-time" data-utc="{escape_html(str(last_check))}">{escape_html(str(last_check))}</span>
+                        | Uptime: {uptime_str}
+                        <span class="last-updated">(refreshed <span id="last-updated">0s ago</span>)</span>
+                    </p>
                 </div>
                 <div style="display:flex;gap:10px;">
                     <button class="logout-btn" onclick="showSettingsModal()">Settings</button>
@@ -1523,8 +1745,8 @@ def _build_dashboard_html() -> str:
                     <div class="label">Dead Letters</div>
                 </div>
                 <div class="stat-card">
-                    <div class="value">{len(MOMENCE_TENANTS)}</div>
-                    <div class="label">Tenants</div>
+                    <div class="value">{len(MOMENCE_HOSTS)}</div>
+                    <div class="label">Hosts</div>
                 </div>
                 <div class="stat-card">
                     <div class="value">{len(SHEETS_CONFIG)}</div>
@@ -1538,9 +1760,10 @@ def _build_dashboard_html() -> str:
                     <h3>Leads by Location (by Lead Created Date)</h3>
                     <div class="chart-controls">
                         <select id="chart-days" onchange="loadLeadsChart()">
+                            <option value="24h" selected>Last 24 hours</option>
                             <option value="7">Last 7 days</option>
                             <option value="14">Last 14 days</option>
-                            <option value="30" selected>Last 30 days</option>
+                            <option value="30">Last 30 days</option>
                             <option value="60">Last 60 days</option>
                             <option value="90">Last 90 days</option>
                         </select>
@@ -1553,14 +1776,41 @@ def _build_dashboard_html() -> str:
                 <div class="chart-summary" id="chart-summary"></div>
             </div>
 
-            <!-- Tenants Section -->
+            <!-- Momence Hosts Section -->
             <div class="section">
-                <div class="section-header">
-                    <h2 class="section-title">Tenants</h2>
-                    <button class="btn btn-sm" onclick="showAddTenantModal()">+ Add Tenant</button>
+                <div class="section-header section-collapsible" onclick="toggleSection('hosts-section')">
+                    <h2 class="section-title">
+                        <span class="section-toggle" id="hosts-section-toggle">▼</span>
+                        Momence Hosts
+                        <span class="section-summary" id="hosts-section-summary">{host_summary}</span>
+                    </h2>
+                    <div style="display:flex;gap:8px;" onclick="event.stopPropagation()">
+                        <button class="btn btn-sm" onclick="showAddHostModal()">+ Add Host</button>
+                    </div>
                 </div>
-                <div class="tenant-grid">
-                    {tenant_cards if tenant_cards else '<div class="text-muted">No tenants configured</div>'}
+                <div class="section-content" id="hosts-section-content">
+                    <div class="host-filter">
+                        <button class="host-filter-btn active" onclick="filterHosts('all')">All ({total_hosts})</button>
+                        <button class="host-filter-btn" onclick="filterHosts('active')">Active ({active_hosts})</button>
+                        <button class="host-filter-btn" onclick="filterHosts('disabled')">Disabled ({total_hosts - active_hosts})</button>
+                    </div>
+                    <div class="card" style="margin:0;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Host ID</th>
+                                    <th>Sheets</th>
+                                    <th>Leads</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="hosts-table-body">
+                                {host_rows if host_rows else '<tr><td colspan="6" class="text-muted">No Momence hosts configured</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
@@ -1575,7 +1825,7 @@ def _build_dashboard_html() -> str:
                         <thead>
                             <tr>
                                 <th>Name</th>
-                                <th>Tenant</th>
+                                <th>Host</th>
                                 <th>Notification Email</th>
                                 <th>Leads</th>
                                 <th>Status</th>
@@ -1614,7 +1864,7 @@ def _build_dashboard_html() -> str:
                         <thead>
                             <tr>
                                 <th>Email</th>
-                                <th>Tenant</th>
+                                <th>Host</th>
                                 <th>Attempts</th>
                                 <th>Error Type</th>
                                 <th>HTTP Status</th>
@@ -1629,34 +1879,51 @@ def _build_dashboard_html() -> str:
                 </div>
             </div>
 
-            <!-- Admin Activity Log Section -->
+            <!-- Admin Activity Log Section (Collapsible) -->
             <div class="section">
                 <div class="section-header">
-                    <h2 class="section-title">Admin Activity</h2>
+                    <h2 class="section-title collapsible-header collapsed" id="activity-header"
+                        onclick="toggleCollapsible('activity-header', 'activity-content')">Admin Activity</h2>
                     <button class="btn btn-sm btn-secondary" onclick="refreshActivityLog()">Refresh</button>
                 </div>
-                <div class="card">
-                    <table class="data-table" id="activity-log-table">
-                        <thead>
-                            <tr>
-                                <th style="width:160px;white-space:nowrap;">Time</th>
-                                <th style="width:130px;">Action</th>
-                                <th>Details</th>
-                                <th style="width:110px;">IP</th>
-                            </tr>
-                        </thead>
-                        <tbody id="activity-log-body">
-                            <tr><td colspan="4" class="text-muted">Loading...</td></tr>
-                        </tbody>
-                    </table>
-                    <div id="activity-pagination" style="display:flex;justify-content:center;align-items:center;padding:12px;border-top:1px solid #e2e8f0;"></div>
+                <div id="activity-content" class="collapsible-content collapsed">
+                    <div class="card">
+                        <table class="data-table" id="activity-log-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:160px;white-space:nowrap;">Time</th>
+                                    <th style="width:130px;">Action</th>
+                                    <th>Details</th>
+                                    <th style="width:110px;">IP</th>
+                                </tr>
+                            </thead>
+                            <tbody id="activity-log-body">
+                                <tr><td colspan="4" class="text-muted">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                        <div id="activity-pagination" style="display:flex;justify-content:center;align-items:center;padding:12px;border-top:1px solid #e2e8f0;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Application Logs Section (Collapsible) -->
+            <div class="section">
+                <div class="section-header">
+                    <h2 class="section-title collapsible-header collapsed" id="logs-header"
+                        onclick="toggleCollapsible('logs-header', 'logs-content')">Application Logs</h2>
+                    <button class="btn btn-sm btn-secondary" onclick="refreshLogs()">Refresh</button>
+                </div>
+                <div id="logs-content" class="collapsible-content collapsed">
+                    <div class="card" style="padding:0;">
+                        <pre class="logs-output" id="logs-output">Loading...</pre>
+                    </div>
                 </div>
             </div>
 
             <!-- Footer -->
             <footer class="app-footer">
                 <span class="app-footer-copyright">Made with ❤️ by bonJoeV</span>
-                <span class="app-footer-version">v{APP_VERSION}</span>
+                <span class="app-footer-version">v{APP_VERSION}{f' · Built <span class="build-time" data-utc="{BUILD_TIME}"></span>' if BUILD_TIME else ''}</span>
             </footer>
         </div>
 
@@ -1738,37 +2005,38 @@ def _build_dashboard_html() -> str:
             </div>
         </div>
 
-        <!-- Add/Edit Tenant Modal -->
-        <div id="tenant-modal" class="modal">
+        <!-- Add/Edit Momence Host Modal -->
+        <div id="host-modal" class="modal">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2 id="tenant-modal-title">Add Tenant</h2>
+                    <h2 id="host-modal-title">Add Momence Host</h2>
                 </div>
                 <div class="modal-body">
-                    <form id="tenant-form">
-                        <input type="hidden" id="tenant-original-name">
+                    <form id="host-form">
+                        <input type="hidden" id="host-original-name">
                         <div class="form-group">
-                            <label for="tenant-name">Tenant Name</label>
-                            <input type="text" id="tenant-name" required placeholder="e.g., TwinCities">
+                            <label for="host-name">Host Name</label>
+                            <input type="text" id="host-name" required placeholder="e.g., TwinCities">
                         </div>
                         <div class="form-group">
-                            <label for="tenant-host-id">Host ID</label>
-                            <input type="text" id="tenant-host-id" required placeholder="Momence host ID">
+                            <label for="host-host-id">Momence Host ID</label>
+                            <input type="text" id="host-host-id" required placeholder="e.g., 49534">
                         </div>
                         <div class="form-group">
-                            <label for="tenant-token">API Token</label>
-                            <input type="text" id="tenant-token" placeholder="ENV:TENANT_TOKEN or actual token">
+                            <label for="host-token">API Token</label>
+                            <input type="password" id="host-token" placeholder="Momence API token">
+                            <small style="color:#64748b;display:block;margin-top:4px;">Token will be stored securely in Secret Manager</small>
                         </div>
                         <div class="form-group">
                             <label>
-                                <input type="checkbox" id="tenant-enabled" checked> Enabled
+                                <input type="checkbox" id="host-enabled" checked> Enabled
                             </label>
                         </div>
                     </form>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-secondary" onclick="closeModal('tenant-modal')">Cancel</button>
-                    <button class="btn" onclick="saveTenant()">Save</button>
+                    <button class="btn btn-secondary" onclick="closeModal('host-modal')">Cancel</button>
+                    <button class="btn" onclick="saveHost()">Save</button>
                 </div>
             </div>
         </div>
@@ -1789,10 +2057,10 @@ def _build_dashboard_html() -> str:
                             <input type="text" id="sheet-name" required placeholder="e.g., Minneapolis Studio">
                         </div>
                         <div class="form-group">
-                            <label for="sheet-tenant">Tenant</label>
-                            <select id="sheet-tenant" required>
-                                <option value="">Select tenant...</option>
-                                {''.join(f'<option value="{escape_html(t)}">{escape_html(t)}</option>' for t in MOMENCE_TENANTS.keys())}
+                            <label for="sheet-momence-host">Momence Host</label>
+                            <select id="sheet-momence-host" required>
+                                <option value="">Select host...</option>
+                                {''.join(f'<option value="{escape_html(h)}">{escape_html(h)}</option>' for h in MOMENCE_HOSTS.keys())}
                             </select>
                         </div>
                         <div class="form-group">
@@ -1802,7 +2070,7 @@ def _build_dashboard_html() -> str:
                         <div class="form-group">
                             <label for="sheet-notification-email">Notification Email (optional)</label>
                             <input type="email" id="sheet-notification-email" placeholder="email@example.com">
-                            <small class="text-muted">Leave blank to use tenant email</small>
+                            <small class="text-muted">Leave blank for no location-specific notifications</small>
                         </div>
                         <div class="form-group">
                             <label>
@@ -1836,10 +2104,10 @@ def _build_dashboard_html() -> str:
                                 </select>
                             </div>
                             <div class="form-group">
-                                <label for="location-tenant">Tenant</label>
-                                <select id="location-tenant" required>
-                                    <option value="">Select tenant...</option>
-                                    {''.join(f'<option value="{escape_html(t)}">{escape_html(t)}</option>' for t in MOMENCE_TENANTS.keys())}
+                                <label for="location-momence-host">Momence Host</label>
+                                <select id="location-momence-host" required>
+                                    <option value="">Select host...</option>
+                                    {''.join(f'<option value="{escape_html(h)}">{escape_html(h)}</option>' for h in MOMENCE_HOSTS.keys())}
                                 </select>
                             </div>
                             <div class="form-group">
@@ -1849,7 +2117,7 @@ def _build_dashboard_html() -> str:
                             <div class="form-group">
                                 <label for="location-notification-email">Notification Email (optional)</label>
                                 <input type="email" id="location-notification-email" placeholder="email@example.com">
-                                <small class="text-muted">Leave blank to use tenant email</small>
+                                <small class="text-muted">Leave blank to use Momence host email</small>
                             </div>
                         </form>
                     </div>
@@ -1885,6 +2153,76 @@ def _build_dashboard_html() -> str:
                 alert.textContent = message;
                 container.appendChild(alert);
                 setTimeout(() => alert.remove(), 5000);
+            }}
+
+            // ============ Collapsible Panels ============
+            function toggleCollapsible(headerId, contentId) {{
+                const header = document.getElementById(headerId);
+                const content = document.getElementById(contentId);
+                if (header && content) {{
+                    header.classList.toggle('collapsed');
+                    content.classList.toggle('collapsed');
+                    localStorage.setItem(contentId + '-collapsed', content.classList.contains('collapsed'));
+                }}
+            }}
+
+            function restoreCollapsibleState(headerId, contentId, defaultCollapsed = false) {{
+                const stored = localStorage.getItem(contentId + '-collapsed');
+                const isCollapsed = stored !== null ? stored === 'true' : defaultCollapsed;
+                const header = document.getElementById(headerId);
+                const content = document.getElementById(contentId);
+                if (header && content && isCollapsed) {{
+                    header.classList.add('collapsed');
+                    content.classList.add('collapsed');
+                }}
+            }}
+
+            // ============ Section Collapse/Expand ============
+            function toggleSection(sectionId) {{
+                const content = document.getElementById(sectionId + '-content');
+                const toggle = document.getElementById(sectionId + '-toggle');
+                const summary = document.getElementById(sectionId + '-summary');
+                if (content && toggle) {{
+                    const isCollapsed = content.classList.toggle('collapsed');
+                    toggle.classList.toggle('collapsed', isCollapsed);
+                    if (summary) {{
+                        summary.classList.toggle('visible', isCollapsed);
+                    }}
+                    localStorage.setItem(sectionId + '-collapsed', isCollapsed);
+                }}
+            }}
+
+            function restoreSectionState(sectionId, defaultCollapsed = false) {{
+                const stored = localStorage.getItem(sectionId + '-collapsed');
+                const isCollapsed = stored !== null ? stored === 'true' : defaultCollapsed;
+                if (isCollapsed) {{
+                    const content = document.getElementById(sectionId + '-content');
+                    const toggle = document.getElementById(sectionId + '-toggle');
+                    const summary = document.getElementById(sectionId + '-summary');
+                    if (content) content.classList.add('collapsed');
+                    if (toggle) toggle.classList.add('collapsed');
+                    if (summary) summary.classList.add('visible');
+                }}
+            }}
+
+            // ============ Host Filtering ============
+            function filterHosts(filter) {{
+                const rows = document.querySelectorAll('.host-row');
+                const buttons = document.querySelectorAll('.host-filter-btn');
+
+                buttons.forEach(btn => btn.classList.remove('active'));
+                event.target.classList.add('active');
+
+                rows.forEach(row => {{
+                    const enabled = row.dataset.enabled === 'true';
+                    if (filter === 'all') {{
+                        row.style.display = '';
+                    }} else if (filter === 'active') {{
+                        row.style.display = enabled ? '' : 'none';
+                    }} else if (filter === 'disabled') {{
+                        row.style.display = enabled ? 'none' : '';
+                    }}
+                }});
             }}
 
             // ============ Admin Activity Log with Pagination ============
@@ -1926,9 +2264,9 @@ def _build_dashboard_html() -> str:
                         'login': '#059669',
                         'logout': '#6366f1',
                         'login_failed': '#dc2626',
-                        'create_tenant': '#059669',
-                        'delete_tenant': '#dc2626',
-                        'toggle_tenant': '#f59e0b',
+                        'create_host': '#059669',
+                        'delete_host': '#dc2626',
+                        'toggle_host': '#f59e0b',
                         'create_location': '#059669',
                         'delete_location': '#dc2626',
                         'toggle_location': '#f59e0b',
@@ -1982,16 +2320,109 @@ def _build_dashboard_html() -> str:
                 }}, 500);
             }}
 
-            // Load activity log on page load
+            // ============ Application Logs ============
+            function loadLogs() {{
+                fetch('/api/logs?lines=50')
+                    .then(r => r.json())
+                    .then(result => {{
+                        const output = document.getElementById('logs-output');
+                        if (result.success && result.logs) {{
+                            output.textContent = result.logs.join('\\n') || 'No logs available';
+                        }} else {{
+                            output.textContent = 'Failed to load logs';
+                        }}
+                    }})
+                    .catch(err => {{
+                        console.error('Failed to load logs:', err);
+                        document.getElementById('logs-output').textContent = 'Error loading logs';
+                    }});
+            }}
+
+            function refreshLogs() {{
+                const btn = event.target;
+                btn.disabled = true;
+                btn.textContent = 'Refreshing...';
+                loadLogs();
+                setTimeout(() => {{
+                    btn.disabled = false;
+                    btn.textContent = 'Refresh';
+                }}, 500);
+            }}
+
+            // ============ Last Updated Tracking ============
+            let lastUpdatedTime = Date.now();
+
+            function updateLastUpdated() {{
+                const el = document.getElementById('last-updated');
+                if (el) {{
+                    const seconds = Math.floor((Date.now() - lastUpdatedTime) / 1000);
+                    if (seconds < 60) {{
+                        el.textContent = seconds + 's ago';
+                    }} else {{
+                        el.textContent = Math.floor(seconds / 60) + 'm ago';
+                    }}
+                }}
+            }}
+
+            // ============ Dashboard Status Polling ============
+            function updateDashboardStatus() {{
+                fetch('/api/dashboard-status')
+                    .then(r => r.json())
+                    .then(result => {{
+                        if (result.success) {{
+                            // Update last check time
+                            const lastCheckEl = document.querySelector('.utc-time[data-utc]');
+                            if (lastCheckEl && result.last_check && result.last_check !== 'Never') {{
+                                lastCheckEl.setAttribute('data-utc', result.last_check);
+                                lastCheckEl.textContent = formatLocalTime(result.last_check);
+                                lastCheckEl.title = result.last_check + ' (UTC)';
+                            }}
+                            // Update uptime
+                            const headerP = document.querySelector('header p');
+                            if (headerP && result.uptime) {{
+                                const uptimeMatch = headerP.innerHTML.match(/Uptime: [^<]+/);
+                                if (uptimeMatch) {{
+                                    headerP.innerHTML = headerP.innerHTML.replace(/Uptime: [^<]+/, 'Uptime: ' + result.uptime);
+                                }}
+                            }}
+                        }}
+                    }})
+                    .catch(err => console.error('Failed to update status:', err));
+            }}
+
+            // ============ Initialize on Page Load ============
             document.addEventListener('DOMContentLoaded', function() {{
+                // Load data
                 loadActivityLog();
                 loadLeadsChart();
+                loadLogs();
+
+                // Restore collapsible states (default to collapsed for both)
+                restoreCollapsibleState('activity-header', 'activity-content', true);
+                restoreCollapsibleState('logs-header', 'logs-content', true);
+
+                // Restore section collapse states (hosts collapsed by default if > 5 hosts)
+                const hostCount = document.querySelectorAll('.host-row').length;
+                restoreSectionState('hosts-section', hostCount > 5);
+
+                // Update "last updated" display every second
+                setInterval(updateLastUpdated, 1000);
+
+                // Poll for dashboard status every 30 seconds
+                setInterval(updateDashboardStatus, 30000);
+
+                // Mark initial load time
+                lastUpdatedTime = Date.now();
+
+                // Convert timestamps after a short delay to ensure DOM is ready
+                setTimeout(convertAllTimestamps, 100);
             }});
 
             // ============ Leads Chart ============
+            // Distinct colors for chart - first colors are most different to ensure contrast
             const chartColors = [
-                '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316',
-                '#eab308', '#22c55e', '#14b8a6', '#06b6d4', '#3b82f6'
+                '#3b82f6', '#22c55e', '#f97316', '#ec4899', '#8b5cf6',
+                '#06b6d4', '#eab308', '#f43f5e', '#14b8a6', '#6366f1'
             ];
 
             function loadLeadsChart() {{
@@ -2086,11 +2517,28 @@ def _build_dashboard_html() -> str:
                         }}
                     }});
 
-                    // X-axis date label (show every nth label to avoid crowding)
-                    const showLabel = dates.length <= 14 || dateIdx % Math.ceil(dates.length / 10) === 0;
+                    // X-axis date/time label (show every nth label to avoid crowding)
+                    const isHourly = date.includes('T') || date.includes(':');
+                    const labelInterval = isHourly ? Math.ceil(dates.length / 8) : Math.ceil(dates.length / 10);
+                    const showLabel = dates.length <= 14 || dateIdx % labelInterval === 0;
                     if (showLabel) {{
                         const labelX = x + (barWidth * locations.length) / 2;
-                        const shortDate = date.substring(5); // MM-DD
+                        let shortDate;
+                        if (isHourly) {{
+                            // Format hourly as "1/20 3PM"
+                            // Input format: "2026-01-20T15:00" or "2026-01-20 15:00"
+                            const datePart = date.substring(0, 10);
+                            const hourPart = date.substring(11, 13);
+                            const [, month, day] = datePart.split('-');
+                            const hour = parseInt(hourPart);
+                            const ampm = hour >= 12 ? 'PM' : 'AM';
+                            const hour12 = hour % 12 || 12;
+                            shortDate = parseInt(month) + '/' + parseInt(day) + ' ' + hour12 + ampm;
+                        }} else {{
+                            // Format as M/DD (e.g., "1/20" instead of "01-20")
+                            const [, month, day] = date.split('-');
+                            shortDate = parseInt(month) + '/' + parseInt(day);
+                        }}
                         svg += `<text x="${{labelX}}" y="${{height - 10}}" text-anchor="middle" font-size="10" fill="#64748b">${{shortDate}}</text>`;
                     }}
                 }});
@@ -2164,38 +2612,38 @@ def _build_dashboard_html() -> str:
                 }}
             }}
 
-            function showAddTenantModal() {{
-                document.getElementById('tenant-modal-title').textContent = 'Add Tenant';
-                document.getElementById('tenant-form').reset();
-                document.getElementById('tenant-original-name').value = '';
-                document.getElementById('tenant-enabled').checked = true;
-                document.getElementById('tenant-modal').classList.add('active');
+            function showAddHostModal() {{
+                document.getElementById('host-modal-title').textContent = 'Add Momence Host';
+                document.getElementById('host-form').reset();
+                document.getElementById('host-original-name').value = '';
+                document.getElementById('host-enabled').checked = true;
+                document.getElementById('host-modal').classList.add('active');
             }}
 
-            function editTenant(name) {{
-                fetch('/api/tenants/' + encodeURIComponent(name))
+            function editHost(name) {{
+                fetch('/api/hosts/' + encodeURIComponent(name))
                     .then(r => r.json())
                     .then(data => {{
-                        document.getElementById('tenant-modal-title').textContent = 'Edit Tenant';
-                        document.getElementById('tenant-original-name').value = name;
-                        document.getElementById('tenant-name').value = name;
-                        document.getElementById('tenant-host-id').value = data.host_id || '';
-                        document.getElementById('tenant-token').value = data.token || '';
-                        document.getElementById('tenant-enabled').checked = data.enabled !== false;
-                        document.getElementById('tenant-modal').classList.add('active');
+                        document.getElementById('host-modal-title').textContent = 'Edit Momence Host';
+                        document.getElementById('host-original-name').value = name;
+                        document.getElementById('host-name').value = name;
+                        document.getElementById('host-host-id').value = data.host_id || '';
+                        document.getElementById('host-token').value = data.token || '';
+                        document.getElementById('host-enabled').checked = data.enabled !== false;
+                        document.getElementById('host-modal').classList.add('active');
                     }});
             }}
 
-            function saveTenant() {{
-                const originalName = document.getElementById('tenant-original-name').value;
-                const name = document.getElementById('tenant-name').value;
+            function saveHost() {{
+                const originalName = document.getElementById('host-original-name').value;
+                const name = document.getElementById('host-name').value;
                 const data = {{
-                    host_id: document.getElementById('tenant-host-id').value,
-                    token: document.getElementById('tenant-token').value,
-                    enabled: document.getElementById('tenant-enabled').checked
+                    host_id: document.getElementById('host-host-id').value,
+                    token: document.getElementById('host-token').value,
+                    enabled: document.getElementById('host-enabled').checked
                 }};
 
-                const url = originalName ? '/api/tenants/' + encodeURIComponent(originalName) : '/api/tenants';
+                const url = originalName ? '/api/hosts/' + encodeURIComponent(originalName) : '/api/hosts';
                 const method = originalName ? 'PUT' : 'POST';
 
                 fetchWithCsrf(url, {{
@@ -2205,39 +2653,42 @@ def _build_dashboard_html() -> str:
                 .then(r => r.json())
                 .then(result => {{
                     if (result.success) {{
-                        showAlert('Tenant saved successfully', 'success');
-                        closeModal('tenant-modal');
+                        const msg = result.secret_stored
+                            ? 'Host saved (API token stored in Secret Manager)'
+                            : 'Host saved successfully';
+                        showAlert(msg, 'success');
+                        closeModal('host-modal');
                         setTimeout(() => location.reload(), 500);
                     }} else {{
-                        showAlert(result.error || 'Failed to save tenant', 'error');
+                        showAlert(result.error || 'Failed to save host', 'error');
                     }}
                 }});
             }}
 
-            function toggleTenant(name, enabled) {{
-                fetchWithCsrf('/api/tenants/' + encodeURIComponent(name) + '/toggle', {{
+            function toggleHost(name, enabled) {{
+                fetchWithCsrf('/api/hosts/' + encodeURIComponent(name) + '/toggle', {{
                     method: 'POST',
                     body: JSON.stringify({{enabled: enabled}})
                 }})
                 .then(r => r.json())
                 .then(result => {{
                     if (result.success) {{
-                        showAlert('Tenant ' + (enabled ? 'enabled' : 'disabled'), 'success');
+                        showAlert('Host ' + (enabled ? 'enabled' : 'disabled'), 'success');
                         setTimeout(() => location.reload(), 500);
                     }} else {{
-                        showAlert(result.error || 'Failed to update tenant', 'error');
+                        showAlert(result.error || 'Failed to update host', 'error');
                     }}
                 }});
             }}
 
             // ============ Delete Confirmation Modal ============
-            let pendingDelete = null;  // {{type: 'tenant'|'location', name: string}}
+            let pendingDelete = null;  // {{type: 'host'|'location', name: string}}
 
-            function deleteTenant(name) {{
-                pendingDelete = {{type: 'tenant', name: name}};
-                document.getElementById('delete-modal-title').textContent = 'Delete Tenant';
+            function deleteHost(name) {{
+                pendingDelete = {{type: 'host', name: name}};
+                document.getElementById('delete-modal-title').textContent = 'Delete Host';
                 document.getElementById('delete-modal-message').innerHTML =
-                    'You are about to delete the tenant <strong>"' + escapeHtml(name) + '"</strong>.<br><br>' +
+                    'You are about to delete the Momence host <strong>"' + escapeHtml(name) + '"</strong>.<br><br>' +
                     '<span style="color:#b91c1c;">This will NOT delete associated locations.</span> You will need to reassign or delete them separately.';
                 document.getElementById('delete-modal-name-display').textContent = name;
                 document.getElementById('delete-confirm-input').value = '';
@@ -2290,8 +2741,8 @@ def _build_dashboard_html() -> str:
 
                 const name = pendingDelete.name;
                 const type = pendingDelete.type;
-                const endpoint = type === 'tenant'
-                    ? '/api/tenants/' + encodeURIComponent(name)
+                const endpoint = type === 'host'
+                    ? '/api/hosts/' + encodeURIComponent(name)
                     : '/api/sheets/' + encodeURIComponent(name);
 
                 closeModal('delete-modal');
@@ -2303,7 +2754,7 @@ def _build_dashboard_html() -> str:
                 .then(result => {{
                     pendingDelete = null;
                     if (result.success) {{
-                        showAlert((type === 'tenant' ? 'Tenant' : 'Location') + ' deleted successfully', 'success');
+                        showAlert((type === 'host' ? 'Host' : 'Location') + ' deleted successfully', 'success');
                         // Force immediate page reload
                         window.location.reload(true);
                     }} else {{
@@ -2329,7 +2780,7 @@ def _build_dashboard_html() -> str:
                         document.getElementById('sheet-modal-title').textContent = 'Edit Location';
                         document.getElementById('sheet-original-name').value = name;
                         document.getElementById('sheet-name').value = data.name || '';
-                        document.getElementById('sheet-tenant').value = data.tenant || '';
+                        document.getElementById('sheet-momence-host').value = data.momence_host || '';
                         document.getElementById('sheet-spreadsheet-id').value = data.spreadsheet_id || '';
                         document.getElementById('sheet-gid').value = data.gid || '0';
                         document.getElementById('sheet-lead-source-id').value = data.lead_source_id || '';
@@ -2345,7 +2796,7 @@ def _build_dashboard_html() -> str:
                 const originalName = document.getElementById('sheet-original-name').value;
                 const data = {{
                     name: document.getElementById('sheet-name').value,
-                    tenant: document.getElementById('sheet-tenant').value,
+                    momence_host: document.getElementById('sheet-momence-host').value,
                     spreadsheet_id: document.getElementById('sheet-spreadsheet-id').value,
                     gid: document.getElementById('sheet-gid').value,
                     lead_source_id: document.getElementById('sheet-lead-source-id').value,
@@ -2773,7 +3224,7 @@ def _build_dashboard_html() -> str:
 
             function addLocation() {{
                 const tabIdx = document.getElementById('location-tab').value;
-                const tenant = document.getElementById('location-tenant').value;
+                const momenceHost = document.getElementById('location-momence-host').value;
                 const sourceId = document.getElementById('location-source-id').value.trim();
                 const notificationEmail = document.getElementById('location-notification-email').value.trim();
 
@@ -2781,8 +3232,8 @@ def _build_dashboard_html() -> str:
                     showAlert('Please select a location', 'error');
                     return;
                 }}
-                if (!tenant) {{
-                    showAlert('Please select a tenant', 'error');
+                if (!momenceHost) {{
+                    showAlert('Please select a Momence host', 'error');
                     return;
                 }}
 
@@ -2792,7 +3243,7 @@ def _build_dashboard_html() -> str:
                     method: 'POST',
                     body: JSON.stringify({{
                         spreadsheet_id: spreadsheetId,
-                        tenant: tenant,
+                        momence_host: momenceHost,
                         tabs: [{{
                             name: tab.name,
                             gid: tab.gid,
@@ -2871,14 +3322,15 @@ def _build_dashboard_html() -> str:
                     return utcString;
                 }}
                 try {{
-                    // Handle ISO format timestamps
-                    let date = new Date(utcString);
-                    if (isNaN(date.getTime())) {{
-                        // Try adding Z if no timezone specified
-                        if (!utcString.includes('Z') && !utcString.includes('+')) {{
-                            date = new Date(utcString + 'Z');
-                        }}
+                    // Normalize the timestamp - replace +00:00 with Z for consistent parsing
+                    let normalized = utcString.replace('+00:00', 'Z').replace(' ', 'T');
+                    let date = new Date(normalized);
+
+                    // If still invalid, try adding Z for timezone-naive timestamps
+                    if (isNaN(date.getTime()) && !normalized.includes('Z') && !normalized.includes('+') && !normalized.includes('-', 10)) {{
+                        date = new Date(normalized + 'Z');
                     }}
+
                     if (isNaN(date.getTime())) {{
                         return utcString;
                     }}
@@ -2905,6 +3357,28 @@ def _build_dashboard_html() -> str:
                         el.title = utc + ' (UTC)';  // Show original UTC on hover
                     }}
                 }});
+                // Convert build time to short local format
+                document.querySelectorAll('.build-time').forEach(el => {{
+                    const utc = el.getAttribute('data-utc');
+                    if (utc) {{
+                        try {{
+                            const date = new Date(utc);
+                            if (!isNaN(date.getTime())) {{
+                                // Short format for footer: "Jan 21, 3:45 PM"
+                                el.textContent = date.toLocaleString(undefined, {{
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: 'numeric',
+                                    minute: '2-digit',
+                                    hour12: true
+                                }});
+                                el.title = utc + ' (UTC)';
+                            }}
+                        }} catch (e) {{
+                            el.textContent = utc;
+                        }}
+                    }}
+                }});
             }}
 
             // Convert timestamps on page load
@@ -2921,6 +3395,22 @@ class DashboardHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         """Suppress default HTTP logging."""
         pass
+
+    def finish(self):
+        """
+        Clean up after each request.
+
+        This ensures thread-local database connections are closed after each
+        request to prevent memory leaks in the ThreadingHTTPServer.
+        """
+        try:
+            # Close thread-local DB connection without cloud upload (too slow per-request)
+            storage.close_connection(upload_to_cloud=False)
+        except Exception:
+            pass  # Don't let cleanup errors break the response
+
+        # Call parent finish() to complete the request
+        super().finish()
 
     def _is_api_request(self) -> bool:
         """Check if this is an API request (expects JSON response)."""
@@ -3048,11 +3538,11 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self._send_metrics_response()
         elif path == '/status':
             self._send_status_response()
-        elif path.startswith('/api/tenants/') and path.count('/') == 3:
-            tenant_name = path.split('/')[3]
-            self._get_tenant(tenant_name)
-        elif path == '/api/tenants':
-            self._list_tenants()
+        elif path.startswith('/api/hosts/') and path.count('/') == 3:
+            host_name = path.split('/')[3]
+            self._get_host(host_name)
+        elif path == '/api/hosts':
+            self._list_hosts()
         elif path.startswith('/api/sheets/') and path.count('/') == 3:
             sheet_name = path.split('/')[3]
             self._get_sheet(sheet_name)
@@ -3064,12 +3554,18 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self._retry_failed()
         elif path == '/api/admin-activity':
             self._get_admin_activity()
+        elif path == '/api/logs' or path.startswith('/api/logs?'):
+            self._get_logs()
         elif path == '/api/settings':
             self._get_settings()
         elif path == '/api/leads-chart' or path.startswith('/api/leads-chart?'):
             self._get_leads_chart_data()
         elif path == '/api/leads-summary' or path.startswith('/api/leads-summary?'):
             self._get_leads_summary()
+        elif path == '/api/dashboard-status':
+            self._get_dashboard_status()
+        elif path == '/api/database-status':
+            self._get_database_status()
         else:
             self._send_404_page()
 
@@ -3169,19 +3665,22 @@ class DashboardHandler(BaseHTTPRequestHandler):
             return
 
         # Validate CSRF token (check header or body)
-        csrf_token = self.headers.get('X-CSRF-Token') or data.get('csrf_token')
-        if not validate_csrf_token(csrf_token):
-            self._send_json_response(403, {
-                'success': False,
-                'error': 'Invalid or missing CSRF token'
-            })
-            return
+        # Special case: skip CSRF for create-database when no database exists (bootstrap)
+        skip_csrf = (path == '/api/create-database' and not storage.database_exists())
+        if not skip_csrf:
+            csrf_token = self.headers.get('X-CSRF-Token') or data.get('csrf_token')
+            if not validate_csrf_token(csrf_token):
+                self._send_json_response(403, {
+                    'success': False,
+                    'error': 'Invalid or missing CSRF token'
+                })
+                return
 
-        if path == '/api/tenants':
-            self._create_tenant(data)
-        elif path.startswith('/api/tenants/') and path.endswith('/toggle'):
-            tenant_name = path.split('/')[3]
-            self._toggle_tenant(tenant_name, data)
+        if path == '/api/hosts':
+            self._create_host(data)
+        elif path.startswith('/api/hosts/') and path.endswith('/toggle'):
+            host_name = path.split('/')[3]
+            self._toggle_host(host_name, data)
         elif path == '/api/sheets':
             self._create_sheet(data)
         elif path.startswith('/api/sheets/') and path.endswith('/toggle'):
@@ -3198,6 +3697,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self._clear_error_email_tracking()
         elif path == '/api/settings':
             self._update_settings(data)
+        elif path == '/api/create-database':
+            self._create_database()
         else:
             self._send_404_page()
 
@@ -3239,9 +3740,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
             })
             return
 
-        if path.startswith('/api/tenants/'):
-            tenant_name = path.split('/')[3]
-            self._update_tenant(tenant_name, data)
+        if path.startswith('/api/hosts/'):
+            host_name = path.split('/')[3]
+            self._update_host(host_name, data)
         elif path.startswith('/api/sheets/'):
             sheet_name = path.split('/')[3]
             self._update_sheet(sheet_name, data)
@@ -3277,9 +3778,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
             })
             return
 
-        if path.startswith('/api/tenants/'):
-            tenant_name = path.split('/')[3]
-            self._delete_tenant(tenant_name)
+        if path.startswith('/api/hosts/'):
+            host_name = path.split('/')[3]
+            self._delete_host(host_name)
         elif path.startswith('/api/sheets/'):
             sheet_name = path.split('/')[3]
             self._delete_sheet(sheet_name)
@@ -3405,15 +3906,36 @@ class DashboardHandler(BaseHTTPRequestHandler):
         if start_time:
             uptime_seconds = int((utc_now() - start_time).total_seconds())
 
+        # Check database status
+        db_available = storage.database_exists()
+
+        # Determine overall health status
+        if not db_available:
+            status = "degraded"
+            status_reason = "Database not available"
+        else:
+            status = "healthy"
+            status_reason = None
+
         health_data = {
-            "status": "healthy",
+            "status": status,
+            "database_available": db_available,
             "last_successful_run": _health_state.get('last_successful_run'),
             "leads_processed_today": _health_state.get('leads_processed_today', 0),
-            "failed_queue_size": storage.get_failed_queue_count(),
-            "dead_letter_size": storage.get_dead_letter_count(),
             "uptime_seconds": uptime_seconds,
             "timestamp": utc_now().isoformat()
         }
+
+        if status_reason:
+            health_data["status_reason"] = status_reason
+
+        # Only include DB-dependent metrics if database is available
+        if db_available:
+            try:
+                health_data["failed_queue_size"] = storage.get_failed_queue_count()
+                health_data["dead_letter_size"] = storage.get_dead_letter_count()
+            except Exception:
+                pass
 
         self._send_json_response(200, health_data)
 
@@ -3466,7 +3988,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
         metadata = storage.get_tracker_metadata()
 
         status_data = {
-            "tenants": list(MOMENCE_TENANTS.keys()),
+            "momence_hosts": list(MOMENCE_HOSTS.keys()),
             "sheets_configured": len(SHEETS_CONFIG),
             "sent_entries": storage.get_sent_hash_count(),
             "failed_queue": storage.get_failed_queue_count(),
@@ -3591,25 +4113,25 @@ class DashboardHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(html.encode('utf-8'))
 
-    # Tenant API endpoints
-    def _list_tenants(self):
-        """List all tenants."""
-        tenants = []
-        for name, cfg in MOMENCE_TENANTS.items():
-            tenants.append({
+    # Host API endpoints
+    def _list_hosts(self):
+        """List all Momence hosts."""
+        hosts = []
+        for name, cfg in MOMENCE_HOSTS.items():
+            hosts.append({
                 'name': name,
                 'host_id': cfg.get('host_id'),
                 'enabled': cfg.get('enabled', True)
             })
-        self._send_json_response(200, {'tenants': tenants})
+        self._send_json_response(200, {'hosts': hosts})
 
-    def _get_tenant(self, name: str):
-        """Get a single tenant."""
+    def _get_host(self, name: str):
+        """Get a single Momence host."""
         name = urllib.parse.unquote(name)
-        if name not in MOMENCE_TENANTS:
-            self._send_json_response(404, {'success': False, 'error': 'Tenant not found'})
+        if name not in MOMENCE_HOSTS:
+            self._send_json_response(404, {'success': False, 'error': 'Host not found'})
             return
-        cfg = MOMENCE_TENANTS[name]
+        cfg = MOMENCE_HOSTS[name]
         self._send_json_response(200, {
             'name': name,
             'host_id': cfg.get('host_id'),
@@ -3617,82 +4139,177 @@ class DashboardHandler(BaseHTTPRequestHandler):
             'enabled': cfg.get('enabled', True)
         })
 
-    def _create_tenant(self, data: dict):
-        """Create a new tenant."""
+    def _create_host(self, data: dict):
+        """Create a new Momence host."""
         name = data.get('name')
         if not name:
             self._send_json_response(400, {'success': False, 'error': 'Name required'})
             return
-        if name in MOMENCE_TENANTS:
-            self._send_json_response(400, {'success': False, 'error': 'Tenant already exists'})
+
+        # Check if host already exists (in database)
+        if storage.get_host(name):
+            self._send_json_response(400, {'success': False, 'error': 'Host already exists'})
             return
 
-        MOMENCE_TENANTS[name] = {
-            'host_id': data.get('host_id', ''),
-            'token': data.get('token', ''),
-            'enabled': data.get('enabled', True)
-        }
-        _save_config()
-        log_admin_activity('create_tenant', f'Created tenant: {name}', session_token=_get_session_cookie(self), ip_address=_get_client_ip(self))
-        self._send_json_response(200, {'success': True})
+        token = data.get('token', '')
 
-    def _update_tenant(self, name: str, data: dict):
-        """Update an existing tenant."""
+        # Store token in Secret Manager if provided and on Cloud Run
+        secret_stored = False
+        if token:
+            try:
+                from secret_manager import set_secret, IS_CLOUD_RUN
+                if IS_CLOUD_RUN:
+                    secret_name = f"lead-monitor-momence-api-token-{name}"
+                    secret_stored = set_secret(secret_name, token)
+                    if secret_stored:
+                        logger.info(f"Stored API token for host '{name}' in Secret Manager")
+                        token = ''  # Don't store in database if in Secret Manager
+            except Exception as e:
+                logger.warning(f"Failed to store token in Secret Manager: {e}")
+
+        # Create host in database
+        try:
+            storage.create_host(
+                name=name,
+                host_id=data.get('host_id', ''),
+                token=token,  # Empty if stored in Secret Manager
+                enabled=data.get('enabled', True)
+            )
+            # Update in-memory cache
+            MOMENCE_HOSTS[name] = {
+                'host_id': data.get('host_id', ''),
+                'token': token,
+                'enabled': data.get('enabled', True)
+            }
+            log_admin_activity('create_host', f'Created host: {name}' + (' (token in Secret Manager)' if secret_stored else ''), session_token=_get_session_cookie(self), ip_address=_get_client_ip(self))
+            self._send_json_response(200, {'success': True, 'secret_stored': secret_stored})
+        except ValueError as e:
+            self._send_json_response(400, {'success': False, 'error': str(e)})
+        except Exception as e:
+            logger.error(f"Failed to create host: {e}")
+            self._send_json_response(500, {'success': False, 'error': 'Database error'})
+
+    def _update_host(self, name: str, data: dict):
+        """Update an existing Momence host."""
         name = urllib.parse.unquote(name)
-        if name not in MOMENCE_TENANTS:
-            self._send_json_response(404, {'success': False, 'error': 'Tenant not found'})
+
+        # Check if host exists in database
+        existing_host = storage.get_host(name)
+        if not existing_host:
+            self._send_json_response(404, {'success': False, 'error': 'Host not found'})
             return
 
         new_name = data.get('name', name)
+        token = data.get('token')
 
-        # If renaming, update the key
+        # Note: Renaming hosts is not supported with database storage
+        # because host name is the primary key and referenced by sheets
         if new_name != name:
-            MOMENCE_TENANTS[new_name] = MOMENCE_TENANTS.pop(name)
-            # Update sheet references
-            for sheet in SHEETS_CONFIG:
-                if sheet.get('tenant') == name:
-                    sheet['tenant'] = new_name
+            self._send_json_response(400, {'success': False, 'error': 'Renaming hosts is not supported. Delete and recreate instead.'})
+            return
 
-        cfg = MOMENCE_TENANTS[new_name]
-        if 'host_id' in data:
-            cfg['host_id'] = data['host_id']
-        if 'token' in data:
-            cfg['token'] = data['token']
-        if 'enabled' in data:
-            cfg['enabled'] = data['enabled']
+        # Handle token update - store in Secret Manager if on Cloud Run
+        secret_stored = False
+        token_to_store = existing_host.get('token')  # Keep existing token by default
+        if token:
+            try:
+                from secret_manager import set_secret, IS_CLOUD_RUN
+                if IS_CLOUD_RUN:
+                    secret_name = f"lead-monitor-momence-api-token-{name}"
+                    secret_stored = set_secret(secret_name, token)
+                    if secret_stored:
+                        logger.info(f"Updated API token for host '{name}' in Secret Manager")
+                        token_to_store = ''  # Clear from database if in Secret Manager
+                    else:
+                        token_to_store = token
+                else:
+                    token_to_store = token
+            except Exception as e:
+                logger.warning(f"Failed to store token in Secret Manager: {e}")
+                token_to_store = token
 
-        _save_config()
-        self._send_json_response(200, {'success': True})
+        # Update host in database
+        try:
+            storage.update_host(
+                name=name,
+                host_id=data.get('host_id'),
+                token=token_to_store if token else None,  # Only update token if provided
+                enabled=data.get('enabled')
+            )
+            # Update in-memory cache
+            if name in MOMENCE_HOSTS:
+                if 'host_id' in data:
+                    MOMENCE_HOSTS[name]['host_id'] = data['host_id']
+                if token:
+                    MOMENCE_HOSTS[name]['token'] = token_to_store
+                if 'enabled' in data:
+                    MOMENCE_HOSTS[name]['enabled'] = data['enabled']
+            self._send_json_response(200, {'success': True, 'secret_stored': secret_stored})
+        except Exception as e:
+            logger.error(f"Failed to update host: {e}")
+            self._send_json_response(500, {'success': False, 'error': 'Database error'})
 
-    def _toggle_tenant(self, name: str, data: dict):
-        """Toggle tenant enabled status."""
+    def _toggle_host(self, name: str, data: dict):
+        """Toggle Momence host enabled status."""
         name = urllib.parse.unquote(name)
-        if name not in MOMENCE_TENANTS:
-            self._send_json_response(404, {'success': False, 'error': 'Tenant not found'})
+
+        # Check if host exists in database
+        if not storage.get_host(name):
+            self._send_json_response(404, {'success': False, 'error': 'Host not found'})
             return
 
         enabled = data.get('enabled', True)
-        MOMENCE_TENANTS[name]['enabled'] = enabled
-        _save_config()
-        log_admin_activity('toggle_tenant', f"{'Enabled' if enabled else 'Disabled'} tenant: {name}", session_token=_get_session_cookie(self), ip_address=_get_client_ip(self))
-        self._send_json_response(200, {'success': True})
 
-    def _delete_tenant(self, name: str):
-        """Delete a tenant."""
+        try:
+            storage.update_host(name=name, enabled=enabled)
+            # Update in-memory cache
+            if name in MOMENCE_HOSTS:
+                MOMENCE_HOSTS[name]['enabled'] = enabled
+            log_admin_activity('toggle_host', f"{'Enabled' if enabled else 'Disabled'} host: {name}", session_token=_get_session_cookie(self), ip_address=_get_client_ip(self))
+            self._send_json_response(200, {'success': True})
+        except Exception as e:
+            logger.error(f"Failed to toggle host: {e}")
+            self._send_json_response(500, {'success': False, 'error': 'Database error'})
+
+    def _delete_host(self, name: str):
+        """Delete a Momence host."""
         name = urllib.parse.unquote(name)
-        if name not in MOMENCE_TENANTS:
-            self._send_json_response(404, {'success': False, 'error': 'Tenant not found'})
+
+        # Check if host exists in database
+        if not storage.get_host(name):
+            self._send_json_response(404, {'success': False, 'error': 'Host not found'})
             return
 
-        del MOMENCE_TENANTS[name]
-        _save_config()
-        log_admin_activity('delete_tenant', f'Deleted tenant: {name}', session_token=_get_session_cookie(self), ip_address=_get_client_ip(self))
-        self._send_json_response(200, {'success': True})
+        # Delete the associated secret from Secret Manager
+        try:
+            from secret_manager import delete_secret, IS_CLOUD_RUN
+            if IS_CLOUD_RUN:
+                secret_name = f"lead-monitor-momence-api-token-{name}"
+                delete_secret(secret_name)
+                logger.info(f"Deleted secret '{secret_name}' for host '{name}'")
+        except Exception as e:
+            logger.warning(f"Failed to delete secret for host '{name}': {e}")
+
+        # Delete from database
+        try:
+            storage.delete_host(name)
+            # Update in-memory cache
+            if name in MOMENCE_HOSTS:
+                del MOMENCE_HOSTS[name]
+            log_admin_activity('delete_host', f'Deleted host: {name}', session_token=_get_session_cookie(self), ip_address=_get_client_ip(self))
+            self._send_json_response(200, {'success': True})
+        except ValueError as e:
+            # Host has associated locations
+            self._send_json_response(400, {'success': False, 'error': str(e)})
+        except Exception as e:
+            logger.error(f"Failed to delete host: {e}")
+            self._send_json_response(500, {'success': False, 'error': 'Database error'})
 
     # Sheet API endpoints
     def _list_sheets(self):
-        """List all sheets."""
-        self._send_json_response(200, {'sheets': SHEETS_CONFIG})
+        """List all sheets from database."""
+        sheets = storage.get_sheets_as_config_list()
+        self._send_json_response(200, {'sheets': sheets})
 
     def _list_available_tabs(self):
         """List FB Lead tabs from default spreadsheet that are not yet configured."""
@@ -3707,8 +4324,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
             service = get_google_sheets_service()
             all_tabs = discover_fb_lead_tabs(service, DEFAULT_SPREADSHEET_ID)
 
-            # Filter out tabs that are already configured
-            configured_gids = {sheet.get('gid') for sheet in SHEETS_CONFIG
+            # Filter out tabs that are already configured (from database)
+            all_sheets = storage.get_all_sheets()
+            configured_gids = {sheet.get('gid') for sheet in all_sheets
                               if sheet.get('spreadsheet_id') == DEFAULT_SPREADSHEET_ID}
 
             available_tabs = [tab for tab in all_tabs if tab['gid'] not in configured_gids]
@@ -3728,7 +4346,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
     def _get_sheet(self, name: str):
         """Get a single sheet by name."""
         name = urllib.parse.unquote(name)
-        for sheet in SHEETS_CONFIG:
+        all_sheets = storage.get_all_sheets()
+        for sheet in all_sheets:
             if sheet.get('name') == name:
                 self._send_json_response(200, sheet)
                 return
@@ -3741,79 +4360,143 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self._send_json_response(400, {'success': False, 'error': 'Name required'})
             return
 
-        # Check for duplicate name
-        for sheet in SHEETS_CONFIG:
-            if sheet.get('name') == name:
-                self._send_json_response(400, {'success': False, 'error': 'Sheet name already exists'})
-                return
+        spreadsheet_id = data.get('spreadsheet_id', '')
+        gid = data.get('gid', '0')
+        momence_host = data.get('momence_host', '')
+        lead_source_id = data.get('lead_source_id', '')
 
-        SHEETS_CONFIG.append({
-            'name': name,
-            'tenant': data.get('tenant', ''),
-            'spreadsheet_id': data.get('spreadsheet_id', ''),
-            'gid': data.get('gid', '0'),
-            'lead_source_id': data.get('lead_source_id', ''),
-            'enabled': data.get('enabled', True)
-        })
-        _save_config()
-        log_admin_activity('create_location', f"Created location: {name} (tenant: {data.get('tenant', 'N/A')})", session_token=_get_session_cookie(self), ip_address=_get_client_ip(self))
-        self._send_json_response(200, {'success': True})
+        if not spreadsheet_id:
+            self._send_json_response(400, {'success': False, 'error': 'Spreadsheet ID required'})
+            return
+        if not momence_host:
+            self._send_json_response(400, {'success': False, 'error': 'Momence host required'})
+            return
+
+        try:
+            storage.create_sheet(
+                spreadsheet_id=spreadsheet_id,
+                gid=gid,
+                name=name,
+                momence_host=momence_host,
+                lead_source_id=lead_source_id,
+                enabled=data.get('enabled', True),
+                notification_email=data.get('notification_email')
+            )
+            # Update in-memory cache
+            SHEETS_CONFIG.append({
+                'name': name,
+                'momence_host': momence_host,
+                'spreadsheet_id': spreadsheet_id,
+                'gid': gid,
+                'lead_source_id': lead_source_id,
+                'enabled': data.get('enabled', True),
+                'notification_email': data.get('notification_email')
+            })
+            log_admin_activity('create_location', f"Created location: {name} (momence_host: {momence_host})", session_token=_get_session_cookie(self), ip_address=_get_client_ip(self))
+            self._send_json_response(200, {'success': True})
+        except ValueError as e:
+            self._send_json_response(400, {'success': False, 'error': str(e)})
+        except Exception as e:
+            logger.error(f"Failed to create sheet: {e}")
+            self._send_json_response(500, {'success': False, 'error': 'Database error'})
 
     def _update_sheet(self, name: str, data: dict):
         """Update an existing sheet."""
         name = urllib.parse.unquote(name)
 
-        for sheet in SHEETS_CONFIG:
+        # Find sheet by name in database
+        all_sheets = storage.get_all_sheets()
+        sheet_to_update = None
+        for sheet in all_sheets:
             if sheet.get('name') == name:
-                if 'name' in data:
-                    sheet['name'] = data['name']
-                if 'tenant' in data:
-                    sheet['tenant'] = data['tenant']
-                if 'spreadsheet_id' in data:
-                    sheet['spreadsheet_id'] = data['spreadsheet_id']
-                if 'gid' in data:
-                    sheet['gid'] = data['gid']
-                if 'lead_source_id' in data:
-                    sheet['lead_source_id'] = data['lead_source_id']
-                if 'notification_email' in data:
-                    # Store empty string as removal of email
-                    if data['notification_email']:
-                        sheet['notification_email'] = data['notification_email']
-                    elif 'notification_email' in sheet:
-                        del sheet['notification_email']
-                if 'enabled' in data:
-                    sheet['enabled'] = data['enabled']
-                _save_config()
-                self._send_json_response(200, {'success': True})
-                return
+                sheet_to_update = sheet
+                break
 
-        self._send_json_response(404, {'success': False, 'error': 'Sheet not found'})
+        if not sheet_to_update:
+            self._send_json_response(404, {'success': False, 'error': 'Sheet not found'})
+            return
+
+        try:
+            # Handle notification_email: empty string means removal
+            notification_email = data.get('notification_email')
+            if notification_email == '':
+                notification_email = None
+
+            storage.update_sheet(
+                sheet_id=sheet_to_update['id'],
+                spreadsheet_id=data.get('spreadsheet_id'),
+                gid=data.get('gid'),
+                name=data.get('name'),
+                momence_host=data.get('momence_host'),
+                lead_source_id=data.get('lead_source_id'),
+                enabled=data.get('enabled'),
+                notification_email=notification_email
+            )
+            # Update in-memory cache
+            for i, sheet in enumerate(SHEETS_CONFIG):
+                if sheet.get('name') == name:
+                    if 'name' in data:
+                        SHEETS_CONFIG[i]['name'] = data['name']
+                    if 'momence_host' in data:
+                        SHEETS_CONFIG[i]['momence_host'] = data['momence_host']
+                    if 'spreadsheet_id' in data:
+                        SHEETS_CONFIG[i]['spreadsheet_id'] = data['spreadsheet_id']
+                    if 'gid' in data:
+                        SHEETS_CONFIG[i]['gid'] = data['gid']
+                    if 'lead_source_id' in data:
+                        SHEETS_CONFIG[i]['lead_source_id'] = data['lead_source_id']
+                    if 'enabled' in data:
+                        SHEETS_CONFIG[i]['enabled'] = data['enabled']
+                    if notification_email is not None:
+                        SHEETS_CONFIG[i]['notification_email'] = notification_email
+                    elif 'notification_email' in data and data['notification_email'] == '':
+                        SHEETS_CONFIG[i].pop('notification_email', None)
+                    break
+            self._send_json_response(200, {'success': True})
+        except ValueError as e:
+            self._send_json_response(400, {'success': False, 'error': str(e)})
+        except Exception as e:
+            logger.error(f"Failed to update sheet: {e}")
+            self._send_json_response(500, {'success': False, 'error': 'Database error'})
 
     def _toggle_sheet(self, name: str, data: dict):
         """Toggle sheet enabled status."""
         name = urllib.parse.unquote(name)
 
-        for sheet in SHEETS_CONFIG:
+        # Find sheet by name in database
+        all_sheets = storage.get_all_sheets()
+        sheet_to_toggle = None
+        for sheet in all_sheets:
             if sheet.get('name') == name:
-                enabled = data.get('enabled', True)
-                sheet['enabled'] = enabled
-                _save_config()
-                log_admin_activity('toggle_location', f"{'Enabled' if enabled else 'Disabled'} location: {name}", session_token=_get_session_cookie(self), ip_address=_get_client_ip(self))
-                self._send_json_response(200, {'success': True})
-                return
+                sheet_to_toggle = sheet
+                break
 
-        self._send_json_response(404, {'success': False, 'error': 'Sheet not found'})
+        if not sheet_to_toggle:
+            self._send_json_response(404, {'success': False, 'error': 'Sheet not found'})
+            return
+
+        enabled = data.get('enabled', True)
+
+        try:
+            storage.update_sheet(sheet_id=sheet_to_toggle['id'], enabled=enabled)
+            # Update in-memory cache
+            for sheet in SHEETS_CONFIG:
+                if sheet.get('name') == name:
+                    sheet['enabled'] = enabled
+                    break
+            log_admin_activity('toggle_location', f"{'Enabled' if enabled else 'Disabled'} location: {name}", session_token=_get_session_cookie(self), ip_address=_get_client_ip(self))
+            self._send_json_response(200, {'success': True})
+        except Exception as e:
+            logger.error(f"Failed to toggle sheet: {e}")
+            self._send_json_response(500, {'success': False, 'error': 'Database error'})
 
     def _test_location_email(self, name: str):
         """Send a test email for a location to verify email configuration."""
         name = urllib.parse.unquote(name)
 
-        # Verify sheet exists
-        sheet_found = False
-        for sheet in SHEETS_CONFIG:
-            if sheet.get('name') == name:
-                sheet_found = True
-                break
+        # Verify sheet exists in database
+        all_sheets = storage.get_all_sheets()
+        sheet_found = any(sheet.get('name') == name for sheet in all_sheets)
 
         if not sheet_found:
             self._send_json_response(404, {'success': False, 'error': 'Location not found'})
@@ -3837,15 +4520,30 @@ class DashboardHandler(BaseHTTPRequestHandler):
         """Delete a sheet."""
         name = urllib.parse.unquote(name)
 
-        for i, sheet in enumerate(SHEETS_CONFIG):
+        # Find sheet by name in database
+        all_sheets = storage.get_all_sheets()
+        sheet_to_delete = None
+        for sheet in all_sheets:
             if sheet.get('name') == name:
-                SHEETS_CONFIG.pop(i)
-                _save_config()
-                log_admin_activity('delete_location', f'Deleted location: {name}', session_token=_get_session_cookie(self), ip_address=_get_client_ip(self))
-                self._send_json_response(200, {'success': True})
-                return
+                sheet_to_delete = sheet
+                break
 
-        self._send_json_response(404, {'success': False, 'error': 'Sheet not found'})
+        if not sheet_to_delete:
+            self._send_json_response(404, {'success': False, 'error': 'Sheet not found'})
+            return
+
+        try:
+            storage.delete_sheet(sheet_to_delete['id'])
+            # Update in-memory cache
+            for i, sheet in enumerate(SHEETS_CONFIG):
+                if sheet.get('name') == name:
+                    SHEETS_CONFIG.pop(i)
+                    break
+            log_admin_activity('delete_location', f'Deleted location: {name}', session_token=_get_session_cookie(self), ip_address=_get_client_ip(self))
+            self._send_json_response(200, {'success': True})
+        except Exception as e:
+            logger.error(f"Failed to delete sheet: {e}")
+            self._send_json_response(500, {'success': False, 'error': 'Database error'})
 
     def _get_settings(self):
         """Get application settings."""
@@ -3934,11 +4632,11 @@ class DashboardHandler(BaseHTTPRequestHandler):
         successful = 0
         failed = 0
         entries_to_remove = []
-        leads_by_tenant = {}
+        leads_by_host = {}
 
         for i, entry in enumerate(entries):
             lead_data = entry.get('lead_data', {})
-            tenant = entry.get('tenant')
+            momence_host = entry.get('momence_host') or entry.get('tenant')  # Support old 'tenant' key
             entry_hash = entry.get('entry_hash')
             email = lead_data.get('email', 'unknown')
 
@@ -3960,7 +4658,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
             if i > 0:
                 time.sleep(RATE_LIMIT_DELAY)
 
-            result = create_momence_lead(lead_data, tenant, dry_run=False)
+            result = create_momence_lead(lead_data, momence_host, dry_run=False)
 
             if result.get('success'):
                 successful += 1
@@ -3968,13 +4666,13 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
                 # Track for notification
                 lead_record = {**lead_data, 'success': True}
-                if tenant not in leads_by_tenant:
-                    leads_by_tenant[tenant] = []
-                leads_by_tenant[tenant].append(lead_record)
+                if momence_host not in leads_by_host:
+                    leads_by_host[momence_host] = []
+                leads_by_host[momence_host].append(lead_record)
 
                 # Mark as sent in storage
                 storage.add_sent_hash(entry_hash, lead_data.get('sheetName'))
-                storage.increment_location_count(lead_data.get('sheetName', tenant))
+                storage.increment_location_count(lead_data.get('sheetName', momence_host))
 
                 send_event('result', {'email': email, 'success': True})
             else:
@@ -4000,9 +4698,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
             storage.remove_from_failed_queue_batch(entries_to_remove)
 
         # Send notifications for successfully retried leads
-        for tenant_name, leads in leads_by_tenant.items():
+        for host_name, leads in leads_by_host.items():
             if leads:
-                send_leads_digest(tenant_name, leads)
+                send_leads_digest(host_name, leads)
 
         send_event('complete', {'successful': successful, 'failed': failed})
 
@@ -4020,6 +4718,73 @@ class DashboardHandler(BaseHTTPRequestHandler):
             'message': 'Error email tracking cleared. Next error will trigger an email.',
             'previous_value': old_value
         })
+
+    def _get_database_status(self):
+        """Get the current database status."""
+        try:
+            db_exists = storage.database_exists()
+            db_available = storage.is_database_available()
+
+            status = {
+                'exists': db_exists,
+                'available': db_available,
+                'path': storage.get_db_path()
+            }
+
+            if db_exists:
+                try:
+                    status['sent_hash_count'] = storage.get_sent_hash_count()
+                    status['failed_queue_count'] = storage.get_failed_queue_count()
+                    metadata = storage.get_tracker_metadata()
+                    status['last_check'] = metadata.get('last_check')
+                    status['cache_built_at'] = metadata.get('cache_built_at')
+                except Exception as e:
+                    status['error'] = str(e)
+
+            self._send_json_response(200, {
+                'success': True,
+                'database': status
+            })
+        except Exception as e:
+            self._send_json_response(500, {
+                'success': False,
+                'error': str(e)
+            })
+
+    def _create_database(self):
+        """Create a fresh database, deleting any existing one."""
+        try:
+            # Check if database already exists
+            db_existed = storage.database_exists()
+
+            # Create fresh database
+            result = storage.create_fresh_database()
+
+            if result:
+                action = 'recreate_database' if db_existed else 'create_database'
+                log_admin_activity(
+                    action,
+                    f'{"Recreated" if db_existed else "Created"} fresh database',
+                    session_token=_get_session_cookie(self),
+                    ip_address=_get_client_ip(self)
+                )
+                logger.info(f"Database {'recreated' if db_existed else 'created'} via dashboard")
+                self._send_json_response(200, {
+                    'success': True,
+                    'message': f'Database {"recreated" if db_existed else "created"} successfully.',
+                    'previous_existed': db_existed
+                })
+            else:
+                self._send_json_response(500, {
+                    'success': False,
+                    'error': 'Failed to create database'
+                })
+        except Exception as e:
+            logger.exception(f"Error creating database: {e}")
+            self._send_json_response(500, {
+                'success': False,
+                'error': str(e)
+            })
 
     def _get_admin_activity(self):
         """Get recent admin activity log entries."""
@@ -4040,23 +4805,135 @@ class DashboardHandler(BaseHTTPRequestHandler):
             'count': len(entries)
         })
 
-    def _get_leads_chart_data(self):
-        """Get leads by location data for charting."""
-        # Parse days from query string (default 30)
-        days = 30
+    def _get_logs(self):
+        """Get recent application log lines."""
+        from pathlib import Path
+        from config import LOG_DIR
+
+        # Parse lines from query string (default 50)
+        lines = 50
         if '?' in self.path:
             query = urllib.parse.parse_qs(self.path.split('?')[1])
             try:
-                days = int(query.get('days', ['30'])[0])
-                days = min(max(days, 1), 365)  # Clamp between 1 and 365
+                lines = int(query.get('lines', ['50'])[0])
+                lines = min(max(lines, 10), 200)  # Clamp between 10 and 200
             except (ValueError, TypeError):
                 pass
 
-        chart_data = storage.get_leads_chart_data(days)
+        try:
+            log_dir = Path(LOG_DIR)
+            # Find today's log file (format: YYYYMMDD.log)
+            from utils import utc_now
+            today = utc_now().strftime('%Y%m%d')
+            log_file = log_dir / f'{today}.log'
+
+            log_lines = []
+            target_file = None
+
+            if log_file.exists():
+                target_file = log_file
+            else:
+                # Try to find most recent log file
+                log_files = sorted(log_dir.glob('*.log'), reverse=True)
+                if log_files:
+                    target_file = log_files[0]
+
+            if target_file:
+                # Efficient tail: read from end of file to avoid loading entire file
+                log_lines = self._efficient_tail(target_file, lines)
+            else:
+                log_lines = ['No log files found']
+
+            self._send_json_response(200, {
+                'success': True,
+                'logs': log_lines,
+                'count': len(log_lines)
+            })
+        except Exception as e:
+            self._send_json_response(200, {
+                'success': True,
+                'logs': [f'Error reading logs: {str(e)}'],
+                'count': 1
+            })
+
+    def _efficient_tail(self, file_path: Path, n_lines: int) -> List[str]:
+        """
+        Efficiently read the last N lines of a file without loading entire file.
+
+        Uses a chunked read from the end of the file to minimize memory usage.
+        """
+        try:
+            with open(file_path, 'rb') as f:
+                # For small files (< 64KB), just read the whole thing
+                f.seek(0, 2)  # Seek to end
+                file_size = f.tell()
+
+                if file_size == 0:
+                    return []
+
+                # For small files, read all at once (more efficient than chunked)
+                if file_size < 65536:
+                    f.seek(0)
+                    content = f.read().decode('utf-8', errors='replace')
+                    all_lines = content.splitlines()
+                    return all_lines[-n_lines:]
+
+                # For larger files, read chunks from the end
+                chunk_size = max(8192, n_lines * 200)  # Assume ~200 bytes per line
+                lines_found = []
+                remaining_size = file_size
+
+                while len(lines_found) < n_lines + 1 and remaining_size > 0:
+                    # Calculate chunk position
+                    chunk_start = max(0, remaining_size - chunk_size)
+                    bytes_to_read = remaining_size - chunk_start
+
+                    f.seek(chunk_start)
+                    chunk = f.read(bytes_to_read).decode('utf-8', errors='replace')
+
+                    # Split into lines and prepend to our list
+                    chunk_lines = chunk.splitlines()
+
+                    if lines_found:
+                        # Merge partial line from previous chunk
+                        chunk_lines[-1] += lines_found[0]
+                        lines_found = chunk_lines + lines_found[1:]
+                    else:
+                        lines_found = chunk_lines
+
+                    remaining_size = chunk_start
+
+                    # Increase chunk size for next iteration if needed
+                    chunk_size = min(chunk_size * 2, 1048576)  # Max 1MB chunks
+
+                return lines_found[-n_lines:]
+
+        except Exception as e:
+            return [f'Error reading file: {str(e)}']
+
+    def _get_leads_chart_data(self):
+        """Get leads by location data for charting."""
+        # Parse days from query string (default "24h" for hourly)
+        days = 7
+        hourly = False
+        if '?' in self.path:
+            query = urllib.parse.parse_qs(self.path.split('?')[1])
+            days_param = query.get('days', ['24h'])[0]
+            if days_param == '24h':
+                hourly = True
+            else:
+                try:
+                    days = int(days_param)
+                    days = min(max(days, 1), 365)  # Clamp between 1 and 365
+                except (ValueError, TypeError):
+                    pass
+
+        chart_data = storage.get_leads_chart_data(days, hourly=hourly)
         self._send_json_response(200, {
             'success': True,
             'data': chart_data,
-            'days': days
+            'days': days,
+            'hourly': hourly
         })
 
     def _get_leads_summary(self):
@@ -4075,6 +4952,32 @@ class DashboardHandler(BaseHTTPRequestHandler):
         self._send_json_response(200, {
             'success': True,
             'data': summary
+        })
+
+    def _get_dashboard_status(self):
+        """Get current dashboard status for header updates."""
+        from utils import utc_now
+
+        # Use _health_state which has the actual last_successful_run (not stale DB value)
+        last_check = _health_state.get('last_successful_run', 'Never')
+        start_time = _health_state.get('tracker', {}).get('start_time')
+
+        # Calculate uptime
+        uptime_str = 'N/A'
+        if start_time:
+            try:
+                start_dt = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+                delta = utc_now() - start_dt
+                hours = int(delta.total_seconds() // 3600)
+                minutes = int((delta.total_seconds() % 3600) // 60)
+                uptime_str = f'{hours}h {minutes}m'
+            except (ValueError, TypeError):
+                pass
+
+        self._send_json_response(200, {
+            'success': True,
+            'last_check': str(last_check) if last_check else 'Never',
+            'uptime': uptime_str
         })
 
     def _discover_sheets(self, data: dict):
@@ -4118,19 +5021,19 @@ class DashboardHandler(BaseHTTPRequestHandler):
     def _import_discovered_sheets(self, data: dict):
         """Import discovered tabs as sheets."""
         spreadsheet_id = data.get('spreadsheet_id', '').strip()
-        tenant = data.get('tenant', '').strip()
+        momence_host = data.get('momence_host', '').strip()
         tabs = data.get('tabs', [])
 
         if not spreadsheet_id:
             self._send_json_response(400, {'success': False, 'error': 'Spreadsheet ID required'})
             return
 
-        if not tenant:
-            self._send_json_response(400, {'success': False, 'error': 'Tenant required'})
+        if not momence_host:
+            self._send_json_response(400, {'success': False, 'error': 'Momence host required'})
             return
 
-        if tenant not in MOMENCE_TENANTS:
-            self._send_json_response(400, {'success': False, 'error': f'Tenant "{tenant}" does not exist. Create it first.'})
+        if momence_host not in MOMENCE_HOSTS:
+            self._send_json_response(400, {'success': False, 'error': f'Host "{momence_host}" does not exist. Create it first.'})
             return
 
         if not tabs:
@@ -4159,7 +5062,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     'spreadsheet_id': spreadsheet_id,
                     'gid': tab_gid,
                     'name': tab_name,
-                    'tenant': tenant,
+                    'momence_host': momence_host,
                     'enabled': True
                 }
                 if lead_source_id:
@@ -4193,6 +5096,10 @@ def start_health_server(tracker: dict) -> Optional[ThreadingHTTPServer]:
     if not HEALTH_SERVER_ENABLED:
         logger.debug("Health server disabled in config")
         return None
+
+    # Reload config from database now that it's been initialized
+    # This ensures MOMENCE_HOSTS and SHEETS_CONFIG are populated from DB
+    _reload_config()
 
     with _health_state_lock:
         _health_state['tracker'] = tracker

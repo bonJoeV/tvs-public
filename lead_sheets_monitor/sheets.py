@@ -16,16 +16,20 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 from config import (
-    SCOPES, API_TIMEOUT_SECONDS, RETRY_MAX_ATTEMPTS, RETRY_BASE_DELAY,
-    get_enabled_sheets
+    SCOPES, API_TIMEOUT_SECONDS, RETRY_MAX_ATTEMPTS, RETRY_BASE_DELAY
 )
-from utils import normalize_phone, logger, compute_entry_hash
+from utils import normalize_phone, logger
 
 # Facebook Lead Ads expected headers
 FB_LEAD_HEADERS = {'id', 'created_time', 'ad_id', 'ad_name'}
 
 # Valid spreadsheet ID pattern: alphanumeric, hyphens, and underscores (typically 44 chars but can vary)
 SPREADSHEET_ID_PATTERN = re.compile(r'^[a-zA-Z0-9_-]{20,100}$')
+
+# Cached Google Sheets service to prevent memory leaks from creating new instances each cycle
+_cached_service = None
+_service_created_at = None
+SERVICE_MAX_AGE_SECONDS = 3600  # Refresh service every hour to handle credential refresh
 
 
 def validate_spreadsheet_id(spreadsheet_id: str) -> bool:
@@ -44,14 +48,6 @@ def validate_spreadsheet_id(spreadsheet_id: str) -> bool:
     if not spreadsheet_id or not isinstance(spreadsheet_id, str):
         return False
     return bool(SPREADSHEET_ID_PATTERN.match(spreadsheet_id))
-
-
-class NonRetryableError(Exception):
-    """Exception for errors that should not be retried (e.g., 401, 403, 404)."""
-    def __init__(self, message: str, status_code: int = None, original_error: Exception = None):
-        super().__init__(message)
-        self.status_code = status_code
-        self.original_error = original_error
 
 
 def is_retryable_error(error: Exception) -> bool:
@@ -152,7 +148,7 @@ def retry_with_backoff(func, max_retries: int = None, base_delay: float = None):
         Result from successful function call
 
     Raises:
-        NonRetryableError: For permanent errors (401, 403, 404, etc.)
+        Original exception: For permanent errors (401, 403, 404, etc.) without retrying
         Last exception: If all retries exhausted for transient errors
     """
     if max_retries is None:
@@ -178,7 +174,7 @@ def retry_with_backoff(func, max_retries: int = None, base_delay: float = None):
                         status_code = response.status_code
 
                 logger.error(f"Non-retryable error (HTTP {status_code}): {e}")
-                raise NonRetryableError(str(e), status_code=status_code, original_error=e)
+                raise  # Re-raise original exception for caller to handle
 
             # For retryable errors, continue with backoff
             if attempt < max_retries - 1:
@@ -197,14 +193,64 @@ def retry_with_backoff(func, max_retries: int = None, base_delay: float = None):
     raise last_exception
 
 
-def get_google_sheets_service():
-    """Create and return Google Sheets API service with timeout."""
+def get_google_sheets_service(force_refresh: bool = False):
+    """
+    Get or create a cached Google Sheets API service with timeout.
+
+    The service is cached to prevent memory leaks from creating new httplib2.Http
+    and service objects on every daemon cycle. The cache is refreshed hourly to
+    handle credential expiration.
+
+    Args:
+        force_refresh: If True, force creation of a new service even if cached
+
+    Credentials are loaded from:
+    1. Google Cloud Secret Manager (on Cloud Run)
+    2. GOOGLE_CREDENTIALS_JSON environment variable
+    """
+    global _cached_service, _service_created_at
+
     import httplib2
     from google_auth_httplib2 import AuthorizedHttp
 
-    creds_json = os.getenv('GOOGLE_CREDENTIALS_JSON')
+    now = time.time()
+    age = now - _service_created_at if _service_created_at else SERVICE_MAX_AGE_SECONDS + 1
+
+    # Return cached service if valid and not forcing refresh
+    if _cached_service and age < SERVICE_MAX_AGE_SECONDS and not force_refresh:
+        return _cached_service
+
+    # Close old service's HTTP connection if exists
+    if _cached_service:
+        try:
+            # Access the underlying http object and close it
+            if hasattr(_cached_service, '_http'):
+                http_obj = _cached_service._http
+                if hasattr(http_obj, 'http') and hasattr(http_obj.http, 'close'):
+                    http_obj.http.close()
+                elif hasattr(http_obj, 'close'):
+                    http_obj.close()
+            logger.debug("Closed previous Google Sheets service connection")
+        except Exception as e:
+            logger.debug(f"Could not close previous service connection: {e}")
+
+    # Try Secret Manager first
+    creds_json = None
+    try:
+        from secret_manager import get_google_credentials_json
+        creds_json = get_google_credentials_json()
+    except ImportError:
+        pass
+
+    # Fall back to environment variable
     if not creds_json:
-        raise ValueError("GOOGLE_CREDENTIALS_JSON environment variable not set")
+        creds_json = os.getenv('GOOGLE_CREDENTIALS_JSON')
+
+    if not creds_json:
+        raise ValueError(
+            "Google credentials not found. Set 'google-credentials-json' in Secret Manager "
+            "or GOOGLE_CREDENTIALS_JSON environment variable"
+        )
 
     creds_data = json.loads(creds_json)
     credentials = Credentials.from_service_account_info(creds_data, scopes=SCOPES)
@@ -213,7 +259,39 @@ def get_google_sheets_service():
     http = httplib2.Http(timeout=API_TIMEOUT_SECONDS)
     authed_http = AuthorizedHttp(credentials, http=http)
 
-    return build('sheets', 'v4', http=authed_http, cache_discovery=False)
+    service = build('sheets', 'v4', http=authed_http, cache_discovery=False)
+
+    # Cache the new service
+    _cached_service = service
+    _service_created_at = now
+    logger.debug("Created new Google Sheets service (cached)")
+
+    return service
+
+
+def close_google_service():
+    """
+    Close the cached Google Sheets service and release resources.
+
+    Call this on shutdown to ensure proper cleanup of HTTP connections.
+    """
+    global _cached_service, _service_created_at
+
+    if _cached_service:
+        try:
+            # Access the underlying http object and close it
+            if hasattr(_cached_service, '_http'):
+                http_obj = _cached_service._http
+                if hasattr(http_obj, 'http') and hasattr(http_obj.close):
+                    http_obj.http.close()
+                elif hasattr(http_obj, 'close'):
+                    http_obj.close()
+            logger.info("Google Sheets service closed")
+        except Exception as e:
+            logger.warning(f"Error closing Google Sheets service: {e}")
+        finally:
+            _cached_service = None
+            _service_created_at = None
 
 
 def get_sheet_name_by_gid(service, spreadsheet_id: str, gid: str) -> Optional[str]:
@@ -237,20 +315,28 @@ def get_sheet_name_by_gid(service, spreadsheet_id: str, gid: str) -> Optional[st
         return None
 
 
-def fetch_sheet_data(service, spreadsheet_id: str, sheet_name: str) -> list:
+def fetch_sheet_data(
+    service,
+    spreadsheet_id: str,
+    sheet_name: str,
+    start_row: int = 1
+) -> List[List[str]]:
     """
-    Fetch all data from a specific sheet.
+    Fetch data from a specific sheet, optionally starting from a specific row.
 
-    Uses the entire sheet range without column limits to avoid data loss
-    for sheets with more than 26 columns.
+    For incremental fetching, uses batchGet to fetch headers (row 1) and data
+    rows separately in a single API call.
 
     Args:
         service: Google Sheets API service
         spreadsheet_id: Google Sheets spreadsheet ID
         sheet_name: Name of the sheet tab
+        start_row: Row to start fetching from (1-indexed). Default=1 fetches entire sheet.
+                   For incremental mode, pass last_processed_row + 1.
 
     Returns:
-        List of rows (each row is a list of cell values)
+        List of rows where first row is always headers.
+        For incremental mode: [headers, new_row_1, new_row_2, ...]
     """
     # Validate spreadsheet ID before API call
     if not validate_spreadsheet_id(spreadsheet_id):
@@ -258,16 +344,49 @@ def fetch_sheet_data(service, spreadsheet_id: str, sheet_name: str) -> list:
         return []
 
     try:
-        def fetch():
-            # Use sheet name only (no column range) to fetch all data
-            # This handles sheets with more than 26 columns (beyond column Z)
-            return service.spreadsheets().values().get(
-                spreadsheetId=spreadsheet_id,
-                range=f"'{sheet_name}'"
-            ).execute()
+        if start_row > 1:
+            # Incremental mode: fetch headers + new rows in one API call
+            def fetch_incremental():
+                ranges = [
+                    f"'{sheet_name}'!1:1",  # Headers only
+                    f"'{sheet_name}'!{start_row}:{start_row + 10000}"  # New rows
+                ]
+                return service.spreadsheets().values().batchGet(
+                    spreadsheetId=spreadsheet_id,
+                    ranges=ranges
+                ).execute()
 
-        result = retry_with_backoff(fetch)
-        return result.get('values', [])
+            result = retry_with_backoff(fetch_incremental)
+            value_ranges = result.get('valueRanges', [])
+
+            # Extract headers from first range
+            headers = []
+            if value_ranges and value_ranges[0].get('values'):
+                headers = value_ranges[0]['values'][0]
+
+            # Extract data rows from second range
+            data_rows = []
+            if len(value_ranges) > 1 and value_ranges[1].get('values'):
+                data_rows = value_ranges[1]['values']
+
+            # Return headers + data rows (same format as full fetch)
+            if headers:
+                return [headers] + data_rows
+            return []
+
+        else:
+            # Full fetch mode (original behavior)
+            def fetch_full():
+                # Use sheet name only (no column range) to fetch all data
+                # This handles sheets with more than 26 columns (beyond column Z)
+                return service.spreadsheets().values().get(
+                    spreadsheetId=spreadsheet_id,
+                    range=f"'{sheet_name}'"
+                ).execute()
+
+            result = retry_with_backoff(fetch_full)
+            return result.get('values', [])
+
     except (HttpError, TimeoutError) as e:
         logger.error(f"Error fetching sheet data: {e}")
         return []
@@ -442,94 +561,8 @@ def build_momence_lead_data(headers: list, row: list, sheet_config: dict) -> Opt
     if data.get('platform'):
         lead_data["platform"] = data['platform']
 
+    # Include created_time from spreadsheet for metrics (date lead was actually created)
+    if data.get('created_time'):
+        lead_data["created_time"] = data['created_time']
+
     return lead_data
-
-
-def check_for_new_entries(service, tracker: dict, verbose: bool = False) -> Tuple[List[Dict], dict]:
-    """
-    Check all configured sheets for new entries.
-
-    Args:
-        service: Google Sheets API service
-        tracker: Tracker dict containing sent_hashes and metadata
-        verbose: Enable verbose logging
-
-    Returns:
-        Tuple of (new_entries_list, updated_tracker)
-    """
-    new_entries = []
-    enabled_sheets = get_enabled_sheets()
-
-    if not enabled_sheets:
-        logger.warning("No sheets configured or all sheets disabled")
-        return new_entries, tracker
-
-    for sheet_cfg in enabled_sheets:
-        spreadsheet_id = sheet_cfg.get('spreadsheet_id')
-        tab_name = sheet_cfg.get('tab_name') or sheet_cfg.get('name')
-        gid = sheet_cfg.get('gid')
-
-        if not spreadsheet_id:
-            logger.warning(f"Sheet config missing spreadsheet_id: {sheet_cfg}")
-            continue
-
-        # Get actual tab name if we have gid but no tab_name
-        if gid and not tab_name:
-            tab_name = get_sheet_name_by_gid(service, spreadsheet_id, gid)
-            if not tab_name:
-                logger.warning(f"Could not resolve tab name for gid={gid}")
-                continue
-
-        if not tab_name:
-            logger.warning(f"Sheet config missing tab_name: {sheet_cfg}")
-            continue
-
-        logger.info(f"Checking sheet: {sheet_cfg.get('name', tab_name)}")
-
-        # Fetch sheet data
-        rows = fetch_sheet_data(service, spreadsheet_id, tab_name)
-        if not rows:
-            logger.info(f"  No data in sheet")
-            continue
-
-        # First row is headers
-        headers = [str(h).lower().strip() for h in rows[0]]
-        data_rows = rows[1:]
-
-        logger.info(f"  Found {len(data_rows)} rows")
-
-        # Check each row for new entries
-        for row in data_rows:
-            if not row:  # Skip empty rows
-                continue
-
-            # Build lead data to compute hash
-            lead_data = build_momence_lead_data(headers, row, sheet_cfg)
-            if not lead_data:
-                continue
-
-            # Add created_time for hash computation if available
-            created_time_idx = headers.index('created_time') if 'created_time' in headers else -1
-            if created_time_idx >= 0 and created_time_idx < len(row):
-                lead_data['created_time'] = row[created_time_idx]
-
-            entry_hash = compute_entry_hash(lead_data)
-
-            # Check if we've already processed this entry
-            if entry_hash in tracker.get('sent_hashes', set()):
-                if verbose:
-                    logger.debug(f"  Skipping already processed: {lead_data.get('email')}")
-                continue
-
-            # New entry found
-            new_entries.append({
-                'lead_data': lead_data,
-                'tenant': sheet_cfg.get('tenant'),
-                'location': sheet_cfg.get('name', tab_name),
-                'hash': entry_hash,
-                'sheet_config': sheet_cfg
-            })
-            logger.info(f"  New entry: {lead_data.get('email')}")
-
-    logger.info(f"Total new entries found: {len(new_entries)}")
-    return new_entries, tracker
