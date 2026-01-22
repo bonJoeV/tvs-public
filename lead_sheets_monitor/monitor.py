@@ -13,33 +13,34 @@ Usage:
     python monitor.py --retry-failed     # Force retry all failed entries
 """
 
+# Standard library
 import argparse
 import gc
 import json
 import signal
 import sys
 import time
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
-# Import from modules
+# Local application
+import storage
 from config import (
     DLQ_ENABLED, LOG_DIR, IS_CLOUD_RUN, GRACEFUL_SHUTDOWN_TIMEOUT,
+    RATE_LIMIT_DELAY, HEALTH_SERVER_ENABLED, HEALTH_SERVER_PORT, DATABASE_FILE,
     validate_startup_requirements, log_startup_warnings, StartupValidationError,
     get_momence_hosts, get_sheets_config
 )
-from utils import utc_now, setup_logging, logger
 from failed_queue import (
     generate_row_hash, add_to_failed_queue, process_failed_queue, list_dead_letters
 )
+from momence import create_momence_lead, close_session
+from notifications import send_error_digest, send_location_leads_digest
 from sheets import (
     get_google_sheets_service, get_sheet_name_by_gid, fetch_sheet_data,
     build_momence_lead_data
 )
-from momence import create_momence_lead, close_session
-from notifications import send_error_digest, send_location_leads_digest
+from utils import utc_now, setup_logging, logger
 from web import start_health_server, update_health_state, cleanup_web_caches
-from config import RATE_LIMIT_DELAY, HEALTH_SERVER_ENABLED, HEALTH_SERVER_PORT, DATABASE_FILE
-import storage
 
 
 def run_cleanup_tasks():
@@ -122,6 +123,16 @@ def run_cleanup_tasks():
         logger.error(f"Database error cleaning up CSRF tokens: {type(e).__name__}: {e}")
         cleanup_results['csrf_tokens'] = f"error: {e}"
 
+    # Clean up stale database connections from dead threads
+    try:
+        connections_cleaned = storage.cleanup_stale_connections()
+        cleanup_results['db_connections'] = connections_cleaned
+        if connections_cleaned > 0:
+            logger.info(f"Cleaned up {connections_cleaned} stale database connections")
+    except Exception as e:
+        logger.error(f"Error cleaning up stale connections: {type(e).__name__}: {e}")
+        cleanup_results['db_connections'] = f"error: {e}"
+
     # Log summary if any errors occurred
     errors = [k for k, v in cleanup_results.items() if isinstance(v, str) and v.startswith('error:')]
     if errors:
@@ -134,7 +145,7 @@ def run_cleanup_tasks():
 # Support Report Generation
 # ============================================================================
 
-def generate_support_report(output_file: str = None) -> str:
+def generate_support_report(output_file: Optional[str] = None) -> str:
     """
     Generate a comprehensive support report for Momence API issues.
 
@@ -285,9 +296,26 @@ def generate_support_report(output_file: str = None) -> str:
 
     # Write to file if specified
     if output_file:
-        with open(output_file, 'w') as f:
+        # Validate output file path to prevent path traversal attacks
+        from pathlib import Path
+        output_path = Path(output_file).resolve()
+        cwd = Path.cwd().resolve()
+
+        # Ensure the output file is within current directory or a subdirectory
+        # Also allow absolute paths that don't traverse upward
+        try:
+            output_path.relative_to(cwd)
+        except ValueError:
+            # Path is not relative to cwd - check it's not trying to traverse
+            if '..' in str(output_file):
+                raise ValueError(f"Invalid output path: path traversal not allowed: {output_file}")
+
+        # Ensure parent directory exists
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(output_path, 'w') as f:
             f.write(report)
-        print(f"Report written to: {output_file}")
+        print(f"Report written to: {output_path}")
 
     return report
 
@@ -736,8 +764,32 @@ def run_daemon(dry_run: bool = False, verbose: bool = False):
         # Start health server even without DB (will report degraded status)
         health_server = start_health_server(None)
 
-        # Wait for database to appear
+        # Wait for database to appear with timeout
+        max_wait_seconds = 300  # 5 minutes max wait
+        wait_start = time.time()
+        last_warning_time = wait_start
+
         while not shutdown_handler.should_stop:
+            elapsed = time.time() - wait_start
+
+            # Check timeout
+            if elapsed >= max_wait_seconds:
+                logger.error(
+                    f"Database wait timeout after {max_wait_seconds}s. "
+                    "No database was created or downloaded from GCS. Exiting."
+                )
+                if health_server:
+                    health_server.shutdown()
+                sys.exit(1)
+
+            # Log warning every 30 seconds
+            if time.time() - last_warning_time >= 30:
+                remaining = max_wait_seconds - elapsed
+                logger.warning(
+                    f"Still waiting for database... ({elapsed:.0f}s elapsed, {remaining:.0f}s until timeout)"
+                )
+                last_warning_time = time.time()
+
             if storage.database_exists():
                 logger.info("Database detected! Initializing...")
                 db_initialized = storage.init_database(allow_create=False)

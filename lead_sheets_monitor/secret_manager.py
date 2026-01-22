@@ -25,11 +25,19 @@ from functools import lru_cache
 
 logger = logging.getLogger(__name__)
 
-# Google Cloud Project ID for Secret Manager
-GCP_PROJECT_ID = os.getenv('GCP_PROJECT_ID', 'tvs-dashboard')
-
 # Check if running on Cloud Run
 IS_CLOUD_RUN = bool(os.getenv('K_SERVICE'))
+
+# Google Cloud Project ID for Secret Manager
+# Required on Cloud Run - no default to prevent accidental cross-project access
+_gcp_project_env = os.getenv('GCP_PROJECT_ID')
+if IS_CLOUD_RUN and not _gcp_project_env:
+    logger.error(
+        "GCP_PROJECT_ID environment variable is required on Cloud Run. "
+        "Set it in your Cloud Run configuration."
+    )
+    # Don't fail immediately - let the secret access fail with a clear error
+GCP_PROJECT_ID = _gcp_project_env or 'tvs-dashboard'  # Fallback for local dev only
 
 # Secret Manager client (lazy loaded)
 _client = None

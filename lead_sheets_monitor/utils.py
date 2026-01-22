@@ -12,7 +12,7 @@ import logging
 import random
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from config import (
     LOG_DIR, LOG_RETENTION_DAYS, LOG_FORMAT, EMAIL_REGEX,
@@ -209,39 +209,6 @@ def is_valid_email(email: str) -> bool:
         return EMAIL_REGEX.match(email) is not None
 
 
-def normalize_email(email: str) -> Optional[str]:
-    """
-    Normalize and validate an email address.
-
-    Uses email-validator library if available for proper normalization
-    (lowercase domain, handle unicode, etc.).
-
-    Args:
-        email: Email address to normalize
-
-    Returns:
-        Normalized email address if valid, None otherwise
-    """
-    if not email or not isinstance(email, str):
-        return None
-
-    email = email.strip()
-    if not email:
-        return None
-
-    if EMAIL_VALIDATOR_AVAILABLE:
-        try:
-            result = validate_email(email, check_deliverability=False)
-            return result.normalized
-        except EmailNotValidError:
-            return None
-    else:
-        # Basic normalization without library
-        if EMAIL_REGEX.match(email):
-            return email.lower()
-        return None
-
-
 def normalize_phone(phone: str, default_region: str = "US") -> str:
     """
     Normalize phone number to E.164 format if possible.
@@ -299,7 +266,7 @@ def escape_html(text: str) -> str:
 # Hashing
 # ============================================================================
 
-def compute_entry_hash(entry: dict, sheet_id: str = '', gid: str = '') -> str:
+def compute_entry_hash(entry: Dict[str, Any], sheet_id: str = '', gid: str = '') -> str:
     """
     Compute a stable hash for a lead entry to detect duplicates.
 
@@ -389,13 +356,13 @@ def get_api_headers(include_user_agent: bool = False) -> dict:
     return headers
 
 
-def extract_diagnostic_headers(headers: dict) -> dict:
+def extract_diagnostic_headers(headers: Dict[str, str]) -> Dict[str, str]:
     """Extract only relevant headers for debugging Cloudflare/API issues."""
     lower_diag = [h.lower() for h in DIAGNOSTIC_HEADERS]
     return {k: v for k, v in headers.items() if k.lower() in lower_diag}
 
 
-def categorize_error(status_code: int, headers: dict, body: str) -> Tuple[str, bool]:
+def categorize_error(status_code: int, headers: Dict[str, str], body: str) -> Tuple[str, bool]:
     """
     Categorize error type for better diagnosis and determine retryability.
 
@@ -473,23 +440,7 @@ def categorize_error(status_code: int, headers: dict, body: str) -> Tuple[str, b
     return (f'http_error_{status_code}', True)
 
 
-def categorize_error_simple(status_code: int, headers: dict, body: str) -> str:
-    """
-    Backwards-compatible wrapper that returns only the error type string.
-
-    Args:
-        status_code: HTTP status code
-        headers: Response headers dict
-        body: Response body string
-
-    Returns:
-        Error type string
-    """
-    error_type, _ = categorize_error(status_code, headers, body)
-    return error_type
-
-
-def is_error_retryable(status_code: int, headers: dict, body: str) -> bool:
+def is_error_retryable(status_code: int, headers: Dict[str, str], body: str) -> bool:
     """
     Check if an error should be retried based on status code and response.
 

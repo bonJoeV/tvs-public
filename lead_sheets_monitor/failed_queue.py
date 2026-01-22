@@ -19,21 +19,20 @@ from utils import utc_now, logger, compute_entry_hash
 import storage
 
 
-def generate_row_hash(sheet_id: str, gid: str, headers: list, row_data: list) -> str:
+def generate_row_hash(sheet_id: str, gid: str, headers: List[str], row_data: List[Any]) -> str:
     """
-    Generate a unique hash for a row based on key fields only.
+    Generate a unique hash for a row based on key fields and sheet location.
 
     Uses the consolidated compute_entry_hash function from utils.
     This prevents re-submission when non-critical fields (notes, etc.) are edited.
 
-    NOTE: We intentionally do NOT include sheet_id/gid in the hash to maintain
-    backwards compatibility with existing sent_hashes entries. Deduplication is
-    based on email/name/phone only, which means the same lead won't be submitted
-    twice even if they appear in multiple sheets.
+    The hash includes sheet_id and gid to ensure each sheet/tab is tracked
+    independently - the same person in two different sheets will be treated
+    as two separate leads.
 
     Args:
-        sheet_id: Google Sheets spreadsheet ID (unused, kept for API compatibility)
-        gid: Sheet tab ID (unused, kept for API compatibility)
+        sheet_id: Google Sheets spreadsheet ID
+        gid: Sheet tab ID
         headers: List of column headers
         row_data: List of cell values for the row
 
@@ -46,9 +45,7 @@ def generate_row_hash(sheet_id: str, gid: str, headers: list, row_data: list) ->
         if i < len(headers) and value:
             row_dict[headers[i].lower().strip()] = str(value).strip()
 
-    # Use the consolidated hash function WITHOUT sheet identifiers
-    # This maintains backwards compatibility with existing sent_hashes entries
-    return compute_entry_hash(row_dict)
+    return compute_entry_hash(row_dict, sheet_id=sheet_id, gid=gid)
 
 
 # ============================================================================
@@ -113,19 +110,6 @@ def should_retry_failed_entry(entry: Dict[str, Any], force: bool = False) -> boo
     return utc_now() >= next_retry_time
 
 
-def move_to_dead_letters(failed_data: dict, entry: Dict[str, Any]) -> None:
-    """
-    Move a failed entry to the dead letters list.
-
-    Args:
-        failed_data: Unused with SQLite backend (kept for compatibility)
-        entry: Failed queue entry to move
-    """
-    entry_hash = entry.get('entry_hash')
-    if entry_hash:
-        storage.move_to_dead_letters(entry_hash)
-
-
 def process_failed_queue(dry_run: bool = False,
                          force_retry: bool = False,
                          batch_size: int = 100) -> Tuple[int, int, List[Dict[str, Any]]]:
@@ -145,7 +129,6 @@ def process_failed_queue(dry_run: bool = False,
     """
     # Import here to avoid circular dependency
     from momence import create_momence_lead
-    from notifications import send_leads_digest
 
     total_count = storage.get_failed_queue_count()
     if total_count == 0:
@@ -176,7 +159,6 @@ def process_failed_queue(dry_run: bool = False,
             break
 
         entries_to_remove: List[str] = []
-        leads_by_host: Dict[str, List[Dict[str, Any]]] = {}
 
         for entry in batch:
             entry_hash = entry.get('entry_hash')
@@ -196,7 +178,7 @@ def process_failed_queue(dry_run: bool = False,
                 continue
 
             lead_data = entry.get('lead_data', {})
-            momence_host = entry.get('momence_host') or entry.get('tenant')  # Support old 'tenant' key for backwards compat
+            momence_host = entry.get('momence_host')
 
             logger.info(f"Retrying failed lead: {lead_data.get('email')} (attempt {entry.get('attempts', 0) + 1})")
 
@@ -214,12 +196,6 @@ def process_failed_queue(dry_run: bool = False,
             if result.get('success'):
                 successful += 1
                 entries_to_remove.append(entry_hash)
-
-                # Track for notification (limited memory - clear after sending)
-                lead_record = {**lead_data, 'success': True}
-                if momence_host not in leads_by_host:
-                    leads_by_host[momence_host] = []
-                leads_by_host[momence_host].append(lead_record)
 
                 # Update storage
                 location = lead_data.get('sheetName', momence_host)
@@ -255,16 +231,8 @@ def process_failed_queue(dry_run: bool = False,
         if entries_to_remove:
             storage.remove_from_failed_queue_batch(entries_to_remove)
 
-        # Send notifications for this batch's successfully retried leads (then clear memory)
-        if not dry_run:
-            for host_name, leads in leads_by_host.items():
-                if leads:
-                    logger.info(f"Sending leads digest for {len(leads)} retried leads to Momence host '{host_name}'")
-                    send_leads_digest(host_name, leads)
-
         # Clear batch memory
         del batch
-        del leads_by_host
         del entries_to_remove
 
     # Clear tracking sets

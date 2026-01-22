@@ -28,7 +28,7 @@ from utils import utc_now, escape_html, logger
 import storage
 from sheets import get_google_sheets_service, discover_fb_lead_tabs, parse_spreadsheet_url
 from momence import create_momence_lead
-from notifications import send_leads_digest, send_test_location_email
+from notifications import send_test_location_email
 
 
 # ============================================================================
@@ -51,7 +51,8 @@ def _get_git_version() -> str:
         )
         if result.returncode == 0:
             return result.stdout.strip()
-    except Exception:
+    except (subprocess.SubprocessError, OSError, FileNotFoundError):
+        # Git not available or not in a git repo - expected in production
         pass
 
     return 'dev'
@@ -555,6 +556,13 @@ _rate_limit_data: Dict[str, list] = {}
 _rate_limit_last_cleanup = time.time()
 RATE_LIMIT_CLEANUP_INTERVAL = 60  # Cleanup every 60 seconds
 
+# Health endpoint rate limiting (more permissive for load balancer checks)
+# Allows 60 requests per minute per IP (typical LB health check is every 10-30 seconds)
+HEALTH_RATE_LIMIT_REQUESTS = 60
+HEALTH_RATE_LIMIT_WINDOW_SECONDS = 60
+_health_rate_limit_data: Dict[str, List[float]] = {}
+_health_rate_limit_lock = threading.Lock()
+
 
 def _is_ip_in_trusted_networks(ip_str: str) -> bool:
     """Check if an IP address is in the trusted proxy networks."""
@@ -675,6 +683,47 @@ def _cleanup_rate_limit_data_unsafe():
         del _rate_limit_data[ip]
 
 
+def _check_health_rate_limit(client_ip: str) -> bool:
+    """
+    Check if health endpoint request should be allowed (thread-safe).
+
+    More permissive than general rate limiting - allows 60 req/min per IP.
+    This protects against DoS while allowing legitimate load balancer checks.
+
+    Returns:
+        True if request is allowed, False if rate limited
+    """
+    now = time.time()
+    cutoff = now - HEALTH_RATE_LIMIT_WINDOW_SECONDS
+
+    with _health_rate_limit_lock:
+        # Initialize or get existing data
+        if client_ip not in _health_rate_limit_data:
+            # Limit total IPs tracked to prevent memory exhaustion
+            if len(_health_rate_limit_data) >= 1000:
+                # Clean up old entries
+                old_ips = [
+                    ip for ip, timestamps in _health_rate_limit_data.items()
+                    if not timestamps or max(timestamps) < cutoff
+                ]
+                for ip in old_ips:
+                    del _health_rate_limit_data[ip]
+            _health_rate_limit_data[client_ip] = []
+
+        # Filter to recent requests only
+        _health_rate_limit_data[client_ip] = [
+            ts for ts in _health_rate_limit_data[client_ip] if ts > cutoff
+        ]
+
+        # Check limit
+        if len(_health_rate_limit_data[client_ip]) >= HEALTH_RATE_LIMIT_REQUESTS:
+            return False
+
+        # Record request
+        _health_rate_limit_data[client_ip].append(now)
+        return True
+
+
 def cleanup_web_caches():
     """
     Periodic cleanup of in-memory caches.
@@ -706,6 +755,17 @@ def cleanup_web_caches():
         before_count = len(_rate_limit_data)
         _cleanup_rate_limit_data_unsafe()
         cleaned['rate_limit'] = before_count - len(_rate_limit_data)
+
+    # Cleanup health endpoint rate limit data
+    cutoff = now - HEALTH_RATE_LIMIT_WINDOW_SECONDS * 2
+    with _health_rate_limit_lock:
+        old_ips = [
+            ip for ip, timestamps in _health_rate_limit_data.items()
+            if not timestamps or max(timestamps) < cutoff
+        ]
+        for ip in old_ips:
+            del _health_rate_limit_data[ip]
+        cleaned['rate_limit'] += len(old_ips)
 
     total_cleaned = sum(cleaned.values())
     if total_cleaned > 0:
@@ -774,8 +834,9 @@ def _check_authentication(handler) -> Tuple[bool, Optional[str]]:
 
             if username_match and password_match:
                 return (True, None)
-        except Exception:
-            pass
+        except (ValueError, UnicodeDecodeError, base64.binascii.Error):
+            # Malformed auth header - log at debug level to avoid log spam from bots
+            logger.debug("Malformed Basic auth header")
 
     # Authentication failed
     if DASHBOARD_API_KEY:
@@ -784,33 +845,48 @@ def _check_authentication(handler) -> Tuple[bool, Optional[str]]:
         return (False, "Invalid credentials")
 
 
+# Lock for config reload operations to prevent race conditions
+_config_reload_lock = threading.Lock()
+
+
 def _reload_config():
-    """Reload configuration from database (with config.json fallback)."""
+    """Reload configuration from database (with config.json fallback).
+
+    Thread-safe: Uses a lock to prevent race conditions when multiple
+    threads attempt to reload configuration simultaneously.
+    """
     from config import load_config, get_momence_hosts, get_sheets_config
     global _config
     global DLQ_ENABLED, DLQ_MAX_RETRY_ATTEMPTS, RATE_LIMIT_DELAY
     global DEFAULT_SPREADSHEET_ID, LOG_FORMAT
 
-    config_data = load_config()
-    _config = config_data # Update global dict reference
+    with _config_reload_lock:
+        config_data = load_config()
+        _config = config_data  # Update global dict reference
 
-    # Load hosts and sheets from database (with config.json fallback)
-    MOMENCE_HOSTS.clear()
-    MOMENCE_HOSTS.update(get_momence_hosts())
-    SHEETS_CONFIG.clear()
-    SHEETS_CONFIG.extend(get_sheets_config())
+        # Load hosts and sheets from database (with config.json fallback)
+        MOMENCE_HOSTS.clear()
+        MOMENCE_HOSTS.update(get_momence_hosts())
+        SHEETS_CONFIG.clear()
+        SHEETS_CONFIG.extend(get_sheets_config())
 
-    # Update settings globals
-    settings = config_data.get('settings', {})
-    DLQ_ENABLED = settings.get('dlq_enabled', True)
-    DLQ_MAX_RETRY_ATTEMPTS = settings.get('dlq_max_retry_attempts', 5)
-    RATE_LIMIT_DELAY = settings.get('rate_limit_delay_seconds', 3.0)
-    DEFAULT_SPREADSHEET_ID = settings.get('default_spreadsheet_id', '')
-    LOG_FORMAT = settings.get('log_format', 'text')
+        # Update settings globals
+        settings = config_data.get('settings', {})
+        DLQ_ENABLED = settings.get('dlq_enabled', True)
+        DLQ_MAX_RETRY_ATTEMPTS = settings.get('dlq_max_retry_attempts', 5)
+        RATE_LIMIT_DELAY = settings.get('rate_limit_delay_seconds', 3.0)
+        DEFAULT_SPREADSHEET_ID = settings.get('default_spreadsheet_id', '')
+        LOG_FORMAT = settings.get('log_format', 'text')
 
 
 def _save_config():
-    """Save current configuration to file."""
+    """Save current configuration to file (skip on Cloud Run - use database instead)."""
+    from config import IS_CLOUD_RUN
+    if IS_CLOUD_RUN:
+        # On Cloud Run, config is stored in database, not file
+        logger.debug("Skipping config file save on Cloud Run - using database")
+        return
+
     config_path = Path(CONFIG_FILE)
     config_to_save = {
         'momence_hosts': MOMENCE_HOSTS,
@@ -818,9 +894,12 @@ def _save_config():
         'settings': _config.get('settings', {}),
         'schedule': _config.get('schedule', {})
     }
-    with open(config_path, 'w') as f:
-        json.dump(config_to_save, f, indent=2)
-    logger.info("Configuration saved")
+    try:
+        with open(config_path, 'w') as f:
+            json.dump(config_to_save, f, indent=2)
+        logger.info("Configuration saved")
+    except Exception as e:
+        logger.warning(f"Could not save config file: {e}")
 
 
 def _build_dashboard_html() -> str:
@@ -936,7 +1015,7 @@ def _build_dashboard_html() -> str:
         request_duration = error_details.get('request_duration_ms', '')
         entry_hash = entry.get('entry_hash', '')
         email = lead.get('email', 'N/A')
-        momence_host = entry.get('momence_host') or entry.get('tenant', 'N/A')  # Support old 'tenant' key
+        momence_host = entry.get('momence_host', 'N/A')
         attempts = entry.get('attempts', 0)
         last_attempted = entry.get('last_attempted_at', '')
 
@@ -954,6 +1033,7 @@ def _build_dashboard_html() -> str:
         <tr class="failed-row" data-email="{escape_html(email.lower())}" data-attempts="{attempts}" data-timestamp="{escape_html(last_attempted)}" data-hash="{escape_html(entry_hash)}">
             <td onclick="toggleErrorDetails('error-details-{idx}')" style="cursor:pointer;">{escape_html(email)}</td>
             <td>{escape_html(momence_host)}</td>
+            <td><span class="utc-time" data-utc="{escape_html(last_attempted or '')}">{escape_html(last_attempted or 'N/A')}</span></td>
             <td>{attempts}</td>
             <td><span class="status {error_badge_class}">{error_type}</span></td>
             <td>{status_code or 'N/A'}</td>
@@ -962,7 +1042,7 @@ def _build_dashboard_html() -> str:
             </td>
         </tr>
         <tr id="error-details-{idx}" class="error-details-row" style="display:none;">
-            <td colspan="6">
+            <td colspan="7">
                 <div class="error-details-panel">
                     <div class="error-detail-grid">
                         <div class="error-detail-item">
@@ -1814,35 +1894,39 @@ def _build_dashboard_html() -> str:
                 </div>
             </div>
 
-            <!-- Locations Section -->
+            <!-- Locations Section (Collapsible) -->
             <div class="section">
                 <div class="section-header">
-                    <h2 class="section-title">Locations</h2>
+                    <h2 class="section-title collapsible-header collapsed" id="locations-header"
+                        onclick="toggleCollapsible('locations-header', 'locations-content')">Locations ({len(SHEETS_CONFIG)})</h2>
                     <button class="btn btn-sm" onclick="showAddLocationModal()">+ Add Location</button>
                 </div>
-                <div class="card">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Host</th>
-                                <th>Notification Email</th>
-                                <th>Leads</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {sheets_rows if sheets_rows else '<tr><td colspan="6" class="text-muted">No locations configured</td></tr>'}
-                        </tbody>
-                    </table>
+                <div id="locations-content" class="collapsible-content collapsed">
+                    <div class="card">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Host</th>
+                                    <th>Notification Email</th>
+                                    <th>Leads</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {sheets_rows if sheets_rows else '<tr><td colspan="6" class="text-muted">No locations configured</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
-            <!-- Failed Queue Section -->
+            <!-- Failed Queue Section (Collapsible) -->
             <div class="section">
                 <div class="section-header">
-                    <h2 class="section-title">Failed Queue ({failed_count})</h2>
+                    <h2 class="section-title collapsible-header collapsed" id="failed-queue-header"
+                        onclick="toggleCollapsible('failed-queue-header', 'failed-queue-content')">Failed Queue ({failed_count})</h2>
                     <div style="display:flex;gap:8px;align-items:center;">
                         <input type="text" id="failed-search" placeholder="Search email..." onkeyup="filterFailedQueue()" style="padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
                         <select id="failed-sort" onchange="sortFailedQueue()" style="padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
@@ -1853,9 +1937,10 @@ def _build_dashboard_html() -> str:
                         {f'<button class="btn btn-sm btn-secondary" onclick="retryAllFailed()">Retry All</button>' if failed_count > 0 else ''}
                     </div>
                 </div>
+                <div id="failed-queue-content" class="collapsible-content collapsed">
                 <div style="background:#fef3c7;border:1px solid #fbbf24;border-radius:6px;padding:10px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
                     <span style="color:#92400e;font-size:13px;">
-                        <strong>Error Email:</strong> {f'Last sent <span class="utc-time" data-utc="{escape_html(last_error_email)}">{escape_html(last_error_email)}</span> (1/day limit)' if last_error_email else 'Not sent yet today'}
+                        <strong>Error Email:</strong> {f'Last sent <span class="utc-time" data-utc="{escape_html(last_error_email)}">{escape_html(last_error_email)}</span> (1/day limit)' if last_error_email else ('Not sent yet today' if failed_count > 0 else 'No errors')}
                     </span>
                     <button class="btn btn-xs btn-secondary" onclick="clearErrorEmailTracking()" title="Reset tracking to send error email immediately on next error">Reset</button>
                 </div>
@@ -1865,6 +1950,7 @@ def _build_dashboard_html() -> str:
                             <tr>
                                 <th>Email</th>
                                 <th>Host</th>
+                                <th>Last Attempt</th>
                                 <th>Attempts</th>
                                 <th>Error Type</th>
                                 <th>HTTP Status</th>
@@ -1876,6 +1962,7 @@ def _build_dashboard_html() -> str:
                         </tbody>
                     </table>
                     <div id="failed-queue-pagination" style="display:flex;justify-content:center;align-items:center;padding:12px;border-top:1px solid #e2e8f0;"></div>
+                </div>
                 </div>
             </div>
 
@@ -2741,6 +2828,7 @@ def _build_dashboard_html() -> str:
 
                 const name = pendingDelete.name;
                 const type = pendingDelete.type;
+
                 const endpoint = type === 'host'
                     ? '/api/hosts/' + encodeURIComponent(name)
                     : '/api/sheets/' + encodeURIComponent(name);
@@ -3406,8 +3494,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
         try:
             # Close thread-local DB connection without cloud upload (too slow per-request)
             storage.close_connection(upload_to_cloud=False)
-        except Exception:
-            pass  # Don't let cleanup errors break the response
+        except Exception as e:
+            # Log but don't let cleanup errors break the response
+            logger.debug(f"DB connection cleanup error (non-fatal): {e}")
 
         # Call parent finish() to complete the request
         super().finish()
@@ -3496,8 +3585,16 @@ class DashboardHandler(BaseHTTPRequestHandler):
         """Handle GET requests with authentication and rate limiting."""
         path = self.path.split('?')[0]
 
-        # Health endpoint is always public (for load balancer checks)
+        # Health endpoint is public (for load balancer checks) but rate limited
         if path == '/health':
+            client_ip = _get_client_ip(self)
+            if not _check_health_rate_limit(client_ip):
+                self.send_response(429)
+                self.send_header('Content-Type', 'text/plain')
+                self.send_header('Retry-After', '60')
+                self.end_headers()
+                self.wfile.write(b'Rate limited')
+                return
             self._send_health_response()
             return
 
@@ -3623,8 +3720,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 if origin_host and origin_host != host:
                     logger.warning(f"CSRF: Origin mismatch - expected {host}, got {origin_host}")
                     return False
-            except Exception:
-                pass
+            except ValueError as e:
+                # Malformed URL in Origin header - log and continue (allow request)
+                logger.debug(f"Could not parse Origin header for CSRF check: {e}")
 
         return True
 
@@ -3934,8 +4032,11 @@ class DashboardHandler(BaseHTTPRequestHandler):
             try:
                 health_data["failed_queue_size"] = storage.get_failed_queue_count()
                 health_data["dead_letter_size"] = storage.get_dead_letter_count()
-            except Exception:
+            except storage.DatabaseNotAvailableError:
+                # Database not ready - metrics not available
                 pass
+            except Exception as e:
+                logger.debug(f"Could not fetch queue metrics for health check: {e}")
 
         self._send_json_response(200, health_data)
 
@@ -4632,11 +4733,10 @@ class DashboardHandler(BaseHTTPRequestHandler):
         successful = 0
         failed = 0
         entries_to_remove = []
-        leads_by_host = {}
 
         for i, entry in enumerate(entries):
             lead_data = entry.get('lead_data', {})
-            momence_host = entry.get('momence_host') or entry.get('tenant')  # Support old 'tenant' key
+            momence_host = entry.get('momence_host')
             entry_hash = entry.get('entry_hash')
             email = lead_data.get('email', 'unknown')
 
@@ -4664,12 +4764,6 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 successful += 1
                 entries_to_remove.append(entry_hash)
 
-                # Track for notification
-                lead_record = {**lead_data, 'success': True}
-                if momence_host not in leads_by_host:
-                    leads_by_host[momence_host] = []
-                leads_by_host[momence_host].append(lead_record)
-
                 # Mark as sent in storage
                 storage.add_sent_hash(entry_hash, lead_data.get('sheetName'))
                 storage.increment_location_count(lead_data.get('sheetName', momence_host))
@@ -4696,11 +4790,6 @@ class DashboardHandler(BaseHTTPRequestHandler):
         # Remove successful entries from failed queue
         if entries_to_remove:
             storage.remove_from_failed_queue_batch(entries_to_remove)
-
-        # Send notifications for successfully retried leads
-        for host_name, leads in leads_by_host.items():
-            if leads:
-                send_leads_digest(host_name, leads)
 
         send_event('complete', {'successful': successful, 'failed': failed})
 
@@ -5100,6 +5189,7 @@ def start_health_server(tracker: dict) -> Optional[ThreadingHTTPServer]:
     # Reload config from database now that it's been initialized
     # This ensures MOMENCE_HOSTS and SHEETS_CONFIG are populated from DB
     _reload_config()
+    logger.info(f"After reload: {len(MOMENCE_HOSTS)} hosts, {len(SHEETS_CONFIG)} sheets")
 
     with _health_state_lock:
         _health_state['tracker'] = tracker

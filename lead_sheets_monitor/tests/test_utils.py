@@ -52,20 +52,6 @@ class TestEmailValidation:
         assert is_valid_email('test <script>@example.com') is False
         assert is_valid_email('test"quote@example.com') is False
 
-    def test_normalize_email(self):
-        """Test email normalization."""
-        from utils import normalize_email
-
-        # Should normalize to lowercase
-        result = normalize_email('Test@EXAMPLE.com')
-        assert result is not None
-        assert result.lower() == 'test@example.com'
-
-        # Invalid email should return None
-        assert normalize_email('invalid') is None
-        assert normalize_email('') is None
-
-
 class TestPhoneNormalization:
     """Tests for phone number normalization."""
 

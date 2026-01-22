@@ -364,9 +364,13 @@ class TestDailyMetrics:
         importlib.reload(storage)
         storage.init_database()
 
-        storage.record_lead_metric('TestLocation', 'TestTenant', '2024-01-15', success=True)
-        storage.record_lead_metric('TestLocation', 'TestTenant', '2024-01-15', success=True)
-        storage.record_lead_metric('TestLocation', 'TestTenant', '2024-01-15', success=False)
+        # Use current date to ensure it falls within the query range
+        from datetime import datetime, timezone
+        today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+
+        storage.record_lead_metric('TestLocation', 'TestTenant', today, success=True)
+        storage.record_lead_metric('TestLocation', 'TestTenant', today, success=True)
+        storage.record_lead_metric('TestLocation', 'TestTenant', today, success=False)
 
         data = storage.get_leads_by_location_daily(days=30)
 

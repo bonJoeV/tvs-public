@@ -1,6 +1,6 @@
 {
   "settings": {
-    "default_spreadsheet_id": "10O3EWuwirq5ScqCbdM0CSkdWNfo6s76Mh8uNMh6oZVY",
+    "default_spreadsheet_id": "ENV:DEFAULT_SPREADSHEET_ID",
     "log_retention_days": 7,
     "api_timeout_seconds": 15,
     "retry_max_attempts": 2,
@@ -9,16 +9,16 @@
     "smtp": {
       "host": "smtp.gmail.com",
       "port": 587,
-      "username": "joe@thevitalstretch.com",
-      "from_address": "joe@thevitalstretch.com"
+      "username": "ENV:SMTP_USERNAME",
+      "from_address": "ENV:SMTP_FROM_ADDRESS"
     },
     "email": {
       "admin_recipients": [
-        "joe@thevitalstretch.com"
+        "ENV:ADMIN_EMAIL"
       ]
     },
     "dlq_enabled": true,
     "dlq_max_retry_attempts": 12,
-    "log_level": "INFO"
+    "log_level": "DEBUG"
   }
 }

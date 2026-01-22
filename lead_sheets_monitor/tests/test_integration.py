@@ -54,12 +54,11 @@ def integration_env(tmp_path, monkeypatch):
                 "enabled": False
             }
         },
-        "tenants": {
+        "momence_hosts": {
             "TestTenant": {
                 "host_id": "12345",
                 "token": "test-token-abc123",
-                "enabled": True,
-                "schedule": {"check_interval_minutes": 5}
+                "enabled": True
             }
         },
         "sheets": [
@@ -67,7 +66,7 @@ def integration_env(tmp_path, monkeypatch):
                 "name": "Test Location",
                 "spreadsheet_id": "test-spreadsheet-id-1234567890",
                 "gid": "0",
-                "tenant": "TestTenant",
+                "momence_host": "TestTenant",
                 "lead_source_id": 123,
                 "enabled": True
             }
@@ -127,7 +126,7 @@ class TestDatabaseIntegration:
                 'dead_letters',
                 'tracker_metadata',
                 'admin_activity',
-                'leads_daily_metrics',
+                'lead_metrics',
                 'web_sessions',
                 'csrf_tokens'
             }
@@ -241,8 +240,7 @@ class TestDatabaseIntegration:
         import storage
         storage.init_database()
 
-        # Initialize tracker metadata
-        storage.init_tracker_metadata()
+        # Tracker metadata is initialized automatically in init_database()
 
         location = "Test Location"
 
@@ -251,8 +249,8 @@ class TestDatabaseIntegration:
             storage.increment_location_count(location, 1)
 
         # Check final count
-        counts = storage.get_location_counts()
-        assert counts.get(location, 0) == 10
+        metadata = storage.get_tracker_metadata()
+        assert metadata['location_counts'].get(location, 0) == 10
 
 
 # ============================================================================
@@ -396,18 +394,21 @@ class TestEndToEndFlow:
 
         from sheets import fetch_sheet_data, build_momence_lead_data
 
-        # Fetch data
-        data = fetch_sheet_data(mock_service, 'test-spreadsheet-id', 'Test Sheet')
+        # Fetch data - use a valid-length spreadsheet ID (20+ chars)
+        data = fetch_sheet_data(mock_service, 'test-spreadsheet-id-1234567890', 'Test Sheet')
         assert len(data) == 2  # Header + 1 row
 
         # Build lead data
         headers = data[0]
         row = data[1]
+        sheet_config = {
+            'lead_source_id': 123,
+            'name': 'Test Location'
+        }
         lead_data = build_momence_lead_data(
             headers=headers,
             row=row,
-            lead_source_id=123,
-            sheet_name="Test Location"
+            sheet_config=sheet_config
         )
 
         assert lead_data is not None

@@ -8,6 +8,7 @@ import re
 import json
 import time
 import random
+import threading
 from typing import Optional, Dict, Any, List, Tuple
 
 import requests
@@ -25,6 +26,9 @@ FB_LEAD_HEADERS = {'id', 'created_time', 'ad_id', 'ad_name'}
 
 # Valid spreadsheet ID pattern: alphanumeric, hyphens, and underscores (typically 44 chars but can vary)
 SPREADSHEET_ID_PATTERN = re.compile(r'^[a-zA-Z0-9_-]{20,100}$')
+
+# Thread lock for cached service access (prevents race conditions during refresh)
+_service_lock = threading.Lock()
 
 # Cached Google Sheets service to prevent memory leaks from creating new instances each cycle
 _cached_service = None
@@ -201,6 +205,8 @@ def get_google_sheets_service(force_refresh: bool = False):
     and service objects on every daemon cycle. The cache is refreshed hourly to
     handle credential expiration.
 
+    Thread-safe: Uses a lock to prevent race conditions during service refresh.
+
     Args:
         force_refresh: If True, force creation of a new service even if cached
 
@@ -214,59 +220,68 @@ def get_google_sheets_service(force_refresh: bool = False):
     from google_auth_httplib2 import AuthorizedHttp
 
     now = time.time()
-    age = now - _service_created_at if _service_created_at else SERVICE_MAX_AGE_SECONDS + 1
 
-    # Return cached service if valid and not forcing refresh
-    if _cached_service and age < SERVICE_MAX_AGE_SECONDS and not force_refresh:
-        return _cached_service
+    # Quick check without lock for performance (double-checked locking pattern)
+    if not force_refresh and _cached_service is not None:
+        age = now - _service_created_at if _service_created_at else SERVICE_MAX_AGE_SECONDS + 1
+        if age < SERVICE_MAX_AGE_SECONDS:
+            return _cached_service
 
-    # Close old service's HTTP connection if exists
-    if _cached_service:
+    # Acquire lock for service creation/refresh
+    with _service_lock:
+        # Re-check after acquiring lock (another thread may have refreshed)
+        if not force_refresh and _cached_service is not None:
+            age = now - _service_created_at if _service_created_at else SERVICE_MAX_AGE_SECONDS + 1
+            if age < SERVICE_MAX_AGE_SECONDS:
+                return _cached_service
+
+        # Close old service's HTTP connection if exists
+        if _cached_service:
+            try:
+                # Access the underlying http object and close it
+                if hasattr(_cached_service, '_http'):
+                    http_obj = _cached_service._http
+                    if hasattr(http_obj, 'http') and hasattr(http_obj.http, 'close'):
+                        http_obj.http.close()
+                    elif hasattr(http_obj, 'close'):
+                        http_obj.close()
+                logger.debug("Closed previous Google Sheets service connection")
+            except Exception as e:
+                logger.debug(f"Could not close previous service connection: {e}")
+
+        # Try Secret Manager first
+        creds_json = None
         try:
-            # Access the underlying http object and close it
-            if hasattr(_cached_service, '_http'):
-                http_obj = _cached_service._http
-                if hasattr(http_obj, 'http') and hasattr(http_obj.http, 'close'):
-                    http_obj.http.close()
-                elif hasattr(http_obj, 'close'):
-                    http_obj.close()
-            logger.debug("Closed previous Google Sheets service connection")
-        except Exception as e:
-            logger.debug(f"Could not close previous service connection: {e}")
+            from secret_manager import get_google_credentials_json
+            creds_json = get_google_credentials_json()
+        except ImportError:
+            pass
 
-    # Try Secret Manager first
-    creds_json = None
-    try:
-        from secret_manager import get_google_credentials_json
-        creds_json = get_google_credentials_json()
-    except ImportError:
-        pass
+        # Fall back to environment variable
+        if not creds_json:
+            creds_json = os.getenv('GOOGLE_CREDENTIALS_JSON')
 
-    # Fall back to environment variable
-    if not creds_json:
-        creds_json = os.getenv('GOOGLE_CREDENTIALS_JSON')
+        if not creds_json:
+            raise ValueError(
+                "Google credentials not found. Set 'google-credentials-json' in Secret Manager "
+                "or GOOGLE_CREDENTIALS_JSON environment variable"
+            )
 
-    if not creds_json:
-        raise ValueError(
-            "Google credentials not found. Set 'google-credentials-json' in Secret Manager "
-            "or GOOGLE_CREDENTIALS_JSON environment variable"
-        )
+        creds_data = json.loads(creds_json)
+        credentials = Credentials.from_service_account_info(creds_data, scopes=SCOPES)
 
-    creds_data = json.loads(creds_json)
-    credentials = Credentials.from_service_account_info(creds_data, scopes=SCOPES)
+        # Create http with configurable timeout and authorize it
+        http = httplib2.Http(timeout=API_TIMEOUT_SECONDS)
+        authed_http = AuthorizedHttp(credentials, http=http)
 
-    # Create http with configurable timeout and authorize it
-    http = httplib2.Http(timeout=API_TIMEOUT_SECONDS)
-    authed_http = AuthorizedHttp(credentials, http=http)
+        service = build('sheets', 'v4', http=authed_http, cache_discovery=False)
 
-    service = build('sheets', 'v4', http=authed_http, cache_discovery=False)
+        # Cache the new service
+        _cached_service = service
+        _service_created_at = now
+        logger.debug("Created new Google Sheets service (cached)")
 
-    # Cache the new service
-    _cached_service = service
-    _service_created_at = now
-    logger.debug("Created new Google Sheets service (cached)")
-
-    return service
+        return service
 
 
 def close_google_service():
@@ -274,24 +289,26 @@ def close_google_service():
     Close the cached Google Sheets service and release resources.
 
     Call this on shutdown to ensure proper cleanup of HTTP connections.
+    Thread-safe: Uses a lock to prevent race conditions.
     """
     global _cached_service, _service_created_at
 
-    if _cached_service:
-        try:
-            # Access the underlying http object and close it
-            if hasattr(_cached_service, '_http'):
-                http_obj = _cached_service._http
-                if hasattr(http_obj, 'http') and hasattr(http_obj.close):
-                    http_obj.http.close()
-                elif hasattr(http_obj, 'close'):
-                    http_obj.close()
-            logger.info("Google Sheets service closed")
-        except Exception as e:
-            logger.warning(f"Error closing Google Sheets service: {e}")
-        finally:
-            _cached_service = None
-            _service_created_at = None
+    with _service_lock:
+        if _cached_service:
+            try:
+                # Access the underlying http object and close it
+                if hasattr(_cached_service, '_http'):
+                    http_obj = _cached_service._http
+                    if hasattr(http_obj, 'http') and hasattr(http_obj.http, 'close'):
+                        http_obj.http.close()
+                    elif hasattr(http_obj, 'close'):
+                        http_obj.close()
+                logger.info("Google Sheets service closed")
+            except Exception as e:
+                logger.warning(f"Error closing Google Sheets service: {e}")
+            finally:
+                _cached_service = None
+                _service_created_at = None
 
 
 def get_sheet_name_by_gid(service, spreadsheet_id: str, gid: str) -> Optional[str]:
@@ -512,7 +529,7 @@ def discover_fb_lead_tabs(service, spreadsheet_id: str) -> List[Dict[str, Any]]:
     return discovered
 
 
-def build_momence_lead_data(headers: list, row: list, sheet_config: dict) -> Optional[Dict[str, Any]]:
+def build_momence_lead_data(headers: List[str], row: List[Any], sheet_config: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """Build Momence lead data from sheet row."""
     data = {}
     for i, value in enumerate(row):

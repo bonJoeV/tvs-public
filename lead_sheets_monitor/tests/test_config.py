@@ -14,8 +14,8 @@ class TestConfigValidation:
     def test_validate_valid_config(self, temp_dir, monkeypatch):
         """Test validation passes for valid config."""
         config = {
-            'tenants': {
-                'TestTenant': {
+            'momence_hosts': {
+                'TestHost': {
                     'host_id': '12345',
                     'token': 'test-token',
                     'enabled': True
@@ -25,7 +25,7 @@ class TestConfigValidation:
                 {
                     'name': 'Test Sheet',
                     'spreadsheet_id': 'valid-spreadsheet-id-1234567890',
-                    'tenant': 'TestTenant',
+                    'momence_host': 'TestHost',
                     'lead_source_id': 123
                 }
             ]
@@ -172,9 +172,10 @@ class TestEnvResolution:
         """Test resolving ENV: prefixed values."""
         from config import resolve_env_value
 
-        monkeypatch.setenv('TEST_VAR', 'secret-value')
+        # Use SMTP_PASSWORD which is in the ALLOWED_ENV_VARS list
+        monkeypatch.setenv('SMTP_PASSWORD', 'secret-value')
 
-        result = resolve_env_value('ENV:TEST_VAR')
+        result = resolve_env_value('ENV:SMTP_PASSWORD')
         assert result == 'secret-value'
 
     def test_resolve_non_env_value(self):
@@ -232,20 +233,38 @@ class TestStartupValidation:
 
     def test_validate_missing_google_creds(self, temp_dir, monkeypatch):
         """Test validation fails without Google credentials."""
+        # Use monkeypatch.setattr to completely override os.getenv for this specific var
         monkeypatch.delenv('GOOGLE_CREDENTIALS_JSON', raising=False)
         monkeypatch.setenv('CONFIG_FILE', str(temp_dir / 'config.json'))
 
         # Create minimal config
         config_path = temp_dir / 'config.json'
         with open(config_path, 'w') as f:
-            json.dump({'tenants': {}, 'sheets': []}, f)
+            json.dump({'momence_hosts': {}, 'sheets': []}, f)
 
         import importlib
         import config as config_module
         importlib.reload(config_module)
 
-        with pytest.raises(config_module.StartupValidationError):
-            config_module.validate_startup_requirements(require_google_creds=True)
+        # Patch both SECRETS_MODULE_AVAILABLE and the env var lookup
+        # We need to patch at the os level to override what dotenv loaded
+        original_available = config_module.SECRETS_MODULE_AVAILABLE
+        config_module.SECRETS_MODULE_AVAILABLE = False
+
+        # Patch os.getenv at the config module level to return None for GOOGLE_CREDENTIALS_JSON
+        original_getenv = config_module.os.getenv
+        def patched_getenv(key, default=None):
+            if key == 'GOOGLE_CREDENTIALS_JSON':
+                return None
+            return original_getenv(key, default)
+        config_module.os.getenv = patched_getenv
+
+        try:
+            with pytest.raises(config_module.StartupValidationError):
+                config_module.validate_startup_requirements(require_google_creds=True)
+        finally:
+            config_module.SECRETS_MODULE_AVAILABLE = original_available
+            config_module.os.getenv = original_getenv
 
     def test_validate_invalid_google_creds_json(self, temp_dir, monkeypatch):
         """Test validation fails with invalid JSON credentials."""
@@ -254,14 +273,20 @@ class TestStartupValidation:
 
         config_path = temp_dir / 'config.json'
         with open(config_path, 'w') as f:
-            json.dump({'tenants': {}, 'sheets': []}, f)
+            json.dump({'momence_hosts': {}, 'sheets': []}, f)
 
         import importlib
         import config as config_module
         importlib.reload(config_module)
 
+        # Patch SECRETS_MODULE_AVAILABLE to False to ensure we test env var path
         with pytest.raises(config_module.StartupValidationError):
-            config_module.validate_startup_requirements(require_google_creds=True)
+            original = config_module.SECRETS_MODULE_AVAILABLE
+            config_module.SECRETS_MODULE_AVAILABLE = False
+            try:
+                config_module.validate_startup_requirements(require_google_creds=True)
+            finally:
+                config_module.SECRETS_MODULE_AVAILABLE = original
 
     def test_validate_skips_google_creds_when_not_required(self, temp_dir, monkeypatch):
         """Test validation passes without Google creds when not required."""

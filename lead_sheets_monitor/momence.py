@@ -5,6 +5,7 @@ Handles creating leads in Momence CRM.
 
 import json
 import logging
+import threading
 import requests
 from typing import Optional, Dict, Any
 
@@ -19,33 +20,50 @@ from utils import (
 from sheets import retry_with_backoff
 
 
+# Thread lock for session access (prevents race conditions)
+_session_lock = threading.Lock()
+
 # Module-level session for connection pooling
 # This improves performance by reusing TCP connections
 _session: Optional[requests.Session] = None
 
 
 def get_session() -> requests.Session:
-    """Get or create a reusable requests session for connection pooling."""
+    """Get or create a reusable requests session for connection pooling.
+
+    Thread-safe: Uses a lock to prevent race conditions during session creation.
+    """
     global _session
-    if _session is None:
-        _session = requests.Session()
-        # Configure connection pooling
-        adapter = requests.adapters.HTTPAdapter(
-            pool_connections=10,
-            pool_maxsize=10,
-            max_retries=0  # We handle retries ourselves
-        )
-        _session.mount('https://', adapter)
-        _session.mount('http://', adapter)
-    return _session
+
+    # Quick check without lock for performance
+    if _session is not None:
+        return _session
+
+    with _session_lock:
+        # Re-check after acquiring lock
+        if _session is None:
+            _session = requests.Session()
+            # Configure connection pooling
+            adapter = requests.adapters.HTTPAdapter(
+                pool_connections=10,
+                pool_maxsize=10,
+                max_retries=0  # We handle retries ourselves
+            )
+            _session.mount('https://', adapter)
+            _session.mount('http://', adapter)
+        return _session
 
 
 def close_session():
-    """Close the session (call on application shutdown)."""
+    """Close the session (call on application shutdown).
+
+    Thread-safe: Uses a lock to prevent race conditions.
+    """
     global _session
-    if _session is not None:
-        _session.close()
-        _session = None
+    with _session_lock:
+        if _session is not None:
+            _session.close()
+            _session = None
 
 
 def create_momence_lead(lead_data: Dict[str, Any], host_name: str, dry_run: bool = False) -> Dict[str, Any]:

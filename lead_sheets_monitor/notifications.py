@@ -8,7 +8,7 @@ import smtplib
 import urllib.parse
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from config import (
     get_host_config, get_sheet_config_by_name, get_smtp_config,
@@ -45,7 +45,10 @@ def send_email(to_addresses: List[str], subject: str, html_body: str) -> bool:
         # Use timeout to prevent hanging indefinitely
         with smtplib.SMTP(smtp_cfg['host'], smtp_cfg['port'], timeout=SMTP_TIMEOUT_SECONDS) as server:
             if smtp_cfg.get('use_tls', True):
-                server.starttls()
+                # Create SSL context for starttls - ensures TLS negotiation respects timeout
+                import ssl
+                context = ssl.create_default_context()
+                server.starttls(context=context)
             server.login(smtp_cfg['username'], smtp_cfg['password'])
             server.sendmail(msg['From'], to_addresses, msg.as_string())
 
@@ -253,7 +256,7 @@ def build_error_digest_html(errors: List[Dict[str, Any]]) -> str:
     return html
 
 
-def build_leads_digest_html(host_name: str, leads: List[Dict[str, Any]], host_id: str = None) -> str:
+def build_leads_digest_html(host_name: str, leads: List[Dict[str, Any]], host_id: Optional[str] = None) -> str:
     """
     Build a pretty HTML email for new leads digest.
 
@@ -499,17 +502,6 @@ def send_location_leads_digest(location_name: str, leads: List[Dict[str, Any]]) 
     subject = f"{len(leads)} New Lead(s) - {location_name}"
     logger.info(f"Sending location email for '{location_name}' to {recipients}")
     return send_email(recipients, subject, html)
-
-
-def send_leads_digest(host_name: str, leads: List[Dict[str, Any]]) -> bool:
-    """
-    Send new leads digest email (legacy, used for retries).
-    Note: Host-level email is no longer supported. This function now does nothing
-    since retried leads don't have location context. Consider removing this function
-    or updating retry logic to track location.
-    """
-    logger.debug(f"send_leads_digest called for host '{host_name}' - host-level email no longer supported")
-    return False
 
 
 def send_test_location_email(location_name: str) -> Dict[str, Any]:

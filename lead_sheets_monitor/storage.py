@@ -13,6 +13,7 @@ On Cloud Run, the database is synced to/from Cloud Storage for persistence
 across container restarts.
 """
 
+# Standard library
 import json
 import sqlite3
 import threading
@@ -20,12 +21,11 @@ import time
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
-from utils import utc_now, logger
-
-# Import database path from config
-from config import DATABASE_FILE
+# Local application
+from config import get_database_file
+from utils import logger, utc_now
 
 # Track if we've synced from cloud storage
 _cloud_sync_done = False
@@ -41,7 +41,7 @@ class DatabaseNotAvailableError(Exception):
 
 def database_exists() -> bool:
     """Check if the database file exists (without creating it)."""
-    return Path(DATABASE_FILE).exists()
+    return Path(get_database_file()).exists()
 
 
 def is_database_available() -> bool:
@@ -92,6 +92,10 @@ def _safe_json_loads(data: str, default: Any = None, field_name: str = "unknown"
     """
     Safely parse JSON with error handling.
 
+    Logs corrupted JSON at ERROR level (not just WARNING) to ensure visibility
+    for potential data corruption issues. Includes a truncated preview of the
+    corrupted data for debugging.
+
     Args:
         data: JSON string to parse
         default: Default value if parsing fails (None, {}, or [])
@@ -105,11 +109,21 @@ def _safe_json_loads(data: str, default: Any = None, field_name: str = "unknown"
     try:
         return json.loads(data)
     except json.JSONDecodeError as e:
-        logger.warning(f"Failed to parse JSON in {field_name}: {e}")
+        # Log at ERROR level with data preview to help diagnose corruption
+        data_preview = data[:100] + '...' if len(data) > 100 else data
+        logger.error(
+            f"JSON parse error in {field_name}: {e}. "
+            f"Data preview: {data_preview!r}"
+        )
         return default if default is not None else {}
 
 # Thread-local storage for database connections
 _local = threading.local()
+
+# Registry of all thread-local connections for cleanup
+# Maps thread_id -> connection (for cleanup of abandoned connections)
+_connection_registry: Dict[int, sqlite3.Connection] = {}
+_registry_lock = threading.Lock()
 
 # Database connection retry settings
 DB_CONNECT_MAX_RETRIES = 3
@@ -118,7 +132,7 @@ DB_CONNECT_RETRY_DELAY = 1.0  # seconds
 
 def get_db_path() -> str:
     """Get the database file path."""
-    return DATABASE_FILE
+    return get_database_file()
 
 
 def _get_connection(allow_create: bool = False) -> sqlite3.Connection:
@@ -158,8 +172,14 @@ def _get_connection(allow_create: bool = False) -> sqlite3.Connection:
                 conn.execute('PRAGMA journal_mode=WAL')
                 conn.execute('PRAGMA synchronous=NORMAL')  # Good balance of safety and speed
                 conn.execute('PRAGMA foreign_keys=ON')
+                # Enable incremental auto-vacuum for automatic space reclamation
+                # This prevents database file bloat after deletions (cleanup operations)
+                conn.execute('PRAGMA auto_vacuum=INCREMENTAL')
 
                 _local.connection = conn
+                # Register connection for cleanup tracking
+                with _registry_lock:
+                    _connection_registry[threading.get_ident()] = conn
                 logger.debug(f"Opened database connection to {db_path}")
                 return _local.connection
 
@@ -196,17 +216,92 @@ def close_connection(upload_to_cloud: bool = True):
             logger.warning(f"Error closing database connection: {e}")
         finally:
             _local.connection = None
+            # Unregister from connection registry
+            with _registry_lock:
+                _connection_registry.pop(threading.get_ident(), None)
             logger.debug("Closed database connection")
 
     # Upload to Cloud Storage on close (Cloud Run only)
     if upload_to_cloud:
         try:
             from cloud_storage import upload_database
-            upload_database(DATABASE_FILE)
+            upload_database(get_database_file())
         except ImportError:
             pass
         except Exception as e:
             logger.warning(f"Cloud Storage upload failed: {e}")
+
+
+def reset_for_testing():
+    """
+    Reset all module-level state for test isolation.
+
+    This should ONLY be called by test fixtures to ensure clean state between tests.
+    It closes connections and resets all cached state variables.
+    """
+    global _cloud_sync_done, _database_available, _local, _connection_registry
+
+    # Close any open connections first
+    close_connection(upload_to_cloud=False)
+
+    # Also close all registered connections (from other threads if any)
+    with _registry_lock:
+        for conn in _connection_registry.values():
+            try:
+                conn.close()
+            except sqlite3.Error:
+                pass
+        _connection_registry.clear()
+
+    # Reset all state
+    _cloud_sync_done = False
+    _database_available = None
+
+    # Clear thread-local storage completely
+    if hasattr(_local, 'connection'):
+        try:
+            if _local.connection is not None:
+                _local.connection.close()
+        except (sqlite3.Error, AttributeError):
+            pass
+    _local = threading.local()
+
+
+def cleanup_stale_connections() -> int:
+    """
+    Close database connections from threads that no longer exist.
+
+    This prevents connection leaks when threads are terminated without
+    explicitly closing their connections. Should be called periodically
+    from the daemon loop.
+
+    Returns:
+        Number of stale connections closed
+    """
+    # Get set of currently alive thread IDs
+    alive_threads = {t.ident for t in threading.enumerate()}
+
+    closed_count = 0
+    with _registry_lock:
+        # Find connections for threads that no longer exist
+        stale_thread_ids = [
+            tid for tid in _connection_registry.keys()
+            if tid not in alive_threads
+        ]
+
+        for tid in stale_thread_ids:
+            conn = _connection_registry.pop(tid, None)
+            if conn is not None:
+                try:
+                    conn.close()
+                    closed_count += 1
+                except sqlite3.Error as e:
+                    logger.debug(f"Error closing stale connection for thread {tid}: {e}")
+
+    if closed_count > 0:
+        logger.debug(f"Cleaned up {closed_count} stale database connection(s)")
+
+    return closed_count
 
 
 @contextmanager
@@ -258,7 +353,7 @@ def init_database(allow_create: bool = True) -> bool:
 
         try:
             from cloud_storage import download_database
-            download_database(DATABASE_FILE)
+            download_database(get_database_file())
         except ImportError:
             pass
         except Exception as e:
@@ -303,6 +398,8 @@ def init_database(allow_create: bool = True) -> bool:
         ''')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_failed_queue_momence_host ON failed_queue(momence_host)')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_failed_queue_attempts ON failed_queue(attempts)')
+        # Index for paginated queries ordered by last_attempted_at
+        conn.execute('CREATE INDEX IF NOT EXISTS idx_failed_queue_last_attempted ON failed_queue(last_attempted_at)')
 
         # Dead letters table - entries that exceeded max retries
         conn.execute('''
@@ -371,9 +468,12 @@ def init_database(allow_create: bool = True) -> bool:
             )
         ''')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_lead_metrics_datetime ON lead_metrics(lead_datetime)')
-        conn.execute('CREATE INDEX IF NOT EXISTS idx_lead_metrics_date ON lead_metrics(lead_date)')
+        # Composite index for daily aggregation queries (replaces single-column date index)
+        conn.execute('CREATE INDEX IF NOT EXISTS idx_lead_metrics_date_location ON lead_metrics(lead_date, location)')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_lead_metrics_location ON lead_metrics(location)')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_lead_metrics_momence_host ON lead_metrics(momence_host)')
+        # Drop redundant single-column date index if it exists (composite index covers these queries)
+        conn.execute('DROP INDEX IF EXISTS idx_lead_metrics_date')
 
         # Web sessions table - for persistent session storage across restarts
         conn.execute('''
@@ -487,7 +587,7 @@ def create_fresh_database() -> bool:
         # Upload to GCS immediately
         try:
             from cloud_storage import upload_database
-            upload_database(DATABASE_FILE)
+            upload_database(get_database_file())
             logger.info("Uploaded fresh database to GCS")
         except ImportError:
             pass
@@ -711,6 +811,9 @@ def get_existing_hashes(hashes: List[str]) -> Set[str]:
     Used for batch deduplication of new rows - prevents duplicate submissions
     if container crashes and restarts mid-process.
 
+    For large lists (>500 hashes), automatically batches queries to avoid
+    SQLite's SQLITE_MAX_VARIABLE_NUMBER limit (default 999).
+
     Args:
         hashes: List of hash strings to check
 
@@ -719,13 +822,23 @@ def get_existing_hashes(hashes: List[str]) -> Set[str]:
     """
     if not hashes:
         return set()
+
+    # SQLite has a limit on the number of variables in a query (default 999)
+    # Batch queries to stay safely under this limit
+    BATCH_SIZE = 500
+    existing = set()
+
     with get_db() as conn:
-        placeholders = ','.join('?' * len(hashes))
-        result = conn.execute(
-            f'SELECT hash FROM sent_hashes WHERE hash IN ({placeholders})',
-            hashes
-        ).fetchall()
-        return {row['hash'] for row in result}
+        for i in range(0, len(hashes), BATCH_SIZE):
+            batch = hashes[i:i + BATCH_SIZE]
+            placeholders = ','.join('?' * len(batch))
+            result = conn.execute(
+                f'SELECT hash FROM sent_hashes WHERE hash IN ({placeholders})',
+                batch
+            ).fetchall()
+            existing.update(row['hash'] for row in result)
+
+    return existing
 
 
 # ============================================================================

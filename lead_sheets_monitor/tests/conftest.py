@@ -15,10 +15,30 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
+@pytest.fixture(autouse=True)
+def reset_storage_state():
+    """
+    Reset storage module state before and after each test for proper isolation.
+
+    This fixture runs automatically before each test to ensure clean state.
+    """
+    import storage
+    # Reset state before test
+    storage.reset_for_testing()
+    yield
+    # Reset state after test - critical for releasing file handles before temp cleanup
+    storage.reset_for_testing()
+    # Extra cleanup to ensure WAL checkpoint happens
+    import gc
+    gc.collect()
+
+
 @pytest.fixture
 def temp_dir():
     """Create a temporary directory for test files."""
-    with tempfile.TemporaryDirectory() as tmpdir:
+    # Use ignore_cleanup_errors=True on Windows to handle file locking issues
+    # Windows may hold onto SQLite files briefly after they're closed
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmpdir:
         yield Path(tmpdir)
 
 
@@ -43,12 +63,11 @@ def mock_env(temp_dir, monkeypatch):
 
     # Create minimal config file
     config = {
-        'tenants': {
+        'momence_hosts': {
             'TestTenant': {
                 'host_id': '12345',
                 'token': 'test-token-abc123',
-                'enabled': True,
-                'schedule': {'check_interval_minutes': 5}
+                'enabled': True
             }
         },
         'sheets': [
@@ -56,7 +75,7 @@ def mock_env(temp_dir, monkeypatch):
                 'name': 'Test Sheet',
                 'spreadsheet_id': 'test-spreadsheet-id-1234567890',
                 'gid': '0',
-                'tenant': 'TestTenant',
+                'momence_host': 'TestTenant',
                 'lead_source_id': 123,
                 'enabled': True
             }

@@ -83,9 +83,20 @@ EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
 
 # File paths (configurable via environment)
+# These are evaluated at module load time for backward compatibility
+# For dynamic access (e.g., in tests), use get_database_file()
 DATABASE_FILE = os.getenv('DATABASE_FILE', './data/lead_monitor.db')
 LOG_DIR = os.getenv('LOG_DIR', './logs')
 CONFIG_FILE = os.getenv('CONFIG_FILE', './config.json')
+
+
+def get_database_file() -> str:
+    """Get database file path dynamically from environment.
+
+    This function reads the environment variable each time, useful for tests
+    that change DATABASE_FILE between test cases.
+    """
+    return os.getenv('DATABASE_FILE', './data/lead_monitor.db')
 
 # Headers relevant for Cloudflare/API debugging
 DIAGNOSTIC_HEADERS = [
@@ -421,7 +432,12 @@ def validate_config(config: Dict[str, Any]) -> None:
         ConfigValidationError: If validation fails
     """
     if not SCHEMA_VALIDATION_AVAILABLE:
-        return  # Skip validation if jsonschema not installed
+        # Log at WARNING level - this is a security concern
+        logging.getLogger(__name__).warning(
+            "Skipping config schema validation (jsonschema not installed). "
+            "Configuration errors may not be detected. Install jsonschema for validation."
+        )
+        return
 
     try:
         validate(instance=config, schema=CONFIG_SCHEMA)
@@ -663,6 +679,7 @@ ALLOWED_ENV_VARS = frozenset({
     'ENCRYPTION_KEY',
     'ADMIN_EMAIL',
     'NOTIFICATION_EMAIL',
+    'DEFAULT_SPREADSHEET_ID',
 })
 
 
