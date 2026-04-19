@@ -1445,7 +1445,7 @@
         // Generate open date options (every 3 months starting Jan 2026, 10 options)
         function generateOpenDateOptions() {
             const options = [];
-            const startDate = new Date(2026, 0, 1); // Jan 2026
+            const startDate = new Date(2026, 0, 4); // April 2026
             for (let i = 0; i < 10; i++) {
                 const date = new Date(startDate);
                 date.setMonth(startDate.getMonth() + (i * 3));
