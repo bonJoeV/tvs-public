@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TVS Social Footer Layout Lab</title>
+  <style>
+    :root {
+      --navy: #013160;
+      --blue: #71bed2;
+      --yellow: #fbb514;
+      --paper: #f4f7f9;
+      --white: #ffffff;
+      --ink-soft: #5a7189;
+      --rule: #d3dee6;
+      --display: "Yeseva One", "Playfair Display", "Bodoni MT", Georgia, serif;
+      --sans: "Futura", "Century Gothic", "Avenir Next", Avenir, sans-serif;
+      --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--navy);
+      font-family: var(--sans);
+      background-color: #edf3f6;
+      background-image:
+        linear-gradient(rgba(1, 49, 96, .035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(1, 49, 96, .035) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+    button, select, input { font: inherit; }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      min-height: 68px;
+      padding: 12px 24px;
+      border-bottom: 3px solid var(--yellow);
+      background: var(--navy);
+      color: var(--white);
+    }
+    .titleblock { flex: 1 1 auto; min-width: 240px; }
+    .titleblock h1 { margin: 0; font-family: var(--display); font-size: 21px; font-weight: 400; }
+    .titleblock p { margin: 2px 0 0; color: #b9d6e3; font-size: 12px; }
+    .controls { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .control-label { display: block; margin-bottom: 3px; color: #b9d6e3; font-size: 10px; text-transform: uppercase; }
+    .segmented { display: inline-flex; border: 1px solid #48729a; }
+    .segmented button {
+      min-width: 66px;
+      padding: 6px 10px;
+      border: 0;
+      border-right: 1px solid #48729a;
+      background: transparent;
+      color: var(--white);
+      cursor: pointer;
+    }
+    .segmented button:last-child { border-right: 0; }
+    .segmented button[aria-pressed="true"] { background: var(--yellow); color: var(--navy); }
+    .studio-select {
+      min-width: 150px;
+      padding: 6px 8px;
+      border: 1px solid #48729a;
+      border-radius: 0;
+      background: var(--navy);
+      color: var(--white);
+    }
+    .selection {
+      min-width: 150px;
+      padding: 7px 10px;
+      border-left: 2px solid var(--yellow);
+      background: #0c416f;
+      color: #dceaf0;
+      font-size: 12px;
+    }
+    .selection strong { color: var(--white); }
+
+    main { max-width: 1180px; margin: 0 auto; padding: 8px 24px 64px; }
+    .option {
+      display: grid;
+      grid-template-columns: 230px minmax(0, 1fr);
+      gap: 28px;
+      align-items: start;
+      padding: 30px 0;
+      border-bottom: 1px solid #b9cbd5;
+    }
+    .option-meta { position: sticky; top: 94px; }
+    .option-choice { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+    .option-choice input { width: 16px; height: 16px; margin: 0; accent-color: var(--navy); }
+    .option-meta h2 { margin: 0 0 8px; font-family: var(--display); font-size: 20px; font-weight: 400; }
+    .option-meta p { margin: 0 0 12px; color: var(--ink-soft); font-size: 13px; line-height: 1.5; }
+    .measure { display: inline-block; padding: 3px 7px; background: var(--navy); color: var(--white); font-family: Consolas, monospace; font-size: 11px; }
+    .preview-stage { min-width: 0; overflow-x: auto; padding: 18px; border: 1px solid #c4d3db; background: rgba(255, 255, 255, .72); }
+    .email-preview { width: 600px; margin: 0 auto; background: var(--white); color: var(--navy); }
+    body[data-preview-width="390"] .email-preview { width: 390px; }
+    .email-preview a { color: inherit; }
+    .email-preview svg { display: inline-block; width: 16px; height: 16px; vertical-align: middle; fill: currentColor; }
+
+    .footer-title { padding: 8px 6px 6px; border-top: 2px solid var(--yellow); text-align: center; }
+    .footer-title strong { font-family: var(--display); font-size: 16px; font-weight: 400; }
+    .socials { display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+    .socials a { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border: 1px solid var(--rule); border-radius: 50%; background: var(--white); text-decoration: none; }
+
+    .o1 .grid { display: grid; grid-template-columns: repeat(2, 190px); justify-content: center; gap: 4px; }
+    .o1 .studio { padding: 7px 8px; border: 1px solid var(--rule); background: var(--paper); text-align: center; }
+    .o1 .name { font: 700 13px/1.2 var(--serif); }
+    .o1 .line { margin: 2px 0; color: var(--ink-soft); font: 10px/1.25 var(--serif); }
+    .o1 .phone { font: 700 11px/1.2 var(--serif); }
+
+    .o2 .tiles { display: grid; grid-template-columns: repeat(4, 124px); justify-content: center; gap: 5px; }
+    .o2 .tile { padding: 9px 5px 8px; border-top: 3px solid var(--blue); background: var(--paper); text-align: center; }
+    .o2 .name { min-height: 30px; font: 700 12px/1.2 var(--serif); }
+    .o2 .socials { margin-top: 4px; }
+
+    .o3 .rows { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid var(--rule); }
+    .o3 .row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px; padding: 8px 10px; border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+    .o3 .row:nth-child(even) { border-right: 0; }
+    .o3 .name { font: 700 12px/1.2 var(--serif); }
+    .o3 .phone { color: var(--ink-soft); font: 10px/1.2 var(--sans); }
+
+    .o4 .directory { width: 430px; margin: 0 auto; border-collapse: collapse; }
+    .o4 .directory td { padding: 6px 8px; border-bottom: 1px solid var(--rule); }
+    .o4 .directory tr:last-child td { border-bottom: 0; }
+    .o4 .studio { font: 700 12px/1.2 var(--serif); }
+    .o4 .phone { color: var(--ink-soft); font: 10px/1.2 var(--sans); white-space: nowrap; }
+    .o4 .icons { width: 92px; text-align: right; }
+
+    .o5 .matrix { width: 440px; margin: 0 auto; border-collapse: collapse; font-size: 11px; }
+    .o5 th { padding: 4px 7px; border-bottom: 1px solid var(--navy); color: var(--ink-soft); font-size: 9px; font-weight: 600; text-transform: uppercase; }
+    .o5 td { padding: 5px 7px; border-bottom: 1px solid var(--rule); text-align: center; }
+    .o5 td:first-child { text-align: left; font-family: var(--serif); font-weight: 700; }
+    .o5 tr:last-child td { border-bottom: 0; }
+    .o5 .icon-link { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; text-decoration: none; }
+
+    .o6 .pills { display: grid; grid-template-columns: repeat(2, 205px); justify-content: center; gap: 6px; }
+    .o6 .pill { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 8px 7px 11px; border: 1px solid var(--rule); border-left: 4px solid var(--yellow); border-radius: 6px; background: var(--white); }
+    .o6 .name { font: 700 12px/1.2 var(--serif); }
+
+    .o7 .ribbons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px 14px; padding: 0 18px; }
+    .o7 .ribbon { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px; padding: 6px 0 6px 9px; border-left: 3px solid var(--blue); }
+    .o7 .name { font: 700 12px/1.2 var(--serif); }
+    .o7 .street { color: var(--ink-soft); font: 9px/1.2 var(--sans); }
+
+    .o8 .platforms { width: 460px; margin: 0 auto; border: 1px solid var(--rule); }
+    .o8 .platform { display: grid; grid-template-columns: 110px repeat(4, 1fr); align-items: center; min-height: 34px; border-bottom: 1px solid var(--rule); }
+    .o8 .platform:last-child { border-bottom: 0; }
+    .o8 .platform-name { display: flex; align-items: center; gap: 7px; padding-left: 10px; font-size: 11px; font-weight: 700; }
+    .o8 .platform > a { padding: 8px 4px; border-left: 1px solid var(--rule); font-size: 10px; font-weight: 700; text-align: center; text-decoration: none; }
+
+    .o9 .single { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 18px; width: 390px; margin: 0 auto; padding: 10px 12px; border-top: 3px solid var(--yellow); border-bottom: 1px solid var(--rule); }
+    .o9 .name { font: 700 14px/1.2 var(--serif); }
+    .o9 .detail { margin-top: 2px; color: var(--ink-soft); font: 10px/1.3 var(--sans); }
+    .o9 .socials a { width: 28px; height: 28px; }
+
+    .o10 .rail { display: flex; align-items: stretch; justify-content: center; padding: 7px 0; border-top: 2px solid var(--yellow); border-bottom: 1px solid var(--rule); }
+    .o10 .unit { width: 132px; padding: 4px 8px; border-right: 1px solid var(--rule); text-align: center; }
+    .o10 .unit:last-child { border-right: 0; }
+    .o10 .name { margin-bottom: 4px; font: 700 11px/1.2 var(--serif); }
+    .o10 .socials a { width: 22px; height: 22px; }
+
+    body[data-preview-width="390"] .o1 .grid { grid-template-columns: repeat(2, 184px); }
+    body[data-preview-width="390"] .o2 .tiles { grid-template-columns: repeat(2, 124px); }
+    body[data-preview-width="390"] .o3 .rows { grid-template-columns: 1fr; }
+    body[data-preview-width="390"] .o3 .row { border-right: 0; }
+    body[data-preview-width="390"] .o4 .directory,
+    body[data-preview-width="390"] .o5 .matrix,
+    body[data-preview-width="390"] .o8 .platforms,
+    body[data-preview-width="390"] .o9 .single { width: calc(100% - 16px); }
+    body[data-preview-width="390"] .o6 .pills { grid-template-columns: repeat(2, 184px); }
+    body[data-preview-width="390"] .o7 .ribbons { grid-template-columns: 1fr; }
+    body[data-preview-width="390"] .o8 .platform { grid-template-columns: 86px repeat(4, 1fr); }
+    body[data-preview-width="390"] .o10 .rail { display: grid; grid-template-columns: repeat(2, 132px); }
+    body[data-preview-width="390"] .o10 .unit { border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+
+    @media (max-width: 880px) {
+      .topbar { position: static; align-items: flex-start; }
+      .option { grid-template-columns: 1fr; gap: 14px; }
+      .option-meta { position: static; }
+    }
+    @media (max-width: 560px) {
+      .topbar { flex-wrap: wrap; gap: 12px; padding: 12px 14px; }
+      .titleblock { width: 100%; min-width: 0; }
+      .controls { width: 100%; gap: 10px; }
+      .studio-select { min-width: 136px; }
+      .selection { width: 100%; }
+      main { padding: 4px 12px 48px; }
+      .preview-stage { padding: 10px; }
+    }
+  </style>
+</head>
+<body data-preview-width="600">
+  <header class="topbar">
+    <div class="titleblock">
+      <h1>Social footer layout lab</h1>
+      <p>Ten compact directions using the real Twin Cities links.</p>
+    </div>
+    <div class="controls">
+      <div>
+        <span class="control-label">Email width</span>
+        <div class="segmented" aria-label="Email preview width">
+          <button type="button" data-width="600" aria-pressed="true">600px</button>
+          <button type="button" data-width="390" aria-pressed="false">390px</button>
+        </div>
+      </div>
+      <label>
+        <span class="control-label">Option 9 studio</span>
+        <select class="studio-select" id="studio-select"></select>
+      </label>
+      <div class="selection" id="selection">Selected: <strong>none</strong></div>
+    </div>
+  </header>
+
+  <main id="options"></main>
+
+  <script>
+    (function(){
+      var studios = [
+        {key:'ep', name:'Eden Prairie', short:'EP', street:'7918 Mitchell Rd', city:'Eden Prairie, MN 55344', phone:'(952) 222-0789',
+          facebook:'https://www.facebook.com/thevitalstretchedenprairie', instagram:'https://www.instagram.com/thevitalstretch_edenprairie', google:'https://www.google.com/maps/search/?api=1&query=The+Vital+Stretch+Eden+Prairie&query_place_id=ChIJI7Vp-fgZ9ocRmQ8CzbXobDs'},
+        {key:'sv', name:'Savage', short:'SAV', street:'7737 Egan Dr', city:'Savage, MN 55378', phone:'(952) 222-0793',
+          facebook:'https://www.facebook.com/thevitalstretchsavage', instagram:'https://www.instagram.com/thevitalstretch_savage', google:'https://www.google.com/maps/search/?api=1&query=The+Vital+Stretch+Savage&query_place_id=ChIJQ5Mg8bA99ocR-jhFzWLoHvY'},
+        {key:'sp', name:'St Louis Park', short:'SLP', street:'8314 Highway 7', city:'St Louis Park, MN 55426', phone:'(952) 222-7822',
+          facebook:'https://www.facebook.com/thevitalstretchstlouispark', instagram:'https://www.instagram.com/thevitalstretch_stlouispark', google:'https://www.google.com/maps/search/?api=1&query=The+Vital+Stretch+St+Louis+Park&query_place_id=ChIJLcrLxNgh9ocRn7wGv1tAaq4'},
+        {key:'mt', name:'Minnetonka', short:'MTKA', street:'14200 Wayzata Blvd, Suite C', city:'Minnetonka, MN 55305', phone:'(952) 222-7563',
+          facebook:'https://www.facebook.com/thevitalstretchminnetonka', instagram:'https://www.instagram.com/minnetonka_thevitalstretch', google:'https://www.google.com/maps/search/?api=1&query=The+Vital+Stretch+Minnetonka&query_place_id=ChIJu9YUbKVLs1IRUUzKcF35Yo0'}
+      ];
+
+      var icons = {
+        facebook:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06c0 5 3.66 9.15 8.44 9.94v-7.03H7.9v-2.91h2.54V9.85c0-2.52 1.49-3.91 3.78-3.91 1.09 0 2.24.2 2.24.2v2.48h-1.26c-1.24 0-1.63.78-1.63 1.57v1.87h2.78l-.44 2.91h-2.34V22c4.78-.79 8.44-4.94 8.44-9.94z"/></svg>',
+        instagram:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.16c3.2 0 3.58.01 4.85.07 1.17.05 1.8.25 2.23.41.56.22.96.48 1.38.9.42.42.68.82.9 1.38.16.42.36 1.06.41 2.23.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.05 1.17-.25 1.8-.41 2.23-.22.56-.48.96-.9 1.38-.42.42-.82.68-1.38.9-.42.16-1.06.36-2.23.41-1.27.06-1.65.07-4.85.07s-3.58-.01-4.85-.07c-1.17-.05-1.8-.25-2.23-.41-.56-.22-.96-.48-1.38-.9-.42-.42-.68-.82-.9-1.38-.16-.42-.36-1.06-.41-2.23-.06-1.27-.07-1.65-.07-4.85s.01-3.58.07-4.85c.05-1.17.25-1.8.41-2.23.22-.56.48-.96.9-1.38.42-.42.82-.68 1.38-.9.42-.16 1.06-.36 2.23-.41C8.42 2.17 8.8 2.16 12 2.16zm0 1.44c-3.15 0-3.52.01-4.76.07-1.15.05-1.77.24-2.19.4-.55.21-.94.47-1.35.88-.41.41-.67.8-.88 1.35-.16.42-.35 1.04-.4 2.19-.06 1.24-.07 1.61-.07 4.76s.01 3.52.07 4.76c.05 1.15.24 1.77.4 2.19.21.55.47.94.88 1.35.41.41.8.67 1.35.88.42.16 1.04.35 2.19.4 1.24.06 1.61.07 4.76.07s3.52-.01 4.76-.07c1.15-.05 1.77-.24 2.19-.4.55-.21.94-.47 1.35-.88.41-.41.67-.8.88-1.35.16-.42.35-1.04.4-2.19.06-1.24.07-1.61.07-4.76s-.01-3.52-.07-4.76c-.05-1.15-.24-1.77-.4-2.19-.21-.55-.47-.94-.88-1.35-.41-.41-.8-.67-1.35-.88-.42-.16-1.04-.35-2.19-.4-1.24-.06-1.61-.07-4.76-.07zM12 6.87a5.13 5.13 0 100 10.26 5.13 5.13 0 000-10.26zm0 8.46a3.33 3.33 0 110-6.66 3.33 3.33 0 010 6.66zm5.34-8.66a1.2 1.2 0 110 2.4 1.2 1.2 0 010-2.4z"/></svg>',
+        google:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0012 23z"/><path d="M5.84 14.1a6.6 6.6 0 010-4.2V7.06H2.18a11 11 0 000 9.88l3.66-2.84z"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15A10.94 10.94 0 0012 1 11 11 0 002.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38z"/></svg>'
+      };
+
+      function esc(value){ return String(value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+      function iconLink(studio, platform, extraClass){
+        var label = platform.charAt(0).toUpperCase()+platform.slice(1);
+        return '<a'+(extraClass?' class="'+extraClass+'"':'')+' href="'+esc(studio[platform])+'" target="_blank" rel="noopener" title="'+esc(studio.name+' on '+label)+'">'+icons[platform]+'</a>';
+      }
+      function socialGroup(studio){
+        return '<span class="socials">'+iconLink(studio,'facebook')+iconLink(studio,'instagram')+iconLink(studio,'google')+'</span>';
+      }
+      function footerTitle(){ return '<div class="footer-title"><strong>Connect With Your Studio</strong></div>'; }
+
+      var layouts = [
+        {name:'Fixed-width mini cards', desc:'Two 190px cards per row. Full contact details remain, but the cards stop growing with the email.', render:function(){
+          return footerTitle()+'<div class="grid">'+studios.map(function(s){ return '<div class="studio"><div class="name">'+s.name+'</div><div class="line">'+s.street+'</div><div class="phone">'+s.phone+'</div>'+socialGroup(s)+'</div>'; }).join('')+'</div>';
+        }},
+        {name:'Four-up social tiles', desc:'Four narrow tiles at desktop, two by two on mobile. Names and social links only.', render:function(){
+          return footerTitle()+'<div class="tiles">'+studios.map(function(s){ return '<div class="tile"><div class="name">'+s.name+'</div>'+socialGroup(s)+'</div>'; }).join('')+'</div>';
+        }},
+        {name:'Two-column contact rows', desc:'No cards. Thin dividing rules organize two compact columns.', render:function(){
+          return footerTitle()+'<div class="rows">'+studios.map(function(s){ return '<div class="row"><div><div class="name">'+s.name+'</div><div class="phone">'+s.phone+'</div></div>'+socialGroup(s)+'</div>'; }).join('')+'</div>';
+        }},
+        {name:'Single directory table', desc:'A centered 430px directory. One studio per line, no card backgrounds.', render:function(){
+          return footerTitle()+'<table class="directory"><tbody>'+studios.map(function(s){ return '<tr><td class="studio">'+s.name+'</td><td class="phone">'+s.phone+'</td><td class="icons">'+socialGroup(s)+'</td></tr>'; }).join('')+'</tbody></table>';
+        }},
+        {name:'Social matrix', desc:'The densest complete directory. Studios are rows and platforms are columns.', render:function(){
+          return footerTitle()+'<table class="matrix"><thead><tr><th>Studio</th><th>Facebook</th><th>Instagram</th><th>Google</th></tr></thead><tbody>'+studios.map(function(s){ return '<tr><td>'+s.name+'</td><td>'+iconLink(s,'facebook','icon-link')+'</td><td>'+iconLink(s,'instagram','icon-link')+'</td><td>'+iconLink(s,'google','icon-link')+'</td></tr>'; }).join('')+'</tbody></table>';
+        }},
+        {name:'Studio pills', desc:'Short fixed-width pills. Names and icon groups remain visually connected.', render:function(){
+          return footerTitle()+'<div class="pills">'+studios.map(function(s){ return '<div class="pill"><span class="name">'+s.name+'</span>'+socialGroup(s)+'</div>'; }).join('')+'</div>';
+        }},
+        {name:'Address ribbons', desc:'No card boxes. Blue rules anchor a compact address and icon row.', render:function(){
+          return footerTitle()+'<div class="ribbons">'+studios.map(function(s){ return '<div class="ribbon"><div><div class="name">'+s.name+'</div><div class="street">'+s.street+' &middot; '+s.phone+'</div></div>'+socialGroup(s)+'</div>'; }).join('')+'</div>';
+        }},
+        {name:'Platform-first links', desc:'Three platform rows with short studio links. The layout groups by destination instead of location.', render:function(){
+          return footerTitle()+'<div class="platforms">'+['facebook','instagram','google'].map(function(platform){ var label=platform.charAt(0).toUpperCase()+platform.slice(1); return '<div class="platform"><div class="platform-name">'+icons[platform]+label+'</div>'+studios.map(function(s){ return '<a href="'+esc(s[platform])+'" target="_blank" rel="noopener" title="'+esc(s.name+' on '+label)+'">'+s.short+'</a>'; }).join('')+'</div>'; }).join('')+'</div>';
+        }},
+        {name:'Selected studio only', desc:'One location per email. This is the smallest option and matches the studio already selected for the sequence.', render:function(){
+          var selected = studios.filter(function(s){ return s.key===document.getElementById('studio-select').value; })[0] || studios[3];
+          return '<div class="single"><div><div class="name">'+selected.name+'</div><div class="detail">'+selected.street+' &middot; '+selected.phone+'</div></div>'+socialGroup(selected)+'</div>';
+        }},
+        {name:'Four-studio icon rail', desc:'One shallow rail at desktop. It becomes a two by two rail on mobile.', render:function(){
+          return '<div class="rail">'+studios.map(function(s){ return '<div class="unit"><div class="name">'+s.name+'</div>'+socialGroup(s)+'</div>'; }).join('')+'</div>';
+        }}
+      ];
+
+      var options = document.getElementById('options');
+      var studioSelect = document.getElementById('studio-select');
+      studioSelect.innerHTML = studios.map(function(s){ return '<option value="'+s.key+'"'+(s.key==='mt'?' selected':'')+'>'+s.name+'</option>'; }).join('');
+
+      function renderOptions(){
+        options.innerHTML = layouts.map(function(layout,index){
+          var number=index+1;
+          return '<section class="option" data-option="'+number+'"><div class="option-meta">'+
+            '<label class="option-choice"><input type="radio" name="layout" value="'+number+'">Option '+number+'</label>'+
+            '<h2>'+layout.name+'</h2><p>'+layout.desc+'</p><span class="measure" data-measure>measuring</span></div>'+
+            '<div class="preview-stage"><div class="email-preview o'+number+'">'+layout.render()+'</div></div></section>';
+        }).join('');
+        measure();
+      }
+
+      function measure(){
+        document.querySelectorAll('.option').forEach(function(option){
+          var preview=option.querySelector('.email-preview');
+          option.querySelector('[data-measure]').textContent=Math.round(preview.getBoundingClientRect().height)+'px high';
+        });
+      }
+
+      document.querySelector('.segmented').addEventListener('click',function(event){
+        var button=event.target.closest('button[data-width]');
+        if(!button) return;
+        document.body.setAttribute('data-preview-width',button.getAttribute('data-width'));
+        document.querySelectorAll('.segmented button').forEach(function(item){ item.setAttribute('aria-pressed',item===button); });
+        measure();
+      });
+      studioSelect.addEventListener('change',renderOptions);
+      options.addEventListener('change',function(event){
+        if(event.target.name!=='layout') return;
+        var layout=layouts[Number(event.target.value)-1];
+        document.getElementById('selection').innerHTML='Selected: <strong>Option '+event.target.value+', '+layout.name+'</strong>';
+      });
+
+      renderOptions();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,1855 @@
+<div id="tvs-root"></div>
+
+<style>
+#tvs-root {
+  --deep:#013160; --lightblue:#71BED2; --yellow:#FBB514;
+  --paper:#F4F7F9; --ink:#013160; --ink-soft:#5A7189;
+  --rule:#D3DEE6; --red:#B3352A;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --sans: "Futura", "Futura PT", "Century Gothic", "Avenir Next", "Avenir", ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  --display: "Yeseva One", "Playfair Display", "Bodoni MT", Didot, Georgia, serif;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  background:var(--paper); color:var(--ink); font-family:var(--sans);
+  font-size:15px; line-height:1.5; padding:0 0 60px; margin:0;
+}
+#tvs-root *, #tvs-root *::before, #tvs-root *::after { box-sizing:border-box; }
+
+#tvs-root .stickytop { position:sticky; top:0; z-index:20; }
+#tvs-root .hd { background:var(--deep); color:#fff;
+  padding:14px 20px; display:flex; flex-wrap:wrap; gap:16px; align-items:center; border-bottom:3px solid var(--yellow); }
+#tvs-root .hd h1 { font-family:var(--display); font-size:19px; font-weight:400; margin:0; flex:1 1 auto; min-width:200px; }
+#tvs-root .hd h1 span { color:var(--lightblue); font-size:14px; }
+#tvs-root .picker { display:flex; gap:6px; flex-wrap:wrap; }
+#tvs-root .picker button { font-family:var(--sans); font-size:12px; font-weight:600; letter-spacing:.04em;
+  padding:7px 13px; border:1px solid #2E5A83; background:transparent; color:#fff; cursor:pointer; border-radius:2px; }
+#tvs-root .picker button:hover { border-color:var(--yellow); }
+#tvs-root .picker button[aria-pressed="true"] { background:var(--yellow); border-color:var(--yellow); color:var(--deep); }
+#tvs-root .picker button:focus-visible { outline:2px solid var(--lightblue); outline-offset:2px; }
+
+#tvs-root .tabbar { background:#fff; border-bottom:1px solid var(--rule); padding:0 20px; }
+#tvs-root .tabs { display:flex; max-width:820px; margin:0 auto; overflow-x:auto; }
+#tvs-root .tabs button { font-family:var(--sans); font-size:13px; font-weight:600; letter-spacing:.03em;
+  padding:12px 20px; border:0; border-bottom:3px solid transparent; background:none; color:var(--ink-soft); cursor:pointer; flex:0 0 auto; }
+#tvs-root .tabs button[aria-pressed="true"] { color:var(--deep); border-bottom-color:var(--yellow); }
+#tvs-root .tabs button:hover { color:var(--deep); }
+#tvs-root .tabs button:focus-visible { outline:2px solid var(--lightblue); outline-offset:-4px; }
+
+#tvs-root .index { background:#fff; border-bottom:1px solid var(--rule); padding:7px 20px;
+  display:flex; align-items:center; gap:10px; }
+#tvs-root .index .chips { display:flex; gap:5px; flex:1 1 auto; overflow-x:auto; }
+#tvs-root .index .chips button { font-family:var(--mono); font-size:11px; font-weight:700; letter-spacing:.04em;
+  padding:4px 9px; border:1px solid var(--rule); background:#fff; color:var(--ink-soft);
+  cursor:pointer; border-radius:2px; flex:0 0 auto; }
+#tvs-root .index .chips button:hover { border-color:var(--deep); color:var(--deep); }
+#tvs-root .index .chips button.part { border-color:var(--yellow); color:var(--deep); }
+#tvs-root .index .chips button.full { background:var(--lightblue); border-color:var(--lightblue); color:var(--deep); }
+#tvs-root .index button:focus-visible { outline:2px solid var(--lightblue); outline-offset:2px; }
+#tvs-root .index .tally { font-family:var(--mono); font-size:11px; color:var(--ink-soft); flex:0 0 auto; white-space:nowrap; }
+#tvs-root .index .reset { font-family:var(--sans); font-size:11px; font-weight:600; padding:4px 9px;
+  border:1px solid var(--rule); background:#fff; color:var(--ink-soft); cursor:pointer; border-radius:2px; flex:0 0 auto; }
+#tvs-root .index .reset:hover, #tvs-root .index .reset.arm { border-color:var(--red); color:var(--red); }
+
+#tvs-root .studiobar { background:#fff; border-bottom:1px solid var(--rule); padding:12px 20px;
+  display:flex; flex-wrap:wrap; gap:10px 26px; font-size:12.5px; color:var(--ink-soft); }
+#tvs-root .studiobar b { color:var(--ink); font-weight:600; }
+#tvs-root .studiobar code { font-family:var(--mono); font-size:12px; background:var(--paper);
+  padding:1px 5px; border:1px solid var(--rule); border-radius:2px; }
+
+#tvs-root .wrap { max-width:820px; margin:0 auto; padding:0 20px; }
+
+#tvs-root .panel { margin-top:30px; }
+#tvs-root .panel > h2, #tvs-root .seq > h2 { font-family:var(--display); font-size:20px; font-weight:400;
+  margin:0 0 4px; padding-bottom:8px; border-bottom:2px solid var(--lightblue); }
+#tvs-root .panel p { max-width:74ch; font-size:14px; margin:14px 0 0; color:var(--ink-soft); }
+#tvs-root .panel p b { color:var(--ink); }
+#tvs-root .panel p.flag { padding:12px 14px; border-left:3px solid var(--yellow); background:#FFF8E8; color:#6B5410; }
+#tvs-root .panel p.flag b { color:var(--deep); }
+#tvs-root .panel svg { display:block; width:100%; height:auto; margin-top:16px; }
+#tvs-root .svgh { font-family:var(--display); font-size:15px; fill:#013160; }
+#tvs-root .svgt { font-family:var(--sans); font-size:13.5px; font-weight:600; }
+#tvs-root .svgs { font-family:var(--sans); font-size:12px; }
+
+#tvs-root table.grid { border-collapse:collapse; width:100%; font-size:12.5px; margin:16px 0 4px; }
+#tvs-root table.grid th { text-align:left; font-size:10px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink-soft); border-bottom:1px solid var(--deep); padding:0 10px 6px 0; font-weight:600; }
+#tvs-root table.grid td { border-bottom:1px solid var(--rule); padding:8px 10px 8px 0; color:var(--ink-soft); vertical-align:top; }
+#tvs-root table.grid td:first-child { color:var(--ink); font-weight:600; white-space:nowrap; }
+#tvs-root table.grid code { font-family:var(--mono); font-size:11.5px; background:var(--paper);
+  padding:2px 5px; border:1px solid var(--rule); border-radius:2px; }
+#tvs-root table.grid code.pid { font-size:10px; word-break:break-all; }
+#tvs-root p.pattern code { display:inline-block; margin-top:4px; font-family:var(--mono); font-size:11px;
+  word-break:break-all; background:var(--paper); padding:6px 8px; border:1px solid var(--rule); color:var(--ink-soft); }
+
+
+#tvs-root .seqbody > p.meta { font-size:13px; color:var(--ink-soft); margin:10px 0 0; max-width:74ch; }
+#tvs-root .card { border:1px solid var(--rule); background:#fff; margin-top:16px; }
+#tvs-root .card > header { display:flex; align-items:center; gap:10px; padding:9px 14px;
+  border-bottom:1px solid var(--rule); background:#FBFDFE; }
+#tvs-root .chan { font-family:var(--mono); font-size:10px; font-weight:700; letter-spacing:.1em;
+  padding:3px 7px; border-radius:2px; flex:0 0 auto; }
+#tvs-root .chan.sms { background:var(--lightblue); color:var(--deep); }
+#tvs-root .chan.email { background:var(--deep); color:#fff; }
+#tvs-root .chan.task { background:var(--yellow); color:var(--deep); }
+#tvs-root .chan.cond { background:#fff; color:var(--deep); border:1px dashed var(--deep); }
+#tvs-root .chan.stage { background:#E3EEF5; color:var(--deep); border:1px solid var(--deep); }
+#tvs-root .when { font-size:12px; font-weight:400; color:var(--ink-soft); flex:1 1 auto; text-align:right; }
+#tvs-root .card > header .cost { font-family:var(--mono); font-size:11px; color:var(--ink-soft); }
+#tvs-root .copy { font-family:var(--sans); font-size:11.5px; font-weight:600; padding:5px 11px;
+  border:1px solid var(--deep); background:#fff; color:var(--deep); cursor:pointer; border-radius:2px; flex:0 0 auto; }
+#tvs-root .copy:hover { background:var(--deep); color:#fff; }
+#tvs-root .copy:focus-visible { outline:2px solid var(--lightblue); outline-offset:2px; }
+#tvs-root .copy.done { background:var(--lightblue); border-color:var(--lightblue); color:var(--deep); }
+#tvs-root .body { padding:16px 18px; }
+
+#tvs-root .smstext { font-family:var(--mono); font-size:13.5px; line-height:1.65; white-space:pre-wrap; word-break:break-word; }
+#tvs-root .meter { margin-top:12px; }
+#tvs-root .track { height:4px; background:var(--rule); overflow:hidden; }
+#tvs-root .fill { height:100%; background:var(--lightblue); transition:width .18s; }
+#tvs-root .fill.over { background:var(--red); }
+#tvs-root .mrow { display:flex; justify-content:space-between; gap:12px; margin-top:6px;
+  font-family:var(--mono); font-size:11px; color:var(--ink-soft); }
+#tvs-root .mrow b { color:var(--ink); }
+#tvs-root .mrow .bad { color:var(--red); font-weight:700; }
+
+
+#tvs-root .howto { margin:0 0 14px; font-size:12.5px; line-height:1.5; color:var(--ink-soft); background:#F4F7F9; border:1px solid var(--rule); border-radius:6px; padding:9px 12px; }
+#tvs-root .howto b { color:var(--deep); }
+#tvs-root .aname { font-family:var(--mono); font-size:13px; font-weight:700; color:var(--deep);
+  background:var(--paper); border:1px solid var(--rule); border-radius:2px; padding:6px 9px; word-break:break-word; }
+#tvs-root .atime { font-family:var(--mono); font-size:12.5px; color:var(--ink); background:var(--paper); border:1px solid var(--rule); border-left:3px solid var(--lightblue); border-radius:2px; padding:6px 9px; }
+#tvs-root .field { margin:0 0 14px; }
+#tvs-root .field textarea[hidden] { display:none; }
+#tvs-root .field:last-child { margin-bottom:0; }
+#tvs-root .fieldrow { display:flex; align-items:center; gap:10px; margin:0 0 5px; }
+#tvs-root .fieldlabel { font-family:var(--mono); font-size:9.5px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-soft); margin:0; flex:1 1 auto; }
+#tvs-root .fieldrow .copy { flex:0 0 auto; padding:3px 9px; font-size:10.5px; letter-spacing:.02em; }
+#tvs-root .subj { font-family:var(--sans); font-size:14px; font-weight:700; margin:0; }
+#tvs-root .etext { font-family:var(--serif); font-size:15px; line-height:1.62; }
+#tvs-root .etext p { margin:0 0 14px; }
+#tvs-root .etext p:last-child { margin-bottom:0; }
+#tvs-root .etext .sig { color:var(--ink-soft); font-size:14px; }
+#tvs-root .etext .tagline { font-family:var(--display); color:var(--deep); font-size:15px; }
+#tvs-root .etext .cta { margin:18px 0; }
+#tvs-root .etext .cta a { display:inline-block; background:var(--deep); color:#fff !important;
+  text-decoration:none; font-family:var(--sans); font-weight:700; font-size:14px; padding:12px 22px; border-radius:3px; }
+#tvs-root .etext ul { margin:0 0 14px; padding-left:20px; }
+#tvs-root .etext li { margin-bottom:7px; }
+#tvs-root .etext h4 { font-family:var(--sans); font-size:13px; letter-spacing:.06em; text-transform:uppercase;
+  margin:18px 0 6px; color:var(--deep); }
+
+#tvs-root .tasktext { font-family:var(--mono); font-size:12.5px; line-height:1.6; white-space:pre-wrap; }
+#tvs-root .tasktitle { font-family:var(--mono); font-size:12px; margin:0; color:var(--ink-soft); }
+#tvs-root .tasktitle b { color:var(--ink); }
+#tvs-root .note { border-left:3px solid var(--yellow); background:#FFF8E8; padding:11px 14px;
+  font-size:13px; margin-top:16px; color:#6B5410; }
+#tvs-root .note b { color:var(--deep); }
+#tvs-root .photo { display:flex; gap:10px; align-items:flex-start; margin:0 0 14px; padding:9px 12px; border:1px dashed var(--lightblue); background:#EEF7FA; border-radius:6px; font-size:12.5px; color:var(--deep); line-height:1.5; }
+#tvs-root .photo::before { content:"PHOTO"; flex:0 0 auto; font-family:var(--mono); font-size:9.5px; font-weight:700; letter-spacing:.12em; background:var(--lightblue); color:var(--deep); padding:3px 6px; border-radius:2px; }
+
+
+#tvs-root .seq { margin-top:38px; display:flex; gap:0; }
+#tvs-root .spine { flex:0 0 30px; position:relative; border-radius:6px 0 0 6px; }
+#tvs-root .band-lead   .spine { background:#E3EEF5; }
+#tvs-root .band-intro  .spine { background:#71BED2; }
+#tvs-root .band-member .spine { background:#FBB514; }
+#tvs-root .spinelabel {
+  position:absolute; top:14px; left:50%; transform:translateX(-50%) rotate(180deg);
+  writing-mode:vertical-rl; font-family:var(--mono); font-size:9px; font-weight:700;
+  letter-spacing:.22em; color:var(--deep);
+}
+#tvs-root .band-intro .spinelabel { color:var(--deep); }
+#tvs-root .seqbody { flex:1 1 auto; min-width:0; padding-left:18px; }
+#tvs-root .seqbody > h2 { margin-top:6px; }
+
+
+
+#tvs-root .setupcard { border:1px solid var(--rule); background:#FBFDFE; border-radius:8px; padding:14px 16px; margin-top:14px; }
+#tvs-root .setuphd { font-family:var(--mono); font-size:10px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-soft); margin-bottom:10px; }
+#tvs-root ol.setuplist { margin:0; padding-left:20px; }
+#tvs-root ol.setuplist li { font-size:13.5px; color:var(--ink); margin-bottom:7px; line-height:1.45; }
+#tvs-root ol.setuplist li::marker { font-weight:700; color:var(--deep); }
+#tvs-root .setuplist .fld { display:inline-block; vertical-align:top; width:132px; font-weight:700; color:var(--deep); }
+#tvs-root .setuplist .val { display:inline-block; vertical-align:top; width:calc(100% - 132px); padding-left:8px; }
+#tvs-root .setupwhy { margin:12px 0 0; padding-top:10px; border-top:1px dashed var(--rule); font-size:12.5px; color:var(--ink-soft); line-height:1.5; }
+#tvs-root .stepcount { font-family:var(--sans); font-size:13px; font-weight:700; letter-spacing:0; text-transform:none; color:var(--deep); margin:20px 0 0; }
+#tvs-root .stepcount .prog { font-family:var(--mono); font-size:11px; font-weight:400; color:var(--ink-soft); margin-left:10px; }
+
+#tvs-root .steps { position:relative; margin-top:8px; }
+#tvs-root .steps::before { content:''; position:absolute; left:15px; top:24px; bottom:24px; width:2px; background:var(--rule); }
+#tvs-root .card { position:relative; margin-left:38px; }
+#tvs-root .stepnum {
+  position:absolute; left:-38px; top:8px; width:30px; height:30px; border-radius:50%;
+  background:#fff; border:2px solid var(--deep); color:var(--deep);
+  font-family:var(--sans); font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; z-index:1;
+}
+#tvs-root .band-intro .stepnum { border-color:#3E8FA8; }
+#tvs-root .band-member .stepnum { border-color:#B9860F; }
+#tvs-root button.stepnum { padding:0; }
+#tvs-root .stepnum:hover { background:var(--paper); }
+#tvs-root .stepnum:focus-visible { outline:2px solid var(--lightblue); outline-offset:2px; }
+#tvs-root .card.done { opacity:.5; }
+#tvs-root .card.done > header { background:var(--paper); }
+#tvs-root .card.done .stepnum { background:var(--deep); border-color:var(--deep); color:#fff; }
+#tvs-root .card.done + .note { opacity:.5; }
+#tvs-root .mark { font-family:var(--sans); font-size:11px; font-weight:600; padding:4px 10px; flex:0 0 auto;
+  border:1px solid var(--rule); background:#fff; color:var(--ink-soft); cursor:pointer; border-radius:2px; white-space:nowrap; }
+#tvs-root .mark:hover { border-color:var(--deep); color:var(--deep); }
+#tvs-root .mark:focus-visible { outline:2px solid var(--lightblue); outline-offset:2px; }
+#tvs-root .card.done .mark { background:var(--deep); border-color:var(--deep); color:#fff; }
+#tvs-root .cardfoot { display:flex; align-items:center; gap:10px; padding:8px 14px;
+  border-top:1px solid var(--rule); background:#FBFDFE; }
+#tvs-root .stepnum.foot { position:static; width:26px; height:26px; font-size:12px; }
+#tvs-root .footwhen { flex:1 1 auto; font-size:12px; color:var(--ink-soft); }
+#tvs-root .hint { max-width:820px; margin:18px auto 0; padding:10px 14px; border:1px solid var(--rule);
+  border-left:3px solid var(--yellow); background:#fff; border-radius:2px; font-size:12.5px; color:var(--ink-soft); }
+#tvs-root .hint b { color:var(--deep); }
+#tvs-root .seq { scroll-margin-top:150px; }
+#tvs-root .stepverb { font-family:var(--sans); font-size:12.5px; font-weight:700; color:var(--deep); flex:0 0 auto; }
+#tvs-root .note { margin-left:38px; }
+
+#tvs-root input[type="text"], #tvs-root input[type="url"] { font-family:var(--mono); font-size:12.5px; color:var(--ink);
+  padding:7px 9px; border:1px solid var(--rule); border-radius:2px; background:#fff; width:100%; }
+#tvs-root input[type="text"]:focus, #tvs-root input[type="url"]:focus { border-color:var(--deep); outline:2px solid var(--lightblue); outline-offset:-1px; }
+#tvs-root .urlrow { display:flex; gap:8px; align-items:center; margin-top:9px; }
+#tvs-root .urlrow input { flex:1 1 auto; min-width:0; }
+#tvs-root .imgstate { font-family:var(--mono); font-size:9.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+  padding:3px 7px; border-radius:2px; background:var(--lightblue); color:var(--deep); flex:0 0 auto; }
+#tvs-root .imgstate.none { background:#fff; border:1px solid var(--rule); color:var(--ink-soft); }
+#tvs-root .imgstate.bad { background:var(--red); color:#fff; }
+#tvs-root .imgprev { margin-top:9px; }
+#tvs-root .imgprev img { display:block; width:100%; max-width:600px; height:auto; border:1px solid var(--rule); }
+#tvs-root .imgnote { display:block; font-family:var(--mono); font-size:11px; line-height:1.5; color:var(--ink-soft); margin-top:6px; }
+#tvs-root .imgnote.bad { color:var(--red); }
+#tvs-root details.brief { margin-top:11px; border-top:1px dashed var(--rule); }
+#tvs-root details.brief summary { cursor:pointer; list-style:none; padding:9px 0 0;
+  font-family:var(--mono); font-size:9.5px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-soft); }
+#tvs-root details.brief summary::-webkit-details-marker { display:none; }
+#tvs-root details.brief summary::before { content:'+ '; color:var(--deep); }
+#tvs-root details.brief[open] summary::before { content:'- '; }
+#tvs-root details.brief summary:hover { color:var(--deep); }
+#tvs-root details.brief summary:focus-visible { outline:2px solid var(--lightblue); outline-offset:2px; }
+#tvs-root .briefbody { font-size:13px; line-height:1.55; color:var(--ink-soft); padding:9px 0 4px; }
+#tvs-root .briefbody b { color:var(--ink); }
+#tvs-root .briefbody ul { margin:9px 0 0; padding-left:18px; }
+#tvs-root .briefbody li { margin-bottom:6px; }
+
+#tvs-root .presets { display:flex; flex-wrap:wrap; gap:8px; margin-top:9px; }
+#tvs-root .form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px 24px; margin-top:18px; }
+#tvs-root .frow { min-width:0; }
+#tvs-root .frow.wide { grid-column:1 / -1; }
+#tvs-root .flabel { display:block; font-family:var(--mono); font-size:9.5px; font-weight:700;
+  letter-spacing:.12em; text-transform:uppercase; color:var(--ink-soft); margin-bottom:4px; }
+#tvs-root p.fhint { font-size:12px; line-height:1.45; color:var(--ink-soft); margin:0 0 7px; max-width:none; }
+#tvs-root .fmsg { font-family:var(--mono); font-size:11px; line-height:1.45; color:var(--ink-soft); margin-top:5px; }
+#tvs-root .fmsg.bad { color:var(--red); }
+#tvs-root .fmsg.ok { color:var(--deep); }
+#tvs-root .chk { display:flex; gap:9px; align-items:flex-start; font-size:13px; color:var(--ink); line-height:1.45; }
+#tvs-root .chk input { margin-top:2px; flex:0 0 auto; }
+#tvs-root .urlcheck { margin:0 0 14px; }
+#tvs-root .urlcheck:last-child { margin-bottom:0; }
+#tvs-root a.copy { text-decoration:none; display:inline-block; }
+#tvs-root .banner { padding:11px 14px; border-left:3px solid var(--lightblue); background:#EEF7FA;
+  font-size:13px; line-height:1.5; color:var(--deep); margin-top:18px; }
+#tvs-root .banner.bad { border-left-color:var(--red); background:#FBEDEC; color:#7A241C; }
+#tvs-root .banner b { color:var(--deep); }
+#tvs-root .namelist { margin:0; padding-left:18px; font-family:var(--mono); font-size:12px; color:var(--ink); }
+#tvs-root .namelist li { margin-bottom:4px; }
+#tvs-root pre.json { font-family:var(--mono); font-size:11.5px; line-height:1.55; white-space:pre-wrap;
+  word-break:break-word; margin:0; color:var(--ink); background:var(--paper);
+  border:1px solid var(--rule); border-radius:2px; padding:10px 12px; }
+
+#tvs-root { font-size:17px; line-height:1.55; }
+#tvs-root .hd h1 { font-size:23px; }
+#tvs-root .hd h1 span { font-size:16px; }
+#tvs-root .picker button { font-size:14px; }
+#tvs-root .tabs button { font-size:15px; }
+#tvs-root .index .chips button,
+#tvs-root .index .tally,
+#tvs-root .index .reset { font-size:13px; }
+#tvs-root .studiobar { font-size:14.5px; }
+#tvs-root .studiobar code { font-size:14px; }
+#tvs-root .panel > h2,
+#tvs-root .seq > h2 { font-size:24px; }
+#tvs-root .panel p { font-size:17px; }
+#tvs-root .svgh { font-size:17px; }
+#tvs-root .svgt { font-size:15px; }
+#tvs-root .svgs { font-size:13px; }
+#tvs-root table.grid { font-size:14.5px; }
+#tvs-root table.grid th { font-size:12px; }
+#tvs-root table.grid code { font-size:13.5px; }
+#tvs-root table.grid code.pid { font-size:12px; }
+#tvs-root p.pattern code { font-size:13px; }
+#tvs-root .seqbody > p.meta { font-size:15px; }
+#tvs-root .chan { font-size:12px; }
+#tvs-root .when { font-size:14px; }
+#tvs-root .card > header .cost { font-size:13px; }
+#tvs-root .copy { font-size:13.5px; }
+#tvs-root .smstext { font-size:15.5px; }
+#tvs-root .mrow { font-size:13px; }
+#tvs-root .howto { font-size:14.5px; line-height:1.55; }
+#tvs-root .aname { font-size:15px; }
+#tvs-root .atime { font-size:14.5px; }
+#tvs-root .fieldlabel { font-size:11.5px; }
+#tvs-root .fieldrow .copy { font-size:12.5px; padding:5px 10px; }
+#tvs-root .subj { font-size:16px; }
+#tvs-root .etext { font-size:17px; }
+#tvs-root .etext .sig { font-size:16px; }
+#tvs-root .etext .tagline { font-size:17px; }
+#tvs-root .etext .cta a { font-size:16px; }
+#tvs-root .etext h4 { font-size:15px; }
+#tvs-root .tasktext { font-size:14.5px; }
+#tvs-root .tasktitle { font-size:14px; }
+#tvs-root .note { font-size:15px; }
+#tvs-root .photo { font-size:14.5px; line-height:1.55; }
+#tvs-root .photo::before { font-size:11.5px; }
+#tvs-root .spinelabel { font-size:11px; }
+#tvs-root .setuphd { font-size:12px; }
+#tvs-root ol.setuplist li { font-size:15.5px; line-height:1.5; }
+#tvs-root .setupwhy { font-size:14.5px; line-height:1.55; }
+#tvs-root .stepcount { font-size:15px; }
+#tvs-root .stepcount .prog { font-size:13px; }
+#tvs-root .stepnum { font-size:15px; }
+#tvs-root .mark { font-size:13px; }
+#tvs-root .stepnum.foot { width:30px; height:30px; flex:0 0 30px; font-size:14px; }
+#tvs-root .footwhen { font-size:14px; }
+#tvs-root .hint,
+#tvs-root .stepverb { font-size:14.5px; }
+#tvs-root input[type="text"],
+#tvs-root input[type="url"] { font-size:14.5px; }
+#tvs-root .imgstate,
+#tvs-root details.brief summary,
+#tvs-root .flabel { font-size:11.5px; }
+#tvs-root .imgnote,
+#tvs-root .fmsg { font-size:13px; line-height:1.5; }
+#tvs-root .briefbody { font-size:15px; line-height:1.6; }
+#tvs-root p.fhint,
+#tvs-root .namelist { font-size:14px; line-height:1.5; }
+#tvs-root .chk,
+#tvs-root .banner { font-size:15px; line-height:1.55; }
+#tvs-root pre.json { font-size:13.5px; line-height:1.6; }
+
+@media (max-width:560px){ #tvs-root .hd, #tvs-root .tabbar, #tvs-root .index { padding:12px 14px; } #tvs-root .wrap { padding:0 14px; } #tvs-root .card > header { flex-wrap:wrap; } #tvs-root .seq { scroll-margin-top:120px; } #tvs-root .form { grid-template-columns:1fr; } #tvs-root table.grid { display:block; max-width:100%; overflow-x:auto; } }
+@media (prefers-reduced-motion:reduce){ #tvs-root * { transition:none !important; } }
+</style>
+
+<script>
+(function(){
+  var root = document.getElementById('tvs-root');
+
+  var STUDIOS = {
+    mt:{label:'Minnetonka', studio:'Minnetonka', code:'Mtka', staff:'Karen',
+        phone:'(952) 222-7563', addr:'14200 Wayzata Blvd, Suite C',
+        link:'vitalstretchtc.co/mtka', rlink:'vitalstretchtc.co/mtka-review',
+        email:'minnetonka@thevitalstretch.com',
+        lms:'by Total Wine',
+        lml:'in the center with Total Wine and Hobby Lobby, just northeast of where 494 meets 394',
+        board:99073, venue:98916, place:'ChIJu9YUbKVLs1IRUUzKcF35Yo0', launch:true},
+    sp:{label:'St Louis Park', studio:'St Louis Park', code:'Slp', staff:'Karen',
+        phone:'(952) 222-7822', addr:'8314 Highway 7',
+        link:'vitalstretchtc.co/slp', rlink:'vitalstretchtc.co/slp-review',
+        email:'stlouispark@thevitalstretch.com',
+        lms:"by Applebee's on Hwy 7",
+        lml:"at Knollwood Crossings on Highway 7 next to Applebee's, just east of 169",
+        board:99072, venue:98915, place:'ChIJLcrLxNgh9ocRn7wGv1tAaq4', launch:false},
+    ep:{label:'Eden Prairie', studio:'Eden Prairie', code:'Ep', staff:'Lucie',
+        phone:'(952) 222-0789', addr:'7918 Mitchell Rd',
+        link:'vitalstretchtc.co/ep', rlink:'vitalstretchtc.co/ep-review',
+        email:'edenprairie@thevitalstretch.com',
+        lms:'next to Dojo Karate',
+        lml:'on Mitchell Road just south of 5 and 212, right next to Dojo Karate',
+        board:31146, venue:39159, place:'ChIJI7Vp-fgZ9ocRmQ8CzbXobDs', launch:false},
+    sv:{label:'Savage', studio:'Savage', code:'Sav', staff:'Lucie',
+        phone:'(952) 222-0793', addr:'7737 Egan Dr',
+        link:'vitalstretchtc.co/sav', rlink:'vitalstretchtc.co/sav-review',
+        email:'savage@thevitalstretch.com',
+        lms:'by Caribou at 13 & 42',
+        lml:'on the northeast corner of 13 and 42, next to Caribou Coffee over by the Target',
+        board:35337, venue:42525, place:'ChIJQ5Mg8bA99ocR-jhFzWLoHvY', launch:false}
+  };
+
+  var STUDIO_SOCIAL = [
+    {key:'ep', city:'Eden Prairie, MN 55344',
+      facebook:'https://www.facebook.com/thevitalstretchedenprairie',
+      instagram:'https://www.instagram.com/thevitalstretch_edenprairie',
+      google:'https://www.google.com/maps/search/?api=1&query=The+Vital+Stretch+Eden+Prairie&query_place_id=ChIJI7Vp-fgZ9ocRmQ8CzbXobDs'},
+    {key:'sv', city:'Savage, MN 55378',
+      facebook:'https://www.facebook.com/thevitalstretchsavage',
+      instagram:'https://www.instagram.com/thevitalstretch_savage',
+      google:'https://www.google.com/maps/search/?api=1&query=The+Vital+Stretch+Savage&query_place_id=ChIJQ5Mg8bA99ocR-jhFzWLoHvY'},
+    {key:'sp', city:'St Louis Park, MN 55426',
+      facebook:'https://www.facebook.com/thevitalstretchstlouispark',
+      instagram:'https://www.instagram.com/thevitalstretch_stlouispark',
+      google:'https://www.google.com/maps/search/?api=1&query=The+Vital+Stretch+St+Louis+Park&query_place_id=ChIJLcrLxNgh9ocRn7wGv1tAaq4'},
+    {key:'mt', street:'14200 Wayzata Blvd, Suite C', city:'Minnetonka, MN 55305',
+      facebook:'https://www.facebook.com/thevitalstretchminnetonka',
+      instagram:'https://www.instagram.com/minnetonka_thevitalstretch',
+      google:'https://www.google.com/maps/search/?api=1&query=The+Vital+Stretch+Minnetonka&query_place_id=ChIJu9YUbKVLs1IRUUzKcF35Yo0'}
+  ];
+
+  var IMAGES = {
+    logo:{
+      label:'The Vital Stretch logo',
+      url:'https://thevitalstretch.com/wp-content/uploads/2026/01/Logo-R-1.png',
+      width:300,
+      alt:'The Vital Stretch',
+      desc:'The supplied brand logo for the shared Twin Cities abandoned-cart emails. It appears centered at the top of each message.',
+      brief:'<p>This is the supplied final logo asset. Its permanent WordPress URL is preloaded below and used automatically in copied email HTML.</p>'
+    },
+    welcome:{
+      label:'First-visit welcome image',
+      url:'https://thevitalstretch.com/wp-content/uploads/2026/08/1767211832035-Intro-Booking-Final-version.png',
+      alt:'A Vital Stretch Practitioner guiding a client through a one-on-one assisted stretch',
+      desc:'The supplied welcome image for the first-visit booking email. It appears at the top of the message, above the greeting.',
+      brief:'<p>This is the supplied final asset. Its permanent WordPress URL is preloaded below and used automatically in copied email HTML.</p>'
+    },
+    bob:{
+      label:'Bob, the member who did the splits',
+      alt:'Bob, a Vital Stretch member, mid-session on the stretch table with his practitioner',
+      desc:'One landscape photo of Bob on the table mid-stretch, his practitioner\'s hands in frame, both of them relaxed. It sits at the very top of the "Meet Bob" email, above the greeting, and it is the first thing the reader sees.',
+      brief:'<p><b>The story it has to carry.</b> Bob retired, started coming in tight and a little skeptical, stayed consistent, and can now do the splits. The photo is not proof of the splits. It is proof he is an ordinary retired man in an ordinary studio, because the whole email works only if the reader sees themselves in him.</p>'+
+        '<ul>'+
+        '<li><b>Subject and wardrobe.</b> Bob himself if he will sit for it, otherwise a member of similar age and build. Athletic wear, no logos, no competitor branding, nothing white that blows out under the studio lights.</li>'+
+        '<li><b>Framing.</b> Landscape, 3:2 or 2:1. Him on the table with the practitioner working a hamstring or a hip. Both bodies fully in frame, no cropped limbs. Leave breathing room on the sides; the image is edge to edge in the email and gets squeezed on a phone.</li>'+
+        '<li><b>Faces.</b> Relaxed, mid-conversation. No grimacing, no gritted teeth, no straining. Pain in the photo contradicts the sentence next to it.</li>'+
+        '<li><b>Range of motion.</b> Deliberately unremarkable. An extreme position tells a tight reader this is not for them, which is the exact objection the email exists to dismantle.</li>'+
+        '<li><b>Setting.</b> Real studio, real table, real straps. Lights on, blinds open, no clutter and no other clients in the background.</li>'+
+        '<li><b>Technical.</b> JPEG, sRGB, at least 1200 px wide so it stays sharp on a retina screen at its 600 px display size. Under 250 KB after export; heavy images clip in Gmail and stall on a phone. No text baked into the image, because half of inboxes block images by default and screen readers cannot read pixels.</li>'+
+        '<li><b>Hosting.</b> A permanent direct URL ending in .jpg, .png or .webp. Google Drive, Dropbox and SharePoint share links serve a viewer page rather than the file and will render as a broken box in every inbox.</li>'+
+        '<li><b>Paperwork.</b> A signed likeness release before it is ever sent, and confirmation from Bob that the splits detail can be told publicly.</li>'+
+        '</ul>'
+    },
+    paula:{
+      label:'Paula, the tennis player',
+      url:'https://thevitalstretch.com/wp-content/uploads/2026/02/Single-Stretch.png',
+      alt:'Paula, a Vital Stretch member and tennis player, during an assisted stretch session',
+      desc:'One landscape photo of Paula mid-session, ideally with a hint of the athletic side of her. It sits at the top of the "Meet Paula" email, above the greeting, and it has to read as a weekly habit rather than a one-off treatment.',
+      brief:'<p><b>The story it has to carry.</b> Paula plays a lot of tennis, felt herself getting less limber and achy, and now calls her session the best half hour of her week. The photo has to look like that half hour: unhurried, comfortable, routine.</p>'+
+        '<ul>'+
+        '<li><b>Subject and wardrobe.</b> Paula, or a member of similar age and athletic build. Tennis-adjacent athletic wear is ideal but never a costume, and no visible brand logos.</li>'+
+        '<li><b>Framing.</b> Landscape, 3:2 or 2:1, her on the table with a practitioner working a shoulder or a hip. Leave space around the subjects so the crop survives a narrow phone screen.</li>'+
+        '<li><b>Expression.</b> Easy, mid-sentence, maybe laughing. The quote in the email is about how good she feels afterwards, so a clenched jaw undercuts it.</li>'+
+        '<li><b>Avoid.</b> Anything that reads as clinical treatment or rehab. This email is about performance and enjoyment, not injury.</li>'+
+        '<li><b>Setting.</b> Real studio, tidy background, no other clients identifiable in frame.</li>'+
+        '<li><b>Technical.</b> JPEG, sRGB, at least 1200 px wide, under 250 KB, no baked-in text. It renders at 600 px and must stay sharp at double that.</li>'+
+        '<li><b>Hosting.</b> A permanent direct URL ending in .jpg, .png or .webp. Share links from Drive, Dropbox or SharePoint break in email.</li>'+
+        '<li><b>Paperwork.</b> A signed likeness release, plus permission to reuse her quote alongside her face.</li>'+
+        '</ul>'
+    }
+  };
+
+  var GSM = "@\u00a3$\u00a5\u00e8\u00e9\u00f9\u00ec\u00f2\u00c7\n\u00d8\u00f8\r\u00c5\u00e5\u0394_\u03a6\u0393\u039b\u03a9\u03a0\u03a8\u03a3\u0398\u039e\u00c6\u00e6\u00df\u00c9 !\"#\u00a4%&'()*+,-./0123456789:;<=>?\u00a1ABCDEFGHIJKLMNOPQRSTUVWXYZ\u00c4\u00d6\u00d1\u00dc\u00a7\u00bfabcdefghijklmnopqrstuvwxyz\u00e4\u00f6\u00f1\u00fc\u00e0";
+  var EXT = "^{}\\[~]|\u20ac";
+
+  function gsmCheck(t){
+    var cost=0, bad=0;
+    for (var i=0;i<t.length;i++){
+      var c=t[i];
+      if (EXT.indexOf(c)>-1) cost+=2;
+      else { cost+=1; if (GSM.indexOf(c)<0) bad++; }
+    }
+    var seg = bad ? (t.length<=70?1:Math.ceil(t.length/67)) : (cost<=160?1:Math.ceil(cost/153));
+    return {cost:cost, seg:seg, uni:bad>0};
+  }
+  function worst(t){ return t.replace(/\{\{first_name\}\}/g,'XXXXXXXXXXXX'); }
+
+  function fill(str, s){
+    return str.replace(/\{STUDIO\}/g,s.studio).replace(/\{CODE\}/g,s.code).replace(/\{SCODE\}/g,s.code.toUpperCase()).replace(/\{STAFF\}/g,s.staff)
+      .replace(/\{PHONE\}/g,s.phone).replace(/\{ADDR\}/g,s.addr).replace(/\{LINK\}/g,s.link)
+      .replace(/\{RLINK\}/g,s.rlink).replace(/\{LMS\}/g,s.lms).replace(/\{LML\}/g,s.lml);
+  }
+
+  var BRANDSIG = '<p class="tagline">When you\'re tight, nothing else goes right.<br>We help you move freely so you can live fully.</p>';
+  var SIG  = '<p class="sig">{STAFF}<br>The Vital Stretch {STUDIO}<br>{PHONE}</p>'+BRANDSIG;
+  var SIGP = '<p class="sig">{STAFF}<br>The Vital Stretch {STUDIO}</p>'+BRANDSIG;
+
+  var SAUNA_COMEBACK =
+    '<h4>Your complimentary sauna session</h4>'+
+    '<p>Enjoy a private 45-minute full-spectrum infrared sauna session with gentle heat and uninterrupted time to unwind.</p>'+
+    '<p>Choose the light setting that fits the atmosphere you want:</p>'+
+    '<ul>'+
+    '<li><strong>Red:</strong> a warm, grounded setting.</li>'+
+    '<li><strong>Green:</strong> a calm, balanced setting.</li>'+
+    '<li><strong>Blue:</strong> a cool, refreshing setting.</li>'+
+    '<li><strong>RGB:</strong> a changing blend of all three colors for a full-color session.</li>'+
+    '</ul>';
+
+  var HOW_IT_WORKS =
+    '<h4>Visit 1, 45 minutes</h4>'+
+    '<p>A full-body movement screening, then a guided assisted stretch with a Vital Stretch Practitioner. You stay fully clothed, in athletic wear. No oils, nothing to change into, nothing to bring.</p>'+
+    '<h4>Between visits</h4>'+
+    '<p>Your VSP turns the screening into a written mobility plan built on what your body actually needs, not a template.</p>'+
+    '<h4>Visit 2, 45 minutes</h4>'+
+    '<p>We go through the findings, work the priority areas, and you leave with a short written summary and a few things you can do on your own.</p>'+
+    '<p><strong>You only book the first one.</strong> We put the second on the calendar before you leave, so you never have to think about it.</p>';
+
+  var TC_BOOKING =
+    '<h4>Choose your studio</h4>'+ 
+    '<p class="cta"><a href="https://vitalstretchtc.co/mtka">Book in Minnetonka</a></p>'+ 
+    '<p class="cta"><a href="https://vitalstretchtc.co/slp">Book in St. Louis Park</a></p>'+ 
+    '<p class="cta"><a href="https://vitalstretchtc.co/ep">Book in Eden Prairie</a></p>'+ 
+    '<p class="cta"><a href="https://vitalstretchtc.co/sav">Book in Savage</a></p>';
+
+  var TC_SIG = '<p class="sig">The Vital Stretch Twin Cities Team</p>'+BRANDSIG;
+
+  var DATA = [
+  {seq:'{CODE}-10 &middot; New lead: book the $29 intro',
+   setup:{name:'{CODE}-10 New lead, book the intro', trigger:'Lead assigned new stage = <b>{SCODE} - Intro Nurture</b>', source:'For any lead source', once:'Yes', counters:'Appointment purchase, Appointment booking, Membership purchase, <b>all-time</b> on this one sequence', notes:'This is the only per-studio sequence where all-time counters are right: a brand-new lead has no history, so any purchase or booking at all means they converted. Everywhere else, all-time would eject people instantly, so scope those after enrollment. A studio-specific lead source stamps {SCODE} - Intro Nurture at creation. Generic sources use the shared TC - Unassigned stage and flow instead. No-show handling lives in 40 because this sequence is enrolled once.'},
+   items:[
+    {t:'sms', when:'Day 0, immediately', nm:'Book the $29 intro', text:"Hi {{first_name}}, {STAFF} at The Vital Stretch {STUDIO}. I got your $29 intro request. Book: {LINK} or reply with a day. Reply STOP to opt out",
+     note:'<b>Immediately means immediately.</b> Not 30 minutes. Speed to lead is the largest single driver of booking rate in this entire program, and a half-hour delay is long enough for someone to fill out three competitor forms.'},
+    {t:'task', when:'Day 0, immediately', title:'NEW LEAD - call now - {{first_name}} {{last_name}}', emails:true,
+     text:"Assign to the Front Desk role, not a person.\n\nCall within 5 minutes. If voicemail, leave a message. The text goes out on its own.\n\nVoicemail script: \"Hi {{first_name}}, this is {STAFF} at The Vital Stretch in {STUDIO}. I saw your request for the $29 intro and wanted to get you scheduled personally. Call me back at {PHONE}, or just reply to the text I sent. Talk soon.\"",
+     note:'<b>The one task in the build with emails turned on.</b> Every other task in every sequence has the toggle off, because on means two emails per task, one at assignment and one 24 hours later if nobody closed it, sent to everyone holding the Front desk role. Across 10 task steps and four studios that is where a 20-a-day inbox comes from. This one earns the exception: it is the only task measured in minutes rather than days.'},
+    {t:'email', when:'Day 0, +5 minutes', subj:'Your $29 intro at The Vital Stretch {STUDIO}',
+     html:'<p>{{first_name}},</p>'+
+      '<p>{STAFF} here from The Vital Stretch {STUDIO}. I have your $29 intro reserved. All that is left is picking a time.</p>'+
+      '<p class="cta"><a href="https://{LINK}">Pick my first visit</a></p>'+
+      '<p>Here is exactly what the $29 covers:</p>'+ HOW_IT_WORKS +
+      '<p>No membership, no package, no commitment. The $29 covers both visits.</p>'+
+      '<p>If it is easier, just reply with a day and time that works and I will get you on the schedule myself.</p>'+ SIG},
+    {t:'task', when:'Day 1', title:'Call attempt 2 - {{first_name}} {{last_name}}',
+     text:"Call inside the window, 10 AM to 3 PM Monday through Saturday. No voicemail this time.\n\nA second voicemail in two days reads as pressure. A second missed call reads as a person trying to reach you."},
+    {t:'email', when:'Day 2', subj:'You do not need to be flexible for this',
+     html:'<p>{{first_name}},</p>'+
+      '<p>The thing I hear most before a first visit: <em>"I am probably the least flexible person you will ever work with."</em></p>'+
+      '<p><strong>Good. That is the point.</strong></p>'+
+      '<p>Assisted stretching means you are not doing the stretching. Your job is to relax and breathe. Ours is everything else.</p>'+
+      '<h4>Strap In.</h4><p>Custom-engineered tables, straps and tools hold you in position for Active Isolated Stretching, so you can let go instead of bracing.</p>'+
+      '<h4>Let Loose.</h4><p>Your Vital Stretch Practitioner blends dynamic movement, static holds and PNF stretching to release tight muscles, tense fascia and stiff joints.</p>'+
+      '<h4>Say Ahhh.</h4><p>You get up off the table looser, lighter and fully alive.</p>'+
+      '<p><strong>You do not need to be flexible to benefit from assisted stretching.</strong> Whether you feel extremely tight or simply want to move and recover better, every session is tailored to your body and your goals.</p>'+
+      '<p class="cta"><a href="https://{LINK}">Book my $29 intro</a></p>'+ SIGP},
+    {t:'sms', when:'Day 3', nm:'What is bugging you most', text:"{{first_name}}, quick one - what's bugging you most? Hips, back, shoulders, or just stiff all over? Tell me and I'll build your first session around it.",
+     note:'Highest reply rate in the program. It asks for information, not a purchase, and every answer hands your front desk an opening line.'},
+    {t:'email', when:'Day 4', subj:'Meet Bob', photo:'bob',
+     html:'<p>{{first_name}},</p>'+
+      '<p>Bob retired and decided to get serious about his health. His hamstrings were so tight they were limiting how he moved. The kind of stiffness that makes you feel older than you are.</p>'+
+      '<p>He started coming in consistently and let us do the work.</p>'+
+      '<p>He is dramatically more flexible now, he moves better in his workouts, and the part he never saw coming: <strong>he can do the splits.</strong> He genuinely never imagined that was possible.</p>'+
+      '<p>Here is why I am telling you about Bob, {{first_name}}. He did not start flexible. He started tight, a little skeptical, and worried about what was ahead. The flexibility was the result, not the requirement.</p>'+
+      '<p class="cta"><a href="https://{LINK}">Book my first visit</a></p>'+ SIGP,
+     note:'<b>Optional hot-lead signal.</b> A condition on Link in email clicked = true flags people who clicked the booking link but did not book, the strongest buying signal in the program, and Momence detects the click for free. Watch out: a condition forks the flow into a True branch and a False branch, and a branch with no step ends there, so dropping this into the middle of the drip strands days 6 to 21 on whichever side you leave empty. Use it only as a terminal fork at the very end, or skip the condition and have front desk watch link-clicks in Momence email stats and call the clickers.'},
+    {t:'email', when:'Day 6', subj:'Should I hold your spot, {{first_name}}?',
+     html:'<p>{{first_name}},</p>'+
+      '<p>I do not want to keep filling your inbox, so I will be direct.</p>'+
+      '<p>I still have your $29 intro open. If you want it, pick a time and I will take care of the rest.</p>'+
+      '<p class="cta"><a href="https://{LINK}">Claim my intro</a></p>'+
+      '<p>If the timing is not right, reply <strong>"not now"</strong> and I will stop emailing and check back in a few months instead.</p>'+
+      '<p>Either answer is fine. I would just rather know.</p>'+ SIG,
+    note:'<b>This email is your opt-out pressure valve.</b> A "not now" reply gets the {SCODE} - Not Interested stage, which pulls them out of everything cleanly. People who are never given that option reach for STOP instead, and a carrier-level STOP is permanent and blocks your appointment reminders too.'},
+    {t:'sms', when:'Day 7', nm:'Hold your intro?', text:"{{first_name}}, want me to hold your $29 intro, or should I let it go? Either is fine - just let me know.",
+     note:'The old day 9 text asked the same thing again 48 hours later. It moved to day 17, where it is a late touch instead of a repeat.'},
+    {t:'email', when:'Day 11', subj:'The 15-years-from-now question',
+     html:'<p>{{first_name}},</p>'+
+      '<p>Most people do not come see us because something hurts today. They come because of a quiet thought in the back of their mind:</p>'+
+      '<p><strong>"If I do not do something about this now, what does this look like in 10 or 15 years?"</strong></p>'+
+      '<p>Tight hips, a stiff back, movement that is a little harder than it used to be. None of it fixes itself. It compounds.</p>'+
+      '<p>The good news is the opposite compounds too. A little consistent work now changes the whole trajectory.</p>'+
+      '<p>That is what the screening in your first visit is for. 45 minutes, you lie there, we do the work, and you find out exactly where you stand and what to do about it.</p>'+
+      '<p class="cta"><a href="https://{LINK}">$29 for both visits</a></p>'+ SIGP},
+    {t:'email', when:'Day 13', subj:'Meet Paula', photo:'paula',
+     html:'<p>{{first_name}},</p>'+
+      '<p>Paula plays a lot of tennis. Before she started coming in she noticed she was getting less limber and her body had started to ache. Not great when you are chasing a ball down the court.</p>'+
+      '<p>Nothing dramatic. Just that creeping sense that her body was not doing what it always had.</p>'+
+      '<p>She started coming in once a week. In her words:</p>'+
+      '<p><em>"I walk out after my session and I feel great. It has made a huge difference to the quality of my day. The stretch is the best half hour of my week."</em></p>'+
+      '<p>She is not the only one. Two more, both from people who started with the same two-visit intro that is sitting open for you:</p>'+
+      '<p><em>"Two sessions in and my hips feel unlocked for the first time in years. The screening found restrictions I never knew I had."</em></p>'+
+      '<p><em>"After years at a desk my shoulders finally have room to move again. I left with a plan I actually understood."</em></p>'+
+      '<p>That is the whole thing, {{first_name}}. Not a miracle. A real improvement, every week.</p>'+
+      '<p class="cta"><a href="https://{LINK}">Book my first visit</a></p>'+ SIG,
+     note:'Two emails merged into one. The old day 13 was proof with no story, the old day 15 was a story with no proof around it, and they landed 48 hours apart. The quotes are real Twin Cities member reviews from your own landing page, so they are honest for all four studios. Swap them for {STUDIO} clients as soon as you have a few; local names beat regional ones every time.'},
+    {t:'task', when:'Day 16', title:'Final call - {{first_name}} {{last_name}}',
+     text:"Third and last attempt before long-term nurture.\n\nOpening: \"Hi {{first_name}}, {STAFF} from The Vital Stretch in {STUDIO}. No sales pitch. You asked about the intro a couple weeks back and I just want to know if it is still on your list or if I should stop bugging you.\"\n\nThat question gets an honest answer more often than any other opener. Log what they say."},
+    {t:'sms', when:'Day 17', nm:'Lost in the shuffle', text:"Hi {{first_name}}, {STAFF} again at The Vital Stretch. No pressure - just don't want you lost in the shuffle. Still want that intro?",
+     note:'This replaces the old day 18 text, which asked the exact same question as day 3, fifteen days later: back, hips or shoulders. One asking is a conversation starter, two is a form.'},
+    {t:'email', when:'Day 19', subj:'Who is actually stretching you',
+     html:'<p>{{first_name}},</p>'+
+      '<p>Worth knowing before you decide, because it is the part most people never ask about.</p>'+
+      '<p>The Vital Stretch method was built at the crossroads of physical therapy and chiropractic work. Missy and Rob treated injuries for a combined 50+ years, one as a Physical Therapist and one as a Chiropractic Physician, and turned what they learned into the progressions we use on the table.</p>'+
+      '<p>The standard for who gets to use those techniques is high on purpose. Our Vital Stretch Practitioners come in with degrees in kinesiology and exercise science, licenses in massage therapy, or top-level certifications through NASM, ISSA, ACE and ACSM. Then they complete our own training program before they touch a client.</p>'+
+      '<p>You get one of them, one-on-one, for the full session. Not a group class, not a machine.</p>'+
+      '<p class="cta"><a href="https://{LINK}">Book my two visits</a></p>'+
+      '<p>This is my last note for a while. Your $29 intro stays open either way, and if now is not the time I will check back in a few months. If something changes before then, my number is below.</p>'+ SIG,
+     note:'Every credential claim here is verbatim from the brand guide, so it needs no review. Do not add credentials or outcomes beyond what is written. The closing paragraph absorbed the old day 21 email, which repeated day 6 almost word for word; it still sets the expectation before the day 22 handoff to Long Term. Signature is the one with the phone number, since the close points at it.'},
+    {t:'stage', when:'Day 22', title:'Update lead stage',
+     text:"Set stage to: {SCODE} - Long Term\n\nThis is the handoff. {CODE}-20 triggers on it."}
+  ]},
+
+  {seq:'{CODE}-20 &middot; Long-term: stay in touch until ready',
+   setup:{name:'{CODE}-20 Long-term nurture', trigger:'Lead assigned new stage = <b>{SCODE} - Long Term</b>', source:'For any lead source', once:'Yes', counters:'Appointment purchase, Appointment booking, Membership purchase, all scoped <b>after the customer is enrolled</b>',
+    notes:'Momence has no recurring scheduler. Every step is a fixed offset from the day the Long Term stage lands, so a cadence written as "two emails a month, a text every quarter" cannot be built at all. It has to be a finite ladder, and this is it: sixteen steps across a year, twelve emails and four texts, dense through the first quarter and thinning after. All sixteen are written below, so there is nothing to draft. Three rotating slots carry it: <b>value</b> at steps 1, 5, 9 and 13, <b>proof</b> at 2, 6, 10 and 14, <b>offer</b> at 3, 7, 11 and 15, with a check-in text at 4, 8, 12 and 16. <b>Nothing here is seasonal, on purpose.</b> Leads enter Long Term on whatever day they happen to go cold, so step 7 lands in a different month for every person and a January or golf-season email would reach half of them in the wrong month. Seasonal pushes are broadcasts instead, sent on the real date to the Long Term segment, outside this sequence entirely. The counter scope is not optional here either: most people arriving from 60 and 84 already did both intro visits, so an all-time Appointment purchase counter matches their history and ejects them the second they enroll, and nothing in Momence tells you it happened.'},
+   items:[
+    {t:'email', when:'Day 7', subj:'Which one of these is you?', nm:'Value, the four pillars',
+     html:'<p>{{first_name}},</p>'+
+      '<p>Almost everyone who walks in is chasing one of four things. See which one sounds like you:</p>'+
+      '<h4>Everyday Ease</h4><p>Desk workers, nurses, trades, anyone tired in a way sleep does not fix. Expand your range of motion, move lighter and looser, flex away the stress.</p>'+
+      '<h4>Graceful Aging</h4><p>Stay active longer, stand tall, get down on the floor with the grandkids, and stay independent doing the things you love.</p>'+
+      '<h4>Peak Performance</h4><p>Golfers, tennis players, lifters, runners. Push past previous limits, support your body at its best, and lower your injury risk.</p>'+
+      '<h4>Injury Recovery</h4><p>Recover faster and more fully, regain your mobility, and prevent the next one.</p>'+
+      '<p>The screening is the same for all four. What we do with the results is not.</p>'+
+      '<p class="cta"><a href="https://{LINK}">Find out where I stand</a></p>'+ SIGP,
+     note:'<b>Value slot, 1 of 4.</b> The value emails teach and never lean on the ask. Every claim here is straight from the brand pillars.'},
+    {t:'email', when:'Day 21', subj:'Meet Norma', nm:'Proof, Norma',
+     html:'<p>{{first_name}},</p>'+
+      '<p>This one still makes us smile.</p>'+
+      '<p>Norma added The Vital Stretch to her training for the Tokyo Marathon, working with us for months in the lead-up. A week after finishing Tokyo, she was offered a spot to run Boston.</p>'+
+      '<p>For Boston she did not just feel ready. She said it was one of the best runs she had ever had, and she credited not cramping during the race to her weekly stretch routine with us.</p>'+
+      '<p>Two world-major marathons a week apart, and the thing she pointed to was the standing weekly stretch.</p>'+
+      '<p>Whether you are training for something big or just want your body to keep up with your life, {{first_name}}, recovery is where the magic actually happens.</p>'+
+      '<p class="cta"><a href="https://{LINK}">Book my first visit</a></p>'+ SIGP,
+     note:'<b>Proof slot, 1 of 4.</b> From the corporate testimonial library, cleared for use until we have our own. Replace all four proof emails with {STUDIO} clients as those stories arrive; local names beat regional ones every time.'},
+    {t:'email', when:'Day 45', subj:'Still open, still $29', nm:'Offer, still open',
+     html:'<p>{{first_name}},</p>'+
+      '<p>Short one. The $29 intro is still sitting there, and nothing about it has changed: two 45-minute visits, a full movement screening, and a written mobility plan built on whatever we find.</p>'+
+      '<p>The thing people tell us afterwards, almost word for word, is that they had been meaning to come in for months. Tight hips and a stiff back do not resolve on their own in the meantime. They just stop being noticeable, until something makes them noticeable again.</p>'+
+      '<p>No membership, no package, nothing attached to it.</p>'+
+      '<p class="cta"><a href="https://{LINK}">Book my two visits</a></p>'+
+      '<p>And if the timing still is not right, that is genuinely fine. I am not going anywhere.</p>'+ SIGP,
+     note:'<b>Offer slot, 1 of 4.</b> The offer emails are the only ones that lead with the ask, and all four are evergreen so they are true in any month.'},
+    {t:'sms', when:'Day 60', nm:'Check-in, first', text:"{{first_name}}, {STAFF} at The Vital Stretch {STUDIO}. Not selling anything - just checking in. How's the body treating you? Reply STOP to opt out",
+     note:'<b>Check-in slot, 1 of 4.</b> The only paid channel in this sequence, four texts across the year. It exists because a text still reaches the people who stopped opening email.'},
+    {t:'email', when:'Day 80', subj:'Why sitting tightens your hips', nm:'Value, sitting and hips',
+     html:'<p>{{first_name}},</p>'+
+      '<p>Worth knowing if you spend most of the day in a chair.</p>'+
+      '<p>Sitting holds your hip flexors in a shortened position for hours at a time. Muscles adapt to the position they are held in most, so they gradually settle there. That is not an injury. It is just what tissue does.</p>'+
+      '<p>The part people rarely connect: when your hips stop extending properly, your lower back picks up the slack. So the ache turns up somewhere you were not even sitting on.</p>'+
+      '<p>That is why the screening looks at how you move rather than where it hurts. The two are often in different places.</p>'+
+      '<p class="cta"><a href="https://{LINK}">Book my screening</a></p>'+ SIGP,
+     note:'<b>Value slot, 2 of 4.</b> The most-forwarded angle we have, because the desk-to-low-back link is something people feel but cannot explain.'},
+    {t:'email', when:'Day 110', subj:'What people say after two visits', nm:'Proof, member quotes',
+     html:'<p>{{first_name}},</p>'+
+      '<p>Short one. I will let two of our members talk instead.</p>'+
+      '<p><em>"Two sessions in and my hips feel unlocked for the first time in years. The screening found restrictions I never knew I had."</em></p>'+
+      '<p><em>"After years at a desk my shoulders finally have room to move again. I left with a plan I actually understood."</em></p>'+
+      '<p>Both of those came out of the same two-visit intro that is still open for you.</p>'+
+      '<p class="cta"><a href="https://{LINK}">Book my two visits</a></p>'+ SIGP,
+     note:'<b>Proof slot, 2 of 4.</b> Real Twin Cities member reviews from your own landing page, so they are honest for all four studios. These same two quotes also appear in {CODE}-10 at day 13; the gap here is about three months, which is far enough apart to be fine.'},
+    {t:'email', when:'Day 140', subj:'What the screening actually finds', nm:'Offer, the screening',
+     html:'<p>{{first_name}},</p>'+
+      '<p>People assume the screening is a formality before the stretching starts. It is closer to the opposite. It is the part that decides what the stretching is for.</p>'+
+      '<p>What it usually turns up:</p>'+
+      '<ul><li>A hip or a shoulder that moves noticeably less on one side, which you cannot feel on your own because you have nothing to compare it against.</li>'+
+      '<li>A joint quietly doing extra work to cover for a stiff one next to it.</li>'+
+      '<li>The reason a stretch you have done for years has never actually changed anything.</li></ul>'+
+      '<p>You leave with the findings written down in plain language, alongside the plan built from them.</p>'+
+      '<p>$29 covers the screening and both sessions.</p>'+
+      '<p class="cta"><a href="https://{LINK}">Book my two visits</a></p>'+ SIGP,
+     note:'<b>Offer slot, 2 of 4.</b> Sells the screening rather than the stretch, which is the part that separates us from a massage appointment.'},
+    {t:'sms', when:'Day 150', nm:'Check-in, second', text:"{{first_name}}, {STAFF} here at The Vital Stretch {STUDIO}. Still no pitch. How's everything moving these days? Reply STOP to opt out",
+     note:'<b>Check-in slot, 2 of 4.</b> Deliberately worded differently from the day 60 text. The same message twice reads as an autoresponder.'},
+    {t:'email', when:'Day 170', subj:'Why stretching yourself stops working', nm:'Value, assisted vs solo',
+     html:'<p>{{first_name}},</p>'+
+      '<p>A fair question we get a lot: if I already stretch on my own, what is this?</p>'+
+      '<p>When you stretch yourself, the muscle you are trying to relax is partly the one holding you in position. Your body will not let you past a certain point, because it is protecting you from yourself. That ceiling is real, and most people reach it within a few weeks and then stay there for years.</p>'+
+      '<p>Assisted stretching moves the work off you. The table, the straps and your practitioner hold the position, so your only job is to breathe and let go. That is what Active Isolated Stretching needs in order to work, and it is why two sessions can find range you have not had in a long time.</p>'+
+      '<p>It is also why being tight is the reason to come in rather than the reason to wait.</p>'+
+      '<p class="cta"><a href="https://{LINK}">Book my first visit</a></p>'+ SIGP,
+     note:'<b>Value slot, 3 of 4.</b> Handles the single most common objection in the whole program, that they could just stretch at home.'},
+    {t:'email', when:'Day 210', subj:'He never thought he would do the splits', nm:'Proof, Bob',
+     html:'<p>{{first_name}},</p>'+
+      '<p>A story that stuck with us.</p>'+
+      '<p>Bob retired and decided to get serious about his health. His hamstrings were so tight they were limiting how he moved, the kind of stiffness that makes you feel older than you are.</p>'+
+      '<p>He started coming in consistently and let us do the work.</p>'+
+      '<p>He is dramatically more flexible now, he moves better in his workouts, and then there is the part he never saw coming: <strong>he can do the splits.</strong> He genuinely never imagined that was possible.</p>'+
+      '<p>He did not start flexible, {{first_name}}. He started tight, a little skeptical, and worried about what was ahead. The flexibility was the result, not the requirement.</p>'+
+      '<p class="cta"><a href="https://{LINK}">Book my first visit</a></p>'+ SIGP,
+     note:'<b>Proof slot, 3 of 4.</b> Bob also appears in {CODE}-10 at day 4, roughly seven months earlier, with a plainer subject line. At that distance the repeat works in our favour.'},
+    {t:'email', when:'Day 245', subj:'What the $29 actually gets you', nm:'Offer, what two visits gets you',
+     html:'<p>{{first_name}},</p>'+
+      '<p>Plainly, because this is easy to overthink.</p>'+
+      '<h4>Visit 1, 45 minutes</h4><p>A full-body movement screening, then a guided assisted stretch with a Vital Stretch Practitioner. You stay fully clothed, in athletic wear. No oils, nothing to change into, nothing to bring.</p>'+
+      '<h4>Between visits</h4><p>Your practitioner turns the screening into a written mobility plan built on what your body actually needs, not a template.</p>'+
+      '<h4>Visit 2, 45 minutes</h4><p>We go through the findings, work the priority areas, and you leave with the plan written down.</p>'+
+      '<p>Total, $29. No membership, no package, nothing that renews.</p>'+
+      '<p class="cta"><a href="https://{LINK}">Book my two visits</a></p>'+ SIGP,
+     note:'<b>Offer slot, 3 of 4.</b> The same structure as the day 0 email in {CODE}-10, which by this point they saw eight months ago and will not remember.'},
+    {t:'sms', when:'Day 250', nm:'Check-in, third', text:"{{first_name}}, {STAFF} at The Vital Stretch {STUDIO}. Checking in - anything tight or nagging lately? Happy to take a look. Reply STOP to opt out",
+     note:'<b>Check-in slot, 3 of 4.</b> The one text in the set that names a reason to reply.'},
+    {t:'email', when:'Day 285', subj:'Recovery is where the work actually happens', nm:'Value, recovery',
+     html:'<p>{{first_name}},</p>'+
+      '<p>This applies whether you train hard or simply get through a busy week.</p>'+
+      '<p>Effort creates the stimulus. Recovery is where your body adapts to it. Skip the second half and you collect the fatigue without much of the benefit, which is why people plateau while doing more, not less.</p>'+
+      '<p>Mobility work is recovery you can put on a calendar. It is not the exciting half, and it is the half that keeps the rest possible.</p>'+
+      '<p>Norma credited not cramping through the Boston Marathon to a standing weekly stretch. The same principle covers a long week at a desk.</p>'+
+      '<p class="cta"><a href="https://{LINK}">Book my first visit</a></p>'+ SIGP,
+     note:'<b>Value slot, 4 of 4.</b> Callback to the Norma email at day 21, which lands as a reference rather than a repeat this far out.'},
+    {t:'email', when:'Day 330', subj:'The best half hour of her week', nm:'Proof, Paula',
+     html:'<p>{{first_name}},</p>'+
+      '<p>Paula plays a lot of tennis. Before she started coming in she noticed she was getting less limber and her body had started to ache. Not ideal when you are chasing a ball down the court.</p>'+
+      '<p>Nothing dramatic. Just that creeping sense that her body was not doing what it always had.</p>'+
+      '<p>She started coming in once a week. In her words:</p>'+
+      '<p><em>"I walk out after my session and I feel great. It has made a huge difference to the quality of my day. The stretch is the best half hour of my week."</em></p>'+
+      '<p>That is the whole thing, {{first_name}}. Not a miracle. A real improvement, every week.</p>'+
+      '<p class="cta"><a href="https://{LINK}">Book my first visit</a></p>'+ SIGP,
+    note:'<b>Proof slot, 4 of 4.</b> From the corporate testimonial library, cleared for use until we have a local {STUDIO} client story.'},
+    {t:'email', when:'Day 365', subj:'A year of meaning to come in', nm:'Offer, one year on',
+     html:'<p>{{first_name}},</p>'+
+      '<p>It has been about a year since you first asked about us.</p>'+
+      '<p>No guilt in that. Life fills up, and a stiff back rarely feels urgent enough to reach the top of a list. It just sits there, quietly becoming normal.</p>'+
+      '<p>The $29 intro has not changed and it has not expired. Two 45-minute visits, a screening, a written plan.</p>'+
+      '<p class="cta"><a href="https://{LINK}">Book my two visits</a></p>'+
+      '<p>If you would rather I stopped, reply <strong>"not now"</strong> and I will. Otherwise I will check in now and then, because the people who finally come in almost always say the same thing about wishing they had done it sooner.</p>'+ SIG,
+     note:'<b>Offer slot, 4 of 4.</b> The one-year mark, and the second opt-out valve in the program. A "not now" reply goes to the Not Interested stage, which is what keeps people from reaching for STOP instead.'},
+    {t:'sms', when:'Day 370', nm:'Check-in, fourth', text:"{{first_name}}, {STAFF} at The Vital Stretch {STUDIO}. Been about a year since you reached out. Still here if you want in. Reply STOP to opt out",
+     note:'<b>Check-in slot, 4 of 4, and the last step in the sequence.</b> After this they stay on the Long Term stage and only hear from the seasonal broadcasts. If you want a second year, duplicate the sequence and trigger it from a new stage rather than extending this one past 370 days.'}
+   ]},
+
+  {seq:'{CODE}-30 &middot; Before every visit: remind',
+   setup:{name:'{CODE}-30 Before every visit', trigger:'Appointment visit, <b>every visit</b>, enrolled <b>On booking</b>', source:'For any lead source', once:'<b>No</b> (must fire on every appointment)', counters:'Appointment cancellation', notes:'Use the Appointment visit trigger, not Appointment booking. Only Appointment visit carries the On booking vs On check-in choice, and On booking is what lets you place steps before the visit. This is also the only sequence where the <b>Trigger action even if lead is enrolled after the action</b> checkbox does anything, because it is the only one with steps scheduled before the trigger; each step below states its own setting, and they are not the same. This runs on both intro visits and every session after. The immediate intro booking email is in 31 because its preparation details belong only to visit 1.'},
+   items:[
+    {t:'email', when:'24 hours before', subj:'See you tomorrow, {{first_name}}',
+     late:'<b>Unticked, deliberately.</b> Ticking it fires this at anyone who books inside 24 hours, and the subject and the first line both say <em>tomorrow</em> when they are actually in today. Wrong is worse than absent, and the booking confirmation and 2-hour text already cover them.',
+     html:'<p>{{first_name}},</p>'+ 
+      '<p>Quick reminder that you are in tomorrow at <strong>{ADDR}</strong>, {LMS}.</p>'+ 
+      '<p>Athletic clothes, arrive a few minutes early, and that is it.</p>'+ 
+      '<p>Need to move it? Reply here or call {PHONE}.</p>'+ SIGP,
+     note:'This is the one step in the build where the enrolled-after box has to stay unticked. If you would rather it reach same-day bookers, the fix is the copy, not the checkbox: strip both uses of "tomorrow" so the email is true whenever it lands, then tick the box.'},
+    {t:'sms', when:'2 hours before', nm:'Two hours before', text:"{{first_name}}, {STAFF} here - you're in later today. We're {LMS}. Athletic clothes, come a few min early. Need to move it? Reply here.",
+     late:'<b>Ticked.</b> Someone who books inside two hours gets it immediately, and every word still holds: they are in later today, and arriving a few minutes early still applies.',
+     note:'No day or clock time named anywhere, so nothing needs editing per send. The Momence booking confirmation carries the exact time. The landmark is doing real work: "I could not find it" is a quiet share of every no-show.'}
+  ]},
+
+  {seq:'{CODE}-31 &middot; Intro booking: prepare for visit 1',
+   setup:{name:'{CODE}-31 Intro booking email', trigger:'Appointment visit, <b>visit 1</b>, enrolled <b>On booking</b>', source:'For any lead source', once:'Yes', counters:'none', notes:'This is separate from 30 because the movement screening, intake form and first-visit preparation apply only to the intro booking. Use Appointment visit set to visit 1 and enroll On booking so the email sends as soon as the first visit is booked. Enroll once prevents duplicate welcome emails if the appointment is moved.'},
+   items:[
+    {t:'email', when:'Immediately on booking', subj:'Your Vital Stretch visit is booked', photo:'welcome',
+     late:'<b>Unticked.</b> This one is due the moment they enroll, so it can never be overdue and the box does nothing either way.',
+     html:'<p>{{first_name}},</p>'+
+      '<p>Your visit is booked. Your appointment confirmation contains the date and time.</p>'+ 
+      '<p>We are at <strong>{ADDR}, {STUDIO}</strong>, {LML}. Parking is right out front.</p>'+
+      '<h4>Your first visit</h4>'+ 
+      '<p>If this is your first visit, the 45-minute appointment includes a full-body movement screening followed by a guided, one-on-one assisted stretch. Your practitioner uses the screening and your goals to begin shaping a mobility plan around how you move.</p>'+ 
+      '<p>You remain fully clothed throughout the session. There are no oils and nothing to change into.</p>'+ 
+      '<h4>Before you arrive</h4>'+ 
+      '<ul><li><strong>Clothing:</strong> Athletic clothes and socks that allow you to move comfortably.</li>'+ 
+      '<li><strong>Arrival:</strong> A few minutes early leaves time to get settled before the screening.</li>'+ 
+      '<li><strong>App:</strong> The Vital Stretch app is available in your app store. Sign-in uses the email address on this booking.</li></ul>'+ 
+      '<p>For a first visit, complete the brief intake form before the appointment:</p>'+ 
+      '<p class="cta"><a href="https://momence.com/dashboard/intake-form/Q0X61eO8np">Complete the intake form</a></p>'+ 
+      '<h4>Appointment changes</h4>'+ 
+      '<p>Changes made with less than 12 hours\' notice result in the session being forfeited. Reply to this email or call {PHONE} to change the appointment.</p>'+ SIG},
+  ]},
+
+  {seq:'{CODE}-40 &middot; No-show: one warm rescue',
+    setup:{name:'{CODE}-40 No-show rescue', trigger:'Lead assigned new stage = <b>{SCODE} - No Show</b>', source:'For any lead source', once:'Yes', counters:'Appointment booking, Appointment purchase, Membership purchase, all scoped <b>after the customer is enrolled</b>', notes:'This has to be its own sequence. The obvious shortcut, resetting a missed lead back to the Intro Nurture stage so 10 re-fires, cannot work: 10 is enrolled-once, so a lead who already ran through it is never enrolled again and the rescue silently never sends. A separate stage and a separate sequence is the only version that fires. Scope the counters after enrollment or the intro appointment they already booked and missed will match an all-time counter and drop them on arrival. Front desk sets the {SCODE} - No Show stage. If your account turns out to fire a native no-show trigger on appointment services, swap that in for the stage trigger and skip the stage entirely.'},
+   items:[
+    {t:'sms', when:'Day 0, +90 minutes', nm:'No-show rescue, same day', text:"{{first_name}}, {STAFF} at The Vital Stretch {STUDIO}. We had you down today and missed you - no problem, life happens. Want me to find you a new time?",
+     note:'Ninety minutes is deliberate: long enough that it does not read as a scolding, short enough that the day is still fresh. No guilt, one goal, a reply.'},
+    {t:'task', when:'Day 0, +2 hours', title:'Rebook {{first_name}} {{last_name}}',
+     text:"Call to rebook. Warm, no guilt, assume something came up.\n\nOffer two specific times rather than asking them to pick. Two options instead of \"when works for you\" measurably raises rebook rate because it removes a decision."},
+    {t:'sms', when:'Day 4', nm:'No-show rescue, day 4', text:"{{first_name}}, still happy to get you in. Want me to grab you a spot this week? - {STAFF}"},
+    {t:'stage', when:'Day 7', title:'Update lead stage', nm:'Unrescued to Long Term',
+    text:"If they still have not rebooked, set stage to: {SCODE} - Long Term\n\nSame drain as every other dead end. Someone who booked once and missed is still a warmer lead than one who never booked at all, so do not let them fall off a list."}
+   ]},
+
+  {seq:'{CODE}-50 &middot; After visit 1: recap and book visit 2',
+   setup:{name:'{CODE}-50 After visit 1', trigger:'Appointment visit, specific visit number <b>1</b>, enrolled <b>On check-in</b>', source:'For any lead source', once:'Yes', counters:'none on the sequence; an internal gate handles the nudge', notes:'There is no Appointment check-in trigger in Momence. Use Appointment visit, set Trigger on a specific number of visits to 1, and enroll On check-in so it fires when they actually show. The count is by appointment, so for a fresh intro lead visit 1 is their first appointment; confirm the behavior for anyone who had a prior appointment. The recap email goes to everyone. A true/false gate then decides the nudge: if Appointment booking since enrollment is true, they already scheduled visit 2 at the desk and the nudge is skipped. This replaces the old split between a recap and a separate backstop.'},
+   items:[
+    {t:'email', when:'+3 hours, everyone', subj:'What we found today',
+     html:'<p>{{first_name}},</p>'+
+      '<p>Good to meet you today.</p>'+
+      '<p>Here is what happens next. Your VSP is taking the screening and today\'s session and building out your mobility plan. We go through it at your second visit, work the priority areas we found, and you leave with it written down.</p>'+
+      '<p><strong>That second visit is already paid for.</strong> The $29 covered both. The screening tells us where you are, and visit 2 is where you actually get the plan.</p>'+
+      '<p>If we got it on the calendar before you left, you are all set and you will get a reminder. If not, grab a time here:</p>'+
+      '<p class="cta"><a href="https://{LINK}">Book my second visit</a></p>'+ SIGP},
+    {t:'cond', when:'Day 2', nm:'Visit 2 booking gate',
+     how:'This one is a gate, not an action. Click <b>Add Step &gt; Add Condition</b>, not Add Action, and give it the <b>Action name</b> above. Set <b>Timing</b> to match the <b>Timing</b> line above, choose the condition below, and place the two steps that follow on the <b>False</b> branch.',
+     text:"Condition: Appointment booking (since enrollment) = false\n\nThis gates the two steps below. Anyone who booked visit 2 at the desk passes the gate as true and never gets the nudge. Only the desk-handoff misses fall through."},
+    {t:'sms', when:'Day 3, only if not booked', nm:'Prepaid visit 2 nudge', text:"{{first_name}}, your 2nd session is paid for already - that's the one where you get your plan. Want me to grab you a time this week? - {STAFF}"},
+    {t:'task', when:'Day 6, only if not booked', title:'Prepaid second visit - {{first_name}} {{last_name}}',
+     text:"Call. The second visit is prepaid and unused. This is the highest-value call on the board.\n\nIf this task shows up often, the fix is a practitioner conversation, not more automation. Visit 2 is supposed to be booked on the table before they get up."}
+  ]},
+
+  {seq:'{CODE}-60 &middot; After visit 2: make the offer',
+   setup:{name:'{CODE}-60 After visit 2', trigger:'Appointment visit, specific visit number <b>2</b>, enrolled <b>On check-in</b>', source:'For any lead source', once:'Yes', counters:'Membership purchase, Appointment booking, both scoped <b>after the customer is enrolled</b>', notes:'Same trigger as 50, Appointment visit enrolled On check-in, but set Trigger on a specific number of visits to 2 so it fires after the second intro session. The counters are what make this sequence work and also what limits it: a counter removes someone from the sequence, it does not gate a step, so nothing after the moment of conversion can live here. The welcome and the review ask are therefore in 65, not here. All this sequence does is ask, ask once more, put a call on the board, and drop the people who did not convert into Long Term. A booking past visit 2 is the conversion signal, since nobody books a third session and then declines to pay.'},
+   items:[
+    {t:'email', when:'Day of visit 2, +3 hours', subj:'Your plan, and what comes next',
+     html:'<p>{{first_name}},</p>'+
+      '<p>Your plan is in your hands. Here is the honest part.</p>'+
+      '<p>What you felt over these two sessions is real, and it is also temporary if we stop here. Mobility responds to consistency the same way strength does. The people who tell me this changed things for them are the ones who made it a weekly rhythm, and that started exactly where you are right now.</p>'+
+      '<p>That is the whole pitch. No urgency, no discount clock.</p>'+
+      '<p>If you want to keep going, I will walk you through the options and we will pick the one that fits how often you will realistically come in. Reply here or call {PHONE}.</p>'+ SIG},
+    {t:'email', when:'Day 3, if not converted', subj:'One question',
+     html:'<p>{{first_name}},</p>'+
+      '<p>One question and I will leave you alone: <strong>what is stopping you?</strong></p>'+
+      '<p>Price, schedule, not sure it is worth it, or just have not gotten to it? Whatever the answer is, tell me and I will give you a straight response. If the answer is "it is not for me," that is a fine answer too.</p>'+ SIGP},
+    {t:'task', when:'Day 6, if not converted', title:'Conversion call - {{first_name}} {{last_name}}',
+     text:"They have had the full experience and a written plan. This is the call the whole program was built to set up.\n\nCompare what they said about frequency against the options and recommend one out loud. Do not present a menu and wait."},
+    {t:'stage', when:'Day 10, if not converted', title:'Update lead stage',
+    text:"Set stage to: {SCODE} - Long Term\n\nSomeone who did both visits and did not convert is a far better long-term lead than someone who never came in. Do not let them fall off a list."}
+  ]},
+
+  {seq:'{CODE}-65 &middot; New member: welcome, then ask for the review',
+  setup:{name:'{CODE}-65 New member welcome', trigger:'Membership purchase', source:'For any lead source', once:'Yes', counters:'none, see the note', notes:'These two emails used to sit at the end of 60 and could never have sent. A counter condition removes a person from a sequence rather than gating one step inside it, so the Membership purchase counter on 60 ejects a convert before either message reaches them. They need their own trigger, which also turns two impossible timings, "when they book a third" and "two weeks after converting," into ordinary offsets of 1 and 14 days. If your trigger list has no membership-purchase trigger, have front desk set a {SCODE} - Member stage at the point of sale and trigger on that stage instead; the rest of the sequence is unchanged. No counter conditions: none of the five available types describes someone who cancels inside the first two weeks, so on the rare occasion that happens, stop the sequence by hand.'},
+   items:[
+    {t:'email', when:'Day 1', subj:'Glad you are staying, {{first_name}}', nm:'New member welcome',
+     html:'<p>{{first_name}},</p>'+
+      '<p>Quick note to say I am glad you are sticking with it.</p>'+
+      '<p>One thing worth knowing now rather than in three months: consistency beats intensity here every time. Someone who comes every week at a moderate stretch gets further than someone who comes hard twice and disappears. Your plan assumes a rhythm.</p>'+
+      '<p>If your schedule shifts, tell me before you start missing. There is almost always a time that works and I would rather move you than lose you.</p>'+ SIG,
+     note:'A day of offset, not zero, so this does not land in the same minute as the Momence purchase receipt.'},
+    {t:'email', when:'Day 14', subj:'A favor', nm:'Review ask',
+     html:'<p>{{first_name}},</p>'+
+      '<p>Small ask and then I will stop. If the last few weeks have been worth it, would you leave us a Google review? Reviews are most of how people nearby decide whether to walk in.</p>'+
+      '<p class="cta"><a href="https://{RLINK}">Leave a review</a></p>'+
+      '<p>Takes about a minute. Thank you either way.</p>'+ SIGP,
+     note:'Email only, never SMS. Asking for a favor by paid text reads wrong. Two weeks in is deliberate: they have had a few post-intro sessions, which is when the difference is most obvious.'}
+   ]},
+
+  {seq:'{CODE}-70 &middot; Gone quiet: win the member back',
+   setup:{name:'{CODE}-70 Winback', trigger:'Win-back (based on the last class or appointment visit), status gates at 14 and 28 days', source:'For any lead source', once:'Yes', counters:'Appointment booking and Membership purchase, both scoped <b>after the customer is enrolled</b>', notes:'Search the trigger box for "win" and choose Win-back, based on the last class or appointment visit a customer made. At each touch, use Customer has active membership to split active and inactive customers. An active member exits when they book an appointment; an inactive customer exits when they purchase a membership. Momence applies counters to the whole sequence rather than one branch, so add both counters after enrollment. That also safely removes the less common crossover cases: an inactive customer who books or an active customer who changes membership. Never use all-time here, because prior bookings and purchases would eject everyone on arrival. The complimentary infrared sauna session is a comeback incentive, limited to adults 18+ after the required sauna agreement and screening.'},
+   items:[
+    {t:'cond', when:'14 days since last visit', nm:'14-day active membership gate',
+     how:'Click <b>Add Step &gt; Add Condition</b> and choose <b>Customer has active membership</b>. Put the active-member email on the <b>True</b> branch and the inactive-customer email on the <b>False</b> branch, then merge both branches before the 28-day gate.',
+     text:"Condition: Customer has active membership = true\n\nTrue: send the active-member comeback email.\nFalse: send the inactive-customer restart email.\nMerge both branches before the 28-day condition."},
+    {t:'email', when:'Immediately on TRUE branch of 14-day gate', subj:'Your next stretch comes with a sauna session on us', nm:'Active member sauna comeback',
+     html:'<p>{{first_name}},</p>'+
+      '<p>{STAFF} here. It has been a couple of weeks since your last stretch, so I wanted to give you a good reason to get the next one on the calendar.</p>'+ 
+      '<p><strong>Book your next stretch and your next infrared sauna session is on us.</strong> Use code <strong>SAUNAONUS</strong> at checkout, or give the code to your practitioner and they can apply it for you.</p>'+ SAUNA_COMEBACK +
+      '<p class="cta"><a href="https://{LINK}">Book my next stretch</a></p>'+ 
+      '<p>If your schedule changed or something else is getting in the way, reply and tell me. We will help find a time that works.</p>'+ 
+      '<p class="sig">Complimentary sauna session is available to adults 18+ after completing the required sauna agreement and screening.</p>'+ SIG},
+    {t:'email', when:'Immediately on FALSE branch of 14-day gate', subj:'Come back with a sauna session on us', nm:'Inactive customer sauna restart',
+     html:'<p>{{first_name}},</p>'+
+      '<p>{STAFF} here. It has been a while since we have seen you, and getting back into your routine should feel easy.</p>'+ 
+      '<p><strong>Restart your stretch membership and your first infrared sauna session back is on us.</strong> Use code <strong>SAUNAONUS</strong> at checkout, or give the code to your practitioner and they can apply it for you. Reply to this email or call {PHONE} if you need help choosing the membership that fits your schedule now.</p>'+ SAUNA_COMEBACK +
+      '<p>No pressure and no starting over. We already know you and can pick up from where you left off.</p>'+ 
+      '<p class="sig">Complimentary sauna session is available to adults 18+ after completing the required sauna agreement and screening.</p>'+ SIG},
+    {t:'cond', when:'28 days since last visit', nm:'28-day active membership gate',
+     how:'After the 14-day branches merge, click <b>Add Step &gt; Add Condition</b> and choose <b>Customer has active membership</b>. Put the active-member SMS on the <b>True</b> branch and the inactive-customer SMS on the <b>False</b> branch.',
+     text:"Condition: Customer has active membership = true\n\nTrue: send the active-member booking SMS.\nFalse: send the inactive-customer restart SMS.\nBoth branches end after their SMS."},
+    {t:'sms', when:'Immediately on TRUE branch of 28-day gate', nm:'Active member sauna reminder', text:"{{first_name}}, use SAUNAONUS at checkout for a free sauna when you book: {LINK} Or ask your practitioner. 18+ only. - {STAFF} STOP to opt out"},
+    {t:'sms', when:'Immediately on FALSE branch of 28-day gate', nm:'Inactive customer sauna reminder', text:"{{first_name}}, restart your membership and get a free sauna. Use SAUNAONUS at checkout or ask your practitioner. 18+ only. - {STAFF} STOP to opt out"}
+  ]},
+
+  {seq:'{CODE}-80 &middot; Cancelled: one honest save attempt',
+   setup:{name:'{CODE}-80 Save the member', trigger:'Subscription cancellation', source:'For any lead source', once:'Yes', counters:'Membership purchase, scoped <b>after the customer is enrolled</b>, in case they resubscribe', notes:'Momence fires this the moment a cancellation processes, and almost nobody builds against it. A save attempt costs one email and one call and is worth more than five new leads. The counter scope is the whole ballgame: every person entering this sequence just cancelled a membership they bought, so an all-time Membership purchase counter matches that purchase and drops them before the first email sends. Scope it after enrollment and it only catches a genuine resubscribe.'},
+   items:[
+    {t:'email', when:'Immediately', subj:'Before you go, one question',
+     html:'<p>{{first_name}},</p>'+
+      '<p>Your membership is cancelled. That part is done and I am not going to make it awkward.</p>'+
+      '<p>One question though, because it genuinely helps us: <strong>what was it?</strong></p>'+
+      '<p>Price, schedule, a practitioner who was not the right fit, results that did not land, or just life getting in the way? Any answer is useful, including a blunt one.</p>'+
+      '<p>And if it was frequency or cost rather than the stretching itself, tell me. There is almost always a smaller option that fits, and I would rather put you on that than lose you entirely.</p>'+ SIG},
+    {t:'task', when:'Day 1', title:'Save call - {{first_name}} {{last_name}}',
+     text:"One call. Warm, curious, no pitch. The goal is to learn why, not to reverse it.\n\nFrequency or cost, offer the smaller option. Practitioner fit, offer a different one. Moving or injured, thank them and let them go cleanly.\n\nLog the reason. Cancellation reasons are the most useful data your studio produces and nobody ever writes them down."},
+    {t:'stage', when:'Day 3', title:'Update lead stage',
+    text:"If not saved, set stage to: {SCODE} - Long Term\n\nA former member belongs in long-term nurture, not a dead list. They already know exactly what they are missing."}
+  ]},
+
+  {seq:'{CODE}-82 &middot; Frozen: keep the pause from becoming an exit',
+   setup:{name:'{CODE}-82 Freeze save', trigger:'Membership freeze', source:'For any lead source', once:'Yes', counters:'Membership purchase, Appointment booking, both scoped <b>after the customer is enrolled</b>', notes:'80 only catches an active cancel. A freeze is the quieter exit: life got busy and the membership goes on hold, and a good share never come back. This is a warm, low-pressure touch that keeps the door open. Scope both counters after enrollment, because the frozen membership itself is an all-time membership purchase and would eject everyone instantly. Scoped right, anyone who books or restarts drops out.'},
+   items:[
+    {t:'email', when:'Immediately', subj:'Your membership is paused, not gone', nm:'Freeze reassurance',
+     html:'<p>{{first_name}},</p>'+
+      '<p>{STAFF} here. Your membership is on hold, and that is completely fine. Life gets full, and the whole point of a freeze is that you do not lose anything while it does.</p>'+
+      '<p>Your plan and your progress are saved exactly where you left them. When you are ready, one message to me and you are back on the table, no restart and no catch-up.</p>'+
+      '<p>And if something specific pushed you to pause, schedule, cost, a session that did not land, tell me. There is usually a way to work around it, and I would rather adjust than lose you.</p>'+ SIG},
+    {t:'task', when:'Day 2', title:'Freeze check-in call - {{first_name}} {{last_name}}', nm:'Freeze check-in call',
+     text:"One warm call. Not a save pitch, a check-in. Assume life got busy, not that they are unhappy.\n\nAsk what changed. If it is schedule, offer a lighter frequency. If it is cost, name the smaller option. If it is a fit issue, offer a different practitioner. Log the reason either way.\n\nDo not push a return date. The goal is to be the easy, warm choice when they are ready."},
+    {t:'email', when:'Day 21', subj:'Still here when you are ready', nm:'Freeze, ready when you are',
+     html:'<p>{{first_name}},</p>'+
+      '<p>No agenda here, just a quick note so you know the light is still on.</p>'+
+      '<p>Whenever the timing is right, your spot and your plan are waiting. Reply to this and I will get you back in around whatever your week looks like now.</p>'+ SIGP}
+   ]},
+
+  {seq:'{CODE}-84 &middot; Lapsed: win back a membership that quietly ran out',
+   setup:{name:'{CODE}-84 Expiration win-back', trigger:'Membership expiration', source:'For any lead source', once:'Yes', counters:'Membership purchase, Appointment booking, both scoped <b>after the customer is enrolled</b>', notes:'The membership 80 never sees: a non-renewing plan or a credit pack that simply ran out, with no cancel button ever pressed. Same job as 80, a warm save, aimed at people who lapsed by default rather than by decision. Scope both counters after enrollment, since the expired membership is itself an all-time purchase and would drop every person on arrival. Scoped right, the counters drop anyone who restarts. One overlap to watch: expiration also fires when a cancelled sub finally lapses, so someone who already went through 80 could land here weeks later. If that happens, have 80 add a tag like post-cancel and set this counter to Customer has tag as well, to drop them.'},
+   items:[
+    {t:'email', when:'Immediately', subj:'Your membership just wrapped up', nm:'Expiration, wrapped up',
+     html:'<p>{{first_name}},</p>'+
+      '<p>{STAFF} here. Your membership has run its course and just ended. If that was the plan, no problem at all, and thank you for the time on the table with us.</p>'+
+      '<p>If it slipped by without you really deciding, that happens more than you would think, and picking back up is easy. One session and the looser, lighter feeling comes right back.</p>'+
+      '<p class="cta"><a href="https://{LINK}">Start back up</a></p>'+
+      '<p>Not sure it is the right time? Reply and tell me what changed. There is usually an option that fits better than the one you were on.</p>'+ SIG},
+    {t:'task', when:'Day 2', title:'Win-back call - {{first_name}} {{last_name}}', nm:'Expiration win-back call',
+     text:"Call, ideally from their own practitioner, so it feels known. Warm, curious, no hard sell.\n\nFind out whether the lapse was intentional. If not, make restarting effortless and book the next session live. If it was cost or frequency, offer the option that fits. Log the reason."},
+    {t:'email', when:'Day 10', subj:'The door is open', nm:'Expiration, door is open',
+     html:'<p>{{first_name}},</p>'+
+      '<p>Last note from me for now.</p>'+
+      '<p>Your body does not hold the progress on its own, and a few weeks off is when the tightness starts creeping back. Getting in now is a lot easier than starting over later.</p>'+
+      '<p class="cta"><a href="https://{LINK}">Book a session</a></p>'+
+      '<p>If now is not the time, that is fine. I will check back in a while.</p>'+ SIGP},
+    {t:'stage', when:'Day 14', title:'Update lead stage', nm:'Lapsed to Long Term',
+    text:"If not restarted, set stage to: {SCODE} - Long Term\n\nA lapsed member is a strong long-term lead. They know exactly what the stretch feels like. Do not drop them off a list."}
+   ]}
+  ];
+
+  var LAUNCH = {id:'launch', seq:'Temporary swap for {CODE}-10 &middot; Now open, first few weeks',
+   meta:'Swap these in for the {CODE}-10 day 0 pair while the studio is brand new, then drop back to standard once it stops being news. Roughly three weeks. Nothing here promises a specific day or a first-week slot.',
+   items:[
+    {t:'sms', when:'Day 0, immediately', nm:'Now open, book intro', text:"Hi {{first_name}}, it's {STAFF} at The Vital Stretch {STUDIO}. We're now open! Your $29 intro is ready: {LINK} Reply STOP to opt out"},
+    {t:'email', when:'Day 0, +5 minutes', subj:'We are now open, and your $29 intro is ready',
+     html:'<p>{{first_name}},</p>'+
+      '<p>{STAFF} here from The Vital Stretch {STUDIO}. We are open, {LML}, and I am booking intro appointments now.</p>'+
+      '<p class="cta"><a href="https://{LINK}">Book my two visits</a></p>'+
+      '<p>Here is what the $29 covers:</p>'+ HOW_IT_WORKS +
+      '<p>Coming in early has a real advantage. The schedule at a new studio still has room in it, so you can pick a time that works around your week instead of taking whatever is left.</p>'+ SIG}
+  ]};
+
+  var SHARED = {label:'Twin Cities', studio:'Twin Cities', code:'TC', staff:'Twin Cities Team',
+    phone:'(952) 222-7822', addr:'', link:'', rlink:'', email:'', lms:'', lml:''};
+
+  var UNASSIGNED = {id:'unassigned', seq:'Unassigned lead &middot; Twin Cities shared flow',
+    setup:{name:'TC - Unassigned lead', trigger:'Lead assigned new stage = <b>TC - Unassigned</b>', source:'Generic Twin Cities and manual lead sources only', once:'Yes', counters:'Appointment booking, Appointment purchase and Membership purchase, all scoped <b>all-time</b>', notes:'There is no per-studio catch-all. A lead who has not selected a location cannot safely receive a Minnetonka, St Louis Park, Eden Prairie or Savage stage. Create one shared stage named TC - Unassigned and make it the default stage for generic Twin Cities and manual lead sources. Studio-specific sources continue to default directly to their own Intro Nurture stage. The abandoned-checkout source remains associated only with the separate abandoned-cart flow below. This short sequence follows the same generic structure as abandoned cart while avoiding a duplicate seven-touch campaign. If the lead replies with a studio, front desk sets that studio\'s Intro Nurture stage. A booking or purchase exits this flow automatically.'},
+    items:[
+      {t:'sms', when:'Day 0, immediately', nm:'Choose a Twin Cities studio', text:'Hi {{first_name}}, The Vital Stretch Twin Cities. Which location works best: Minnetonka, St Louis Park, Eden Prairie or Savage? Reply STOP to opt out',
+       note:'One shared first touch. It does not invent a location or sender. A reply identifies the studio, and front desk then sets that studio\'s Intro Nurture stage.'},
+      {t:'email', when:'Day 0, +5 minutes', nm:'Choose a Twin Cities studio', subj:'Choose your Twin Cities studio', photo:'logo',
+       html:'<p>Hi {{first_name}},</p>'+ 
+        '<p>We received your interest in The Vital Stretch, but no Twin Cities studio was selected.</p>'+ 
+        '<p>The $29 intro includes two 45-minute, one-on-one visits. Visit 1 combines a full-body movement screening with a guided assisted stretch. Visit 2 reviews the findings and targets priority areas.</p>'+ 
+        '<p>No membership or package is required. The offer is available to first-time guests, one per person.</p>'+ 
+        TC_BOOKING+
+        '<p>Questions about the intro or any location? Reply directly to this email.</p>'+TC_SIG},
+      {t:'sms', when:'Day 2', nm:'Which studio works best', text:'Hi {{first_name}}, which studio works best: Minnetonka, St Louis Park, Eden Prairie or Savage? Reply with the location. Reply STOP to opt out',
+       note:'The follow-up still asks only for the missing routing fact. It does not assign a studio or claim to know where the lead lives.'},
+      {t:'email', when:'Day 5', nm:'Four Twin Cities studios', subj:'Four Twin Cities studios, one $29 intro', photo:'logo',
+       html:'<p>Hi {{first_name}},</p>'+ 
+        '<p>The Vital Stretch has four Twin Cities studios: Minnetonka, St. Louis Park, Eden Prairie and Savage.</p>'+ 
+        '<p>The $29 intro is the same at each location. It includes two 45-minute, one-on-one visits: a full-body movement screening and guided assisted stretch, followed by a findings review and targeted stretch for priority areas.</p>'+ 
+        '<p>No membership or package is required. The offer is available to first-time guests, one per person.</p>'+ 
+        TC_BOOKING+
+        '<p>Questions about the intro or any location? Reply directly to this email.</p>'+TC_SIG}
+    ]};
+
+  var ABANDONED = {id:'abandoned', seq:'Abandoned cart &middot; Twin Cities shared flow',
+    setup:{name:'TC - Abandoned cart', trigger:'New lead record created', source:'<b>Abandoned checkout lead source only</b>, shared across Twin Cities', once:'Yes', counters:'Appointment booking, Appointment purchase and Membership purchase, all scoped <b>all-time</b>', notes:'This is one shared Twin Cities sequence, not four studio sequences. The checkout record does not identify a preferred studio, so every email presents all four booking links and every message uses the Twin Cities team identity. Associate only the abandoned-checkout source with this sequence. Do not attach that source to a studio router or studio nurture sequence, or the same lead can enter overlapping flows. The counter conditions remove anyone who books or purchases after abandoning checkout.'},
+    items:[
+      {t:'sms', when:'Day 0, +15 minutes', nm:'Questions before booking', text:'Hi {{first_name}}, this is The Vital Stretch Twin Cities. Questions about the $29 intro or assisted stretching? Reply here. Reply STOP to opt out.',
+       note:'Replaces the emoji-heavy "checking us out" message. It identifies the sender, names the offer and gives the person one clear reason to reply.'},
+      {t:'email', when:'Day 1', nm:'What the intro includes', subj:'What your $29 Vital Stretch intro includes', photo:'logo',
+       html:'<p>Hi {{first_name}},</p>'+ 
+        '<p>The Vital Stretch provides one-on-one assisted stretching built around how your body moves. You remain fully clothed in athletic wear while a trained and certified practitioner works with you from start to finish.</p>'+ 
+        '<p>It is not a group class, massage or physical therapy. No referral is needed.</p>'+ 
+        '<h4>Your $29 Twin Cities intro</h4>'+ 
+        '<p>The intro includes two 45-minute visits:</p>'+ 
+        '<ul><li><strong>Visit 1:</strong> Full-body movement screening and guided assisted stretch.</li>'+ 
+        '<li><strong>Between visits:</strong> A personalized mobility plan based on your screening and first stretch.</li>'+ 
+        '<li><strong>Visit 2:</strong> Findings review and targeted stretching for priority areas.</li>'+ 
+        '<li><strong>Take-home:</strong> A written summary and things you can do on your own.</li></ul>'+ 
+        '<p>The $29 covers both visits. No membership or package is required. You book the first visit, and your practitioner schedules the second after that session.</p>'+ 
+        TC_BOOKING+
+        '<p>Questions about assisted stretching or the intro? Reply directly to this email.</p>'+ 
+        TC_SIG+
+        '<p class="sig">Intro offer is available to first-time guests, one per person.</p>'},
+      {t:'sms', when:'Day 2', nm:'What the intro includes', text:'Hi {{first_name}}, the $29 intro includes two 45-min visits: a movement screen, assisted stretch and mobility plan. Questions? Reply here. Reply STOP to opt out.'},
+      {t:'email', when:'Day 3', nm:'What assisted stretching is like', subj:'What assisted stretching is like', photo:'logo',
+       html:'<p>Hi {{first_name}},</p>'+ 
+        '<p>Assisted stretching is one-on-one and hands-on. A trained and certified practitioner moves you through stretches that are difficult to reach alone.</p>'+ 
+        '<ul><li>You remain fully clothed in athletic wear.</li>'+ 
+        '<li>There are no oils and nothing to change into.</li>'+ 
+        '<li>It is not a group class, massage or physical therapy.</li>'+ 
+        '<li>No referral is needed.</li></ul>'+ 
+        '<p>Your first intro visit combines a full-body movement screening with a guided assisted stretch. The second visit reviews the findings and focuses on priority areas.</p>'+ 
+        TC_BOOKING+
+        '<p>Questions about the process? Reply directly to this email.</p>'+TC_SIG},
+      {t:'sms', when:'Day 4', nm:'One-on-one and fully clothed', text:'Hi {{first_name}}, sessions are one-on-one, fully clothed and built around how you move. No referral is needed. Questions? Reply here. Reply STOP to opt out.'},
+      {t:'email', when:'Day 7', nm:'Choose a Twin Cities studio', subj:'Choose a studio for your $29 intro', photo:'logo',
+       html:'<p>Hi {{first_name}},</p>'+ 
+        '<p>The $29 Twin Cities intro covers two 45-minute, one-on-one visits. The first includes a movement screening and assisted stretch. The second reviews the findings and targets priority areas.</p>'+ 
+        '<p>No membership or package is required. The offer is available to first-time guests, one per person.</p>'+ 
+        TC_BOOKING+
+        '<p>Questions about the intro or any location? Reply directly to this email.</p>'+TC_SIG},
+      {t:'sms', when:'Day 7', nm:'Promo follow-up, disabled', enabled:false, text:'Hi {{first_name}}, your $29 intro covers two 45-min visits at your choice of four Twin Cities studios. Questions? Reply here. Reply STOP to opt out.',
+       note:'<b>Leave this action disabled.</b> The day-7 email already presents all four booking choices on the same offset. The card remains here because it is part of the out-of-box Momence flow shown in the account.'}
+    ]};
+
+  var CUSTOM_KEY = 'tvs-nurture-custom-v1';
+  var custom = (function(){ try { return JSON.parse(localStorage.getItem(CUSTOM_KEY)) || {}; } catch(e){ return {}; } })();
+  function saveCustom(){ try { localStorage.setItem(CUSTOM_KEY, JSON.stringify(custom)); } catch(e){} }
+
+  var FIELDS = [
+    {k:'label',  l:'Studio label', ph:'Woodbury',
+     h:'Internal only. It names the button on the studio picker and appears nowhere in a message.'},
+    {k:'staff',  l:'Sender name', ph:'Karen',
+     h:'The one person every text and email is signed by. One name, not a team, because the whole program is written as a person reaching out.'},
+    {k:'studio', l:'Studio name in copy', ph:'Woodbury',
+     h:'Every place a message says "The Vital Stretch ___". It is also charged in five separate texts, so a long name costs real money.'},
+    {k:'code',   l:'Sequence prefix', ph:'Wood',
+     h:'Two to six characters. Every sequence name and all four stage names start with it.'},
+    {k:'phone',  l:'Studio phone', ph:'(651) 555-0100',
+     h:'Appears in four email signatures and in the day 0 voicemail script.'},
+    {k:'email',  l:'Studio email', ph:'woodbury@thevitalstretch.com',
+     h:'Reference only. Nothing in this build pastes it into a message.'},
+    {k:'addr',   l:'Street address', ph:'123 Main St, Suite 4', w:2,
+     h:'Used in the booking confirmation and the 24-hour reminder. Street and suite only; the copy supplies the studio name around it.'},
+    {k:'lms',    l:'Short landmark', ph:'by the Target on Radio Dr', w:2,
+     h:'Rides in the 2-hour text and the 24-hour email. Lower case, no full stop: the copy drops it mid-sentence. Every character is charged.'},
+    {k:'lml',    l:'Long landmark', ph:'on Radio Drive just south of 94, in the center with Target and Cub', w:2,
+     h:'Goes in the booking confirmation, where there is room to be clear. Same rule, lower case, it continues a sentence.'},
+    {k:'link',   l:'Booking short link', ph:'vitalstretchtc.co/wood',
+     h:'No https://, the copy adds it. It appears in three texts, so length is charged three times.'},
+    {k:'rlink',  l:'Review short link', ph:'vitalstretchtc.co/wood-review',
+     h:'No https://. Email only, so length does not cost anything here.'},
+    {k:'board',  l:'Board ID', ph:'99073',
+     h:'From the Momence booking URL, the boardId= value.'},
+    {k:'venue',  l:'Venue ID', ph:'98916',
+     h:'From the same URL, the venueId= value.'},
+    {k:'place',  l:'Google Place ID', ph:'ChIJu9YUbKVLs1IRUUzKcF35Yo0', w:2,
+     h:'From the Google Business Profile. It is what the review short link has to land on.'}
+  ];
+
+  var PLACEHOLDER = {studio:'[studio]', code:'[##]', staff:'[sender]', phone:'[phone]',
+    addr:'[address]', link:'[booking-link]', rlink:'[review-link]', lms:'[landmark]', lml:'[landmark]'};
+
+  function previewStudio(){
+    var c = {};
+    Object.keys(PLACEHOLDER).forEach(function(k){
+      c[k] = String(custom[k]||'').trim() || PLACEHOLDER[k];
+    });
+    c.launch = !!custom.launch;
+    return c;
+  }
+  function customStudio(){
+    if (!String(custom.studio||'').trim() || !String(custom.code||'').trim()) return null;
+    var c = previewStudio();
+    c.label = String(custom.label||'').trim() || c.studio;
+    c.email = String(custom.email||'').trim();
+    c.board = custom.board; c.venue = custom.venue; c.place = custom.place;
+    return c;
+  }
+  function allStudios(){
+    var m = {};
+    Object.keys(STUDIOS).forEach(function(k){ m[k] = STUDIOS[k]; });
+    var c = customStudio();
+    if (c) m.cu = c;
+    return m;
+  }
+  function bookURL(){
+    return 'https://momence.com/The-Vital-Stretch-Twin-Cities/appointment-reservation/49534?boardId='+
+      String(custom.board||'').trim()+'&serviceId=220303&venueId='+String(custom.venue||'').trim()+'&staffId=-1';
+  }
+  function revURL(){ return 'https://search.google.com/local/writereview?placeid='+String(custom.place||'').trim(); }
+
+  function smsByName(nm){
+    var out='';
+    DATA.forEach(function(g){ g.items.forEach(function(i){ if (i.t==='sms' && i.nm===nm) out=i.text; }); });
+    return out;
+  }
+  function allSms(){
+    var out=[], list = DATA.slice();
+    if (custom.launch) list.push(LAUNCH);
+    list.push(UNASSIGNED, ABANDONED);
+    list.forEach(function(g){ g.items.forEach(function(i){ if (i.t==='sms') out.push({seq:g.seq, nm:i.nm, text:i.text}); }); });
+    return out;
+  }
+
+  function checkField(k, v){
+    v = String(v==null?'':v).trim();
+    if (!v) return {c:'warn', m:'Empty. Every message that uses this field ships with a hole in it.'};
+    switch(k){
+      case 'code':
+        return /^[A-Za-z][A-Za-z0-9]{1,5}$/.test(v)
+          ? {c:'ok', m:'Sequences read '+v+'-10, stages read '+v.toUpperCase()+' - Intro Nurture.'}
+          : {c:'bad', m:'Letters and digits only, two to six characters. No spaces, dashes or punctuation.'};
+      case 'studio':
+        return {c:'ok', m:'"The Vital Stretch '+v+'" is '+(18+v.length)+' characters of every text that names the studio.'};
+      case 'phone':
+        var d = v.replace(/\D/g,'').length;
+        return d===10 ? {c:'ok', m:'Ten digits. It prints exactly as typed, so match the format the other studios use.'}
+                      : {c:'bad', m:'Ten digits expected, found '+d+'.'};
+      case 'email':
+        return /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(v) ? {c:'ok', m:'Reference only, never pasted into a message.'}
+                                                       : {c:'bad', m:'That is not an address.'};
+      case 'link': case 'rlink':
+        if (/^https?:\/\//i.test(v)) return {c:'bad', m:'Drop the scheme. The copy adds https:// itself, so this would send https://https://...'};
+        if (/\s/.test(v)) return {c:'bad', m:'No spaces in a URL.'};
+        if (!/^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}\/\S+$/i.test(v)) return {c:'bad', m:'Expected a domain and a path, like vitalstretchtc.co/wood.'};
+        return {c:'ok', m:v.length+' characters'+(k==='link' ? ', charged in three separate texts. Twenty-five or fewer keeps them comfortable.' : '.')};
+      case 'board': case 'venue':
+        return /^\d{2,}$/.test(v) ? {c:'ok', m:'Composed into the booking destination below.'}
+                                  : {c:'bad', m:'Digits only, copied out of the Momence booking URL.'};
+      case 'place':
+        return /^[A-Za-z0-9_-]{15,}$/.test(v) ? {c:'ok', m:'Composed into the review destination below.'}
+                                              : {c:'bad', m:'A Place ID is one long unbroken string, usually starting ChIJ. This is not one.'};
+      case 'lms':
+        var t2 = gsmCheck(worst(fill(smsByName('Two hours before'), previewStudio())));
+        return {c: t2.cost>160?'bad':'ok',
+                m:'With this landmark the 2-hour text lands at '+t2.cost+' of 160 characters, '+t2.seg+' segment'+(t2.seg>1?'s':'')+'.'};
+      case 'lml':
+        return {c:'ok', m:'Email only, so nothing here is charged. Lower case, it continues a sentence.'};
+      default:
+        return {c:'ok', m:'Internal label.'};
+    }
+  }
+
+  function fieldHTML(f){
+    var v = custom[f.k]==null ? '' : String(custom[f.k]);
+    return '<div class="frow'+(f.w===2?' wide':'')+'">'+
+      '<label class="flabel" for="tvsf-'+f.k+'">'+f.l+'</label>'+
+      '<p class="fhint">'+f.h+'</p>'+
+      '<input type="text" id="tvsf-'+f.k+'" data-fld="'+f.k+'" spellcheck="false" autocomplete="off" '+
+        'placeholder="'+escA(f.ph)+'" value="'+escA(v)+'">'+
+      '<div class="fmsg" data-msg="'+f.k+'"></div></div>';
+  }
+
+  function urlCheckHTML(label, url, ok, note){
+    return '<div class="urlcheck"><div class="fieldrow"><span class="fieldlabel">'+label+'</span>'+
+      (ok ? '<a class="copy" href="'+escA(url)+'" target="_blank" rel="noopener noreferrer">Open</a>'+
+            '<button type="button" class="copy" data-ping="'+escA(url)+'">Check</button>' : '')+
+      '</div><div class="atime">'+esc(ok?url:note)+'</div>'+
+      '<div class="imgnote" data-pingout>'+(ok?'':'Fill the fields above and this composes itself.')+'</div></div>';
+  }
+
+  function studioPreviewHTML(){
+    var c = previewStudio();
+    var link = String(custom.link||'').trim(), rlink = String(custom.rlink||'').trim();
+    var bad = FIELDS.filter(function(f){ return checkField(f.k, custom[f.k]).c==='bad'; });
+    var blank = FIELDS.filter(function(f){ return !String(custom[f.k]||'').trim(); });
+    var ready = !bad.length && !blank.length;
+
+    var banner = bad.length
+      ? '<div class="banner bad"><b>'+bad.length+' field'+(bad.length>1?'s are':' is')+' wrong:</b> '+
+          bad.map(function(f){ return f.l.toLowerCase(); }).join(', ')+'. Each one is flagged in red above.</div>'
+      : (blank.length
+        ? '<div class="banner"><b>'+blank.length+' field'+(blank.length>1?'s':'')+' still empty:</b> '+
+            blank.map(function(f){ return f.l.toLowerCase(); }).join(', ')+'. '+
+            (customStudio()
+              ? 'The studio is already on the Copy tab, with a bracketed placeholder anywhere a blank field would have gone.'
+              : 'A studio name and a sequence prefix are the two it cannot run without; until both are filled the studio does not appear on the Copy tab at all.')+'</div>'
+        : '<div class="banner"><b>Complete.</b> Every field is filled and nothing is malformed. The two destination URLs still need opening once by hand, because no browser can tell you that a redirect lands on the right studio.</div>');
+
+    var links =
+      '<div class="setupcard"><div class="setuphd">Links, composed</div>'+
+      '<p class="fhint">The top two are what a customer taps. The bottom two are where those short links have to redirect. Check answers whether the domain responds at all; Open is the only thing that proves the page is right. Use a 302 or 307 on the redirect, never a 301, because browsers cache a 301 forever and you will not be able to repoint links already sitting in someone\'s text thread.</p>'+
+      urlCheckHTML('Booking link, what the customer taps', 'https://'+link, !!link && checkField('link',link).c==='ok', link ? 'Not a usable link yet, see the red note above.' : 'No booking short link yet.')+
+      urlCheckHTML('Review link, what the customer taps', 'https://'+rlink, !!rlink && checkField('rlink',rlink).c==='ok', rlink ? 'Not a usable link yet, see the red note above.' : 'No review short link yet.')+
+      urlCheckHTML('Booking link must redirect to', bookURL(), /^\d{2,}$/.test(String(custom.board||'').trim()) && /^\d{2,}$/.test(String(custom.venue||'').trim()), 'Needs a board ID and a venue ID.')+
+      urlCheckHTML('Review link must redirect to', revURL(), /^[A-Za-z0-9_-]{15,}$/.test(String(custom.place||'').trim()), 'Needs a Google Place ID.')+
+      '</div>';
+
+    var top = allSms().map(function(x){
+        var t = fill(x.text, c);
+        return {nm:x.nm||'', seq:fill(x.seq.split('&middot;')[0].trim(), c), t:t, k:gsmCheck(worst(t))};
+      }).sort(function(a,b){ return b.k.cost - a.k.cost; }).slice(0,3);
+    var over = top.filter(function(x){ return x.k.cost>160 || x.k.uni; }).length;
+    var sms =
+      '<div class="setupcard"><div class="setuphd">The three longest texts, as this studio</div>'+
+      '<p class="fhint">Every text in the build, filled with these values and a twelve-character first name, sorted by length. If the longest one fits in a single segment, they all do. '+
+        (over ? 'Right now '+over+' of them does not, and the usual culprit is a long studio name, a long landmark or a long booking link.' : 'All three fit.')+'</p>'+
+      top.map(function(x){
+        return '<div class="field"><div class="fieldrow"><span class="fieldlabel">'+esc(x.seq)+' &middot; '+esc(x.nm)+'</span></div>'+
+          '<div class="smstext">'+esc(x.t)+'</div>'+meterHTML(x.k)+'</div>';
+      }).join('')+'</div>';
+
+    var names =
+      '<div class="setupcard"><div class="setuphd">What to name things in Momence</div>'+
+      '<p class="fhint">Twelve sequences and four stages per studio, spelled out. Shared Twin Cities flows and the TC - Unassigned stage are listed separately on the Shared Flows tab.</p>'+ 
+      '<ol class="namelist">'+DATA.map(function(g){
+        return g.setup ? '<li>'+esc(fill(g.setup.name, c))+'</li>' : '';
+      }).join('')+'</ol>'+
+      '<p class="fhint" style="margin-top:12px">Stages: <code>'+esc(c.code.toUpperCase())+' - Intro Nurture</code>, <code>'+esc(c.code.toUpperCase())+' - Long Term</code>, <code>'+esc(c.code.toUpperCase())+' - Not Interested</code>, <code>'+esc(c.code.toUpperCase())+' - No Show</code>.</p>'+
+      '</div>';
+
+    var sig =
+      '<div class="setupcard"><div class="setuphd">The signature every email ends with</div>'+
+      '<div class="etext">'+fill(SIG, c)+'</div></div>';
+
+    var key = String(custom.code||'').toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,4) || 'new';
+    var json = '    '+key+":{label:'"+q(custom.label)+"', studio:'"+q(custom.studio)+"', code:'"+q(custom.code)+"', staff:'"+q(custom.staff)+"',\n"+
+      "        phone:'"+q(custom.phone)+"', addr:'"+q(custom.addr)+"',\n"+
+      "        link:'"+q(custom.link)+"', rlink:'"+q(custom.rlink)+"',\n"+
+      "        email:'"+q(custom.email)+"',\n"+
+      "        lms:'"+q(custom.lms)+"',\n"+
+      "        lml:'"+q(custom.lml)+"',\n"+
+      "        board:"+(String(custom.board||'').trim()||0)+", venue:"+(String(custom.venue||'').trim()||0)+
+        ", place:'"+q(custom.place)+"', launch:"+(custom.launch?'true':'false')+"}";
+    var out =
+      '<div class="setupcard"><div class="setuphd">Make it permanent</div>'+
+      '<p class="fhint">Everything above lives in this browser and nowhere else. Clear the browser data and it is gone, and nobody else can see it. Paste this line into the STUDIOS list in the file and the studio becomes a real fifth button for everyone who opens the page.</p>'+
+      '<div class="field"><div class="fieldrow"><span class="fieldlabel">Paste into the STUDIOS object</span>'+
+        '<button type="button" class="copy" data-mode="plain">Copy</button></div>'+
+        '<pre class="json" data-content>'+esc(json)+'</pre></div></div>';
+
+    return banner+
+      '<div style="margin-top:16px"><button type="button" class="mark" data-usecustom>'+
+        (ready ? 'Build with this studio' : 'Open the Copy tab as this studio anyway')+'</button></div>'+
+      links+sms+names+sig+out;
+  }
+
+  function studioPanelHTML(){
+    var presets = Object.keys(STUDIOS).map(function(k){
+      return '<button type="button" class="mark" data-preset="'+k+'">'+STUDIOS[k].label+'</button>';
+    }).join('');
+    return '<section class="panel"><h2>Build a studio</h2>'+
+      '<p>Everything that differs between the four studios is these fourteen fields. Fill them in and every message on the <b>Copy</b> tab rewrites itself: the sender, the phone number, the address, both landmarks, both links, the sequence prefix and all four stage names. Nothing else about the build changes, because nothing else is studio-specific.</p>'+
+      '<p>It saves as you type, into this browser only. The four built-in studios are untouched, and a blank field shows as a bracketed placeholder in the copy rather than breaking it.</p>'+
+      '<div class="setupcard"><div class="setuphd">Start from an existing studio</div>'+
+      '<p class="fhint">Copies that studio\'s fourteen values in so you can see the shape of a correct answer, then type over them. It replaces whatever is in the form now.</p>'+
+      '<div class="presets">'+presets+'<button type="button" class="mark" data-preset="clear">Empty the form</button></div></div>'+
+      '<div class="form">'+FIELDS.map(fieldHTML).join('')+
+        '<div class="frow wide"><label class="chk"><input type="checkbox" data-fld="launch"'+(custom.launch?' checked':'')+'>'+
+        '<span>Brand new studio. Adds the <b>Now open</b> pair, which replaces the day 0 text and email in <code>##</code>-10 for the first few weeks.</span></label></div>'+
+      '</div>'+
+      '<div data-studioprev></div>'+
+      '</section>';
+  }
+
+  function paintStudio(){
+    var host = root.querySelector('[data-studioprev]');
+    if (!host) return;
+    FIELDS.forEach(function(f){
+      var m = root.querySelector('[data-msg="'+f.k+'"]');
+      if (!m) return;
+      var r = checkField(f.k, custom[f.k]);
+      m.className = 'fmsg '+r.c;
+      m.textContent = r.m;
+    });
+    host.innerHTML = studioPreviewHTML();
+  }
+
+  function ping(url, btn){
+    var box = btn.closest('.urlcheck'), out = box && box.querySelector('[data-pingout]');
+    if (!out) return;
+    out.className = 'imgnote';
+    out.textContent = 'Checking...';
+    var settled = false;
+    var timer = setTimeout(function(){
+      if (settled) return; settled = true;
+      out.className = 'imgnote bad';
+      out.textContent = 'Nothing came back inside eight seconds. Usually a typo in the domain, or a short link that has not been created yet.';
+    }, 8000);
+    function fin(cls, msg){
+      if (settled) return; settled = true; clearTimeout(timer);
+      out.className = 'imgnote'+(cls?' '+cls:''); out.textContent = msg;
+    }
+    if (!window.fetch){ fin('', 'This browser cannot check it from here. Use Open instead.'); return; }
+    fetch(url, {mode:'no-cors'}).then(function(){
+      fin('', 'The host answered. That proves the domain resolves, nothing more: it cannot see where a redirect ends up or whether the page is the right studio. Open it once by hand.');
+    }, function(){
+      fin('bad', 'No answer at all. Either the domain is wrong or the short link has not been created yet.');
+    });
+  }
+
+  var OVERVIEW = (function(){
+    var rows = Object.keys(STUDIOS).map(function(k){
+      var d = STUDIOS[k];
+      return '<tr><td>'+d.label+'</td><td><code>'+d.code+'-</code></td><td><code>'+d.link+'</code></td>'+
+             '<td><code>'+d.rlink+'</code></td><td>'+d.board+'</td><td>'+d.venue+'</td>'+
+             '<td><code class="pid">'+d.place+'</code></td></tr>';
+    }).join('');
+
+    return '<section class="panel"><h2>What this is</h2>'+
+      '<p><b>The build contains 12 actual Momence sequences per studio:</b> 10, 20, 30, 31, 40, 50, 60, 65, 70, 80, 82 and 84. Nine appear in the core workflow map below. Three sit outside that map: the 31 intro booking email, the 82 freeze save and the 84 expiration win-back. Minnetonka also shows a thirteenth panel on the Twin Cities Copy tab called <b>Temporary swap for Mtka-10</b>. That panel is not another sequence; its two launch messages temporarily replace the day 0 SMS and email inside sequence 10.</p>'+ 
+      '<p><b>Shared Flows contains two additional Twin Cities sequences.</b> TC - Unassigned handles generic and manual leads without inventing a studio. Abandoned Cart follows Momence\'s seven-action out-of-box schedule. Both present all four locations and use the Twin Cities team identity.</p>'+ 
+      '<p><b>The intro is $29 for two 45-minute visits.</b> The lead books the first one. The practitioner books the second at the end of it. After visit 2 we either sell or we do not, and <b>any booking after that is the conversion signal</b>, since nobody books a third session and then declines to pay for it. Every trigger and counter condition below is built on that.</p>'+
+      '<p>The program runs on three ideas. <b>Email carries the volume</b>, because it is free. <b>SMS carries only the moments that convert</b>, because Twilio bills per segment and every text here is verified to fit in one. And <b>lead stages carry the flow</b>: each sequence ends with an Update lead stage action, and the next one triggers on that stage. Stages beat tags because a stage shows on the Leads list, so your front desk can see who is where without opening anything.</p>'+
+      '<p>The four Twin Cities studios are already loaded. The same instructions can also generate a complete build for any additional studio, without changing the sequence logic or rewriting a message.</p>'+
+      '<p class="flag"><b>Three settings that will cost us money.</b> The first text must be immediate, not thirty minutes after trigger. Enrollment-once must be Yes on every stage-triggered sequence, or anyone whose stage moves twice gets the whole drip twice. Counter conditions use all-time only for brand-new lead flows: <code>##</code>-10, TC - Unassigned and Abandoned Cart. Flows for anyone with prior history use after enrollment.</p>'+ 
+      '</section>'+
+
+      '<section class="panel"><h2>How to use this console</h2>'+
+      '<table class="grid"><tbody>'+
+      '<tr><td>Overview</td><td>The operating model, sequence map, exact Momence settings, SMS rules and redirect reference. Read this once before building.</td></tr>'+
+      '<tr><td>Copy</td><td>Pick a studio, then work through every sequence in order. Each step includes the Momence action name, timing, paste-ready copy and a built marker saved in this browser.</td></tr>'+
+      '<tr><td>Shared Flows</td><td>Generic Twin Cities sequences for unassigned leads and abandoned checkout. Both use shared copy and all four studio booking links.</td></tr>'+ 
+      '<tr><td>Images</td><td>The abandoned-cart logo, intro booking, Bob and Paula email cards contain the image description, hosted URL field and live preview. One saved image URL is shared by every studio.</td></tr>'+ 
+      '<tr><td>Build a studio</td><td>Enter the fourteen location-specific values. The console validates the links and SMS length, composes every sequence and stage name, then adds that studio to the Copy tab.</td></tr>'+
+      '</tbody></table>'+
+      '<p class="flag"><b>Browser storage is local.</b> Built marks, custom-studio values and image URLs stay in this browser. The generated studio snippet is what makes a new location permanent and visible to everyone.</p>'+
+      '</section>'+
+
+      '<section class="panel"><h2>The whole program</h2>'+
+      '<svg viewBox="0 0 680 680" width="100%" role="img" aria-label="The nine-sequence spine per studio; the lead source sets the entry stage, then these fire in turn"><defs><marker id="tvsarrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#013160" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs><text x="125" y="40" text-anchor="middle" class="svgh">Lead</text><text x="335" y="40" text-anchor="middle" class="svgh">Intro visits</text><text x="545" y="40" text-anchor="middle" class="svgh">Member</text><rect x="40" y="54" width="170" height="48" rx="8" fill="none" stroke="#013160" stroke-width="1" stroke-dasharray="4 3"/><text x="125" y="73" text-anchor="middle" class="svgs" fill="#013160">lead source sets the</text><text x="125" y="90" text-anchor="middle" class="svgs" fill="#013160">Intro Nurture stage</text><rect x="40" y="120" width="170" height="52" rx="8" fill="#E3EEF5" stroke="#013160" stroke-width="1"/><text x="125" y="141" text-anchor="middle" class="svgt" fill="#013160">10 Lead nurture</text><text x="125" y="159" text-anchor="middle" class="svgs" fill="#013160">4 SMS, 7 email</text><rect x="40" y="250" width="170" height="52" rx="8" fill="#E3EEF5" stroke="#013160" stroke-width="1"/><text x="125" y="271" text-anchor="middle" class="svgt" fill="#013160">20 Long term</text><text x="125" y="289" text-anchor="middle" class="svgs" fill="#013160">12 email, 4 SMS, 1 yr</text><rect x="250" y="120" width="170" height="52" rx="8" fill="#71BED2" stroke="#013160" stroke-width="1"/><text x="335" y="141" text-anchor="middle" class="svgt" fill="#013160">30 Pre-visit</text><text x="335" y="159" text-anchor="middle" class="svgs" fill="#013160">1 SMS, 1 email</text><rect x="250" y="250" width="170" height="52" rx="8" fill="#71BED2" stroke="#013160" stroke-width="1"/><text x="335" y="271" text-anchor="middle" class="svgt" fill="#013160">50 Intro visits</text><text x="335" y="289" text-anchor="middle" class="svgs" fill="#013160">1 email + gated nudge</text><rect x="250" y="350" width="170" height="52" rx="8" fill="#71BED2" stroke="#013160" stroke-width="1"/><text x="335" y="371" text-anchor="middle" class="svgt" fill="#013160">40 No-show rescue</text><text x="335" y="389" text-anchor="middle" class="svgs" fill="#013160">2 SMS, 1 task</text><rect x="460" y="250" width="170" height="52" rx="8" fill="#FBB514" stroke="#013160" stroke-width="1"/><text x="545" y="271" text-anchor="middle" class="svgt" fill="#013160">60 The ask</text><text x="545" y="289" text-anchor="middle" class="svgs" fill="#013160">2 email, 1 task</text><rect x="460" y="350" width="170" height="52" rx="8" fill="#FBB514" stroke="#013160" stroke-width="1"/><text x="545" y="371" text-anchor="middle" class="svgt" fill="#013160">65 New member</text><text x="545" y="389" text-anchor="middle" class="svgs" fill="#013160">welcome, review ask</text><rect x="460" y="450" width="170" height="52" rx="8" fill="#FBB514" stroke="#013160" stroke-width="1"/><text x="545" y="471" text-anchor="middle" class="svgt" fill="#013160">70 Winback</text><text x="545" y="489" text-anchor="middle" class="svgs" fill="#013160">2 SMS, 2 email</text><rect x="460" y="550" width="170" height="52" rx="8" fill="#FBB514" stroke="#013160" stroke-width="1"/><text x="545" y="571" text-anchor="middle" class="svgt" fill="#013160">80 Save member</text><text x="545" y="589" text-anchor="middle" class="svgs" fill="#013160">1 email, 1 task</text><line x1="125" y1="102" x2="125" y2="118" stroke="#013160" stroke-width="1" marker-end="url(#tvsarrow)"/><line x1="125" y1="172" x2="125" y2="248" stroke="#013160" stroke-width="1" marker-end="url(#tvsarrow)"/><text x="133" y="214" text-anchor="start" class="svgs" fill="#013160">day 22</text><line x1="212" y1="146" x2="247" y2="146" stroke="#013160" stroke-width="1" marker-end="url(#tvsarrow)"/><text x="229" y="136" text-anchor="middle" class="svgs" fill="#013160">books</text><line x1="335" y1="172" x2="335" y2="248" stroke="#013160" stroke-width="1" marker-end="url(#tvsarrow)"/><text x="343" y="214" text-anchor="start" class="svgs" fill="#013160">visit 1</text><polyline points="250,160 230,160 230,376 248,376" fill="none" stroke="#013160" stroke-width="1" marker-end="url(#tvsarrow)"/><text x="238" y="332" text-anchor="start" class="svgs" fill="#013160">no-show</text><line x1="422" y1="276" x2="457" y2="276" stroke="#013160" stroke-width="1" marker-end="url(#tvsarrow)"/><text x="439" y="266" text-anchor="middle" class="svgs" fill="#013160">visit 2</text><line x1="545" y1="302" x2="545" y2="348" stroke="#013160" stroke-width="1" marker-end="url(#tvsarrow)"/><text x="553" y="332" text-anchor="start" class="svgs" fill="#013160">converts</text><line x1="545" y1="402" x2="545" y2="448" stroke="#013160" stroke-width="1" marker-end="url(#tvsarrow)"/><text x="553" y="432" text-anchor="start" class="svgs" fill="#013160">quiet 14d</text><text x="30" y="628" class="svgs" fill="#013160">Studio-specific sources set Intro Nurture. Generic sources set TC - Unassigned.</text><text x="30" y="646" class="svgs" fill="#013160">Dead ends set Long Term, draining to 20. Not drawn: 82 freeze and 84 expiration, which behave exactly like 80.</text></svg>'+ 
+      '</section>'+
+
+      '<section class="panel"><h2>Build settings</h2>'+
+      '<p>Every sequence uses the same New sequence form. Four fields on it matter: the name, the trigger, the enrollment toggle, and the counter conditions. Here is exactly what to type in each, per sequence. Replace <code>##</code> with the studio code: Mtka, Slp, Ep or Sav.</p>'+
+      '<table class="grid"><thead><tr><th>Sequence name</th><th>Trigger</th><th>Once</th><th>Counter conditions (any one removes them)</th></tr></thead><tbody>'+
+      '<tr><td><code>##</code>-10 Lead nurture</td><td>Lead assigned new stage</td><td>Yes</td><td>Appointment purchase, Appointment booking, Membership purchase, <b>all-time</b></td></tr>'+
+      '<tr><td><code>##</code>-20 Long-term nurture</td><td>Lead assigned new stage</td><td>Yes</td><td>same three, <b>after enrollment</b></td></tr>'+
+      '<tr><td><code>##</code>-30 Pre-visit reminders</td><td>Appointment visit, every visit, On booking</td><td><b>No</b></td><td>Appointment cancellation</td></tr>'+ 
+      '<tr><td><code>##</code>-31 Intro booking email</td><td>Appointment visit, visit 1, On booking</td><td>Yes</td><td>none</td></tr>'+ 
+      '<tr><td><code>##</code>-40 No-show rescue</td><td>Lead assigned new stage</td><td>Yes</td><td>Appointment booking, Appointment purchase, Membership purchase, <b>after enrollment</b></td></tr>'+
+      '<tr><td><code>##</code>-50 Intro visits</td><td>Appointment visit, visit 1, On check-in</td><td>Yes</td><td><b>none</b>, a gate handles the nudge</td></tr>'+
+      '<tr><td><code>##</code>-60 The ask</td><td>Appointment visit, visit 2, On check-in</td><td>Yes</td><td>Membership purchase, Appointment booking, <b>after enrollment</b></td></tr>'+
+      '<tr><td><code>##</code>-65 New member welcome</td><td>Membership purchase</td><td>Yes</td><td>none available</td></tr>'+
+      '<tr><td><code>##</code>-70 Winback</td><td>Win-back, active-membership gates at 14 and 28 days</td><td>Yes</td><td>Appointment booking, Membership purchase, <b>after enrollment</b></td></tr>'+
+      '<tr><td><code>##</code>-80 Save the member</td><td>Subscription cancellation</td><td>Yes</td><td>Membership purchase, <b>after enrollment</b></td></tr>'+
+      '<tr><td><code>##</code>-82 Freeze save</td><td>Membership freeze</td><td>Yes</td><td>Membership purchase, Appointment booking, <b>after enrollment</b></td></tr>'+
+      '<tr><td><code>##</code>-84 Expiration win-back</td><td>Membership expiration</td><td>Yes</td><td>Membership purchase, Appointment booking, <b>after enrollment</b></td></tr></tbody></table>'+
+      '<p class="flag"><b>All-time versus after enrollment is the setting that decides whether half this build works.</b> Every counter condition has a timeframe toggle. Among the per-studio sequences, <b>only <code>##</code>-10 uses all-time</b>, because a brand-new lead has no history. The two shared lead flows also use all-time for the same reason. Every sequence targeting somebody with a prior booking, purchase or membership uses after enrollment. Set those to all-time and Momence enrolls them and ejects them in the same instant.</p>'+ 
+      '<p class="flag"><b>The counter-condition names above are exact.</b> The Type dropdown offers Class purchase, Membership purchase, Appointment purchase, Appointment booking, and Customer has tag. We never use Class purchase, since we sell appointments, not classes. Leave the "Optional: associate with specific" field <b>blank</b> on every one: an empty association means any appointment or any membership counts, which is what we want. Filling it scopes the condition to a single class or service and will silently fail to catch conversions.</p>'+
+      '<p class="flag"><b>A counter condition is an exit, not a gate.</b> It removes the person from the sequence; it does not skip one step and resume. So nothing that should happen <em>after</em> a conversion can live in a sequence that counters on conversion. That is why the welcome and the review ask are in <code>##</code>-65 with their own trigger rather than at the end of <code>##</code>-60, where they could never have fired. Use a true/false condition when you want a fork; use a counter when you want someone gone.</p>'+
+      '<p class="flag"><b>The visit-number trap.</b> 31, 50 and 60 use the Appointment visit trigger with a specific visit number. Sequence 31 is visit 1 enrolled On booking. Sequences 50 and 60 are enrolled On check-in and use visit 1 and visit 2 respectively. Set both the number and booking/check-in choice correctly, or the intro email and follow-up actions fire at the wrong point.</p>'+ 
+      '<p><b>Trigger notes.</b> 10, 20 and 40 all trigger on "Lead assigned new stage" and are told apart by the stage value: Intro Nurture for 10, Long Term for 20, No Show for 40. Sequence 31 uses Appointment visit, visit 1, On booking. Sequences 50 and 60 use Appointment visit enrolled On check-in, separated by visit number 1 and 2. Sequence 65 is the only sequence triggered by a purchase.</p>'+ 
+      '<p class="flag"><b>No-show rescue needs its own sequence, and this is why.</b> The tempting shortcut is to have front desk reset a missed lead back to the Intro Nurture stage so 10 fires again with a rescue text at the top. It cannot work. 10 is enrolled-once, so a lead who already ran through it is never enrolled a second time no matter how many times you change the stage, and the rescue silently never sends. Hence the <code>##</code> - No Show stage and <code>##</code>-40.</p>'+
+      '<p class="flag"><b>Enrolled once = Yes everywhere except <code>##</code>-30.</b> Pre-visit must fire on every appointment a member ever books, so it is the one sequence where the answer is No. Everywhere else, Yes, or a lead whose stage moves twice gets the whole drip twice.</p>'+
+      '<p class="flag"><b>Eden Prairie and Savage have live sequences already.</b> The Savage Local Drip and the Eden Prairie legacy router are running against real leads. Disabling an old sequence stops its remaining actions; it does not transfer enrolled leads to the new sequence, because their enrollment trigger already happened. A clean cutover has two separate cohorts: newly created leads route only to the new trigger, while leads already listed under Customers in the old sequence finish there with that sequence still enabled. Once the old Customers list has cleared, the old sequence is inactive. If its trigger cannot be closed to new leads separately, the active leads need an explicit migration decision; manual enrollment in the new sequence restarts its timing at day 0.</p>'+
+      '<p><b>Stages, per studio:</b> <b>MTKA - Intro Nurture</b>, <b>MTKA - Long Term</b>, <b>MTKA - Not Interested</b>, and <b>MTKA - No Show</b>, repeated with SLP, EP, and SAV. Studio-specific lead sources stamp Intro Nurture at creation. No Show triggers <code>##</code>-40. Not Interested is where a "not now" reply lands.</p><p><b>Shared stage:</b> <b>TC - Unassigned</b>. Generic Twin Cities and manual lead sources use this stage until the lead chooses a studio. Abandoned checkout remains a separate source-associated flow.</p><p class="flag"><b>Test this before you build anything else.</b> Confirm that "Lead assigned new stage" fires when a default stage is applied at lead creation. If it only fires after a human stage change, both the studio entry sequences and TC - Unassigned need a different entry trigger. Do not restore a per-studio catch-all; four copies can race to assign four conflicting studio stages.</p>'+ 
+      '<p><b>Uptime window:</b> 8 AM to 8 PM, one setting for the whole account. <b>Call window:</b> 10 AM to 3 PM Monday through Saturday, which is open at every Twin Cities studio on every day they operate, so it never needs a per-studio edit.</p>'+
+      '</section>'+
+
+      '<section class="panel"><h2>How to build an action</h2>'+
+      '<p>Every sequence is two pages. <b>Page one</b> is the New sequence form above: name, trigger, enrollment toggle, association, and counter conditions. <b>Page two</b> is the builder, where you add the steps. Same for all of them.</p>'+
+      '<p>In the builder, click <b>Add Step</b>, the + on the canvas, then choose one of two things:</p>'+
+      '<table class="grid"><tbody>'+
+      '<tr><td>Add Action</td><td>Does something: sends a message, assigns a task, changes a stage. Pick the <b>Action type</b>, then set <b>Timing</b>.</td></tr>'+
+      '<tr><td>Add Condition</td><td>A true/false gate. It messages no one, it forks the path. Steps under the true side run only when the condition is met, steps under the false side run only when it is not.</td></tr>'+
+      '</tbody></table>'+
+      '<p><b>Action type</b> is a row of buttons, not a dropdown: <b>E-mail</b>, <b>SMS</b>, <b>Staff task</b>, <b>Add tags</b>, <b>Remove tags</b>, <b>Update lead stage</b>. This build uses four of the six and never touches the tag buttons. Every card on the Copy tab names the type and pastes the exact content.</p>'+
+      '<p><b>Every action needs an Action name.</b> It is an internal label you type at the top of the action, next to an <b>Action enabled</b> toggle you leave on. The name never reaches the customer, it just keeps the builder readable. Each Copy card supplies one, numbered in build order like "1. SMS - Day 0, immediately", with a Copy button. Conditions take a name too.</p>'+
+      '<p><b>Timing</b> is two buttons, <b>Immediately</b> and <b>Offset</b>. Immediately is the literal setting for a day 0 step, not an offset of zero. Everything else is Offset plus a number and a unit, and each Copy card spells out the exact entry in its own <b>Timing</b> line. On 30, where the trigger is Appointment visit enrolled On booking, Offset also lets you schedule <em>before</em> the visit, which is how the day-before and two-hour reminders sit ahead of the appointment.</p>'+
+      '<p class="flag"><b>Under Timing there is a checkbox worth understanding once and then ignoring.</b> "Trigger action even if lead is enrolled after the action" makes a step whose due moment has already passed fire immediately instead of being skipped. It can only ever matter in <code>##</code>-30, because that is the only sequence with steps scheduled <em>before</em> the trigger. Every other step in this build is an offset forward from enrollment, so its due moment is never in the past and the box does nothing whichever way you set it.</p>'+
+      '<p class="flag"><b>Inside <code>##</code>-30 the answer differs per step, so do not tick it across the board.</b> <b>Tick the 2-hour text.</b> Someone booking inside two hours gets it immediately and every word still holds, since it says "later today" and names no clock time. <b>Leave the 24-hour email unticked.</b> Its subject and first line both say <em>tomorrow</em>, so firing it at a same-day booker tells them the wrong day. Those people still receive the Momence booking confirmation and the 2-hour text. The alternative is to strip both uses of "tomorrow" so the email is true whenever it lands.</p>'+ 
+      '<p class="flag"><b>Staff tasks have an email toggle at the bottom of the dialog, and it is the reason inboxes fill up.</b> "Send new task and reminder emails" sends one email the moment the task is assigned, then <em>another 24 hours later if nobody has marked it complete</em>. Because tasks assign <b>By staff role</b>, both go to everyone holding Front desk. Ten task steps, four studios, two emails each, times headcount, is a 20-a-day inbox. Leave it <b>off</b> on every task except the day 0 <b>NEW LEAD - call now</b>, which is the only one measured in minutes rather than days. The board carries the rest, and the lead still gets their day 0 text automatically either way.</p>'+
+      '<p><b>Conditions</b> live under Add Step &gt; Add Condition. Available choices include Lead is already a customer, Customer has active membership, Lead has a stage assigned, Email opened, Email sent, and Link in email clicked. Each one forks the flow into a True and a False branch. A condition is itself a timed step, so set its offset the same way. Sequence 50 uses a terminal booking gate; sequence 70 deliberately merges its 14-day branches before checking current membership status again at day 28.</p>'+
+      '<p><b>Merge variables.</b> Momence auto-fills {{first_name}}, {{last_name}}, {{email}}, and the host fields {{host_name}}, {{host_website}}, {{host_email}}, {{host_phone_number}}. This build uses only {{first_name}} and hard-types everything else per studio, so one studio\'s copy can never leak another studio\'s phone number.</p>'+
+      '<p class="flag"><b>Nothing sends until you enable it.</b> A new sequence starts inactive. Build the whole thing, send one test lead through, then click Enable at the top. To pull one person without unsubscribing them from all marketing: open the sequence, Customers, the three dots by their name, Stop running.</p>'+
+      '<p class="flag"><b>Anything tied to a calendar date does not belong in a sequence.</b> Every step here fires on an offset from the moment that person enrolled, and people enroll continuously, so a given step lands in a different month for every lead. That is fine for "what a screening finds" and useless for "March golf prep," which would reach a third of the list in November. The split is clean: <b>sequences are enrollment-driven</b>, so their copy has to be true in any month, and <b>broadcasts are calendar-driven</b> and go out on the real date. The five seasonal pushes (late-December restart, March golf prep, June summer ramp, September back to routine, November gift cards) are one-off sends to a filtered list, written the week they go out so they can name what is actually happening. That is less work than maintaining seasonal variants inside a sequence, not more, and it is the only version that lands on the right date.</p>'+
+      '</section>'+
+      '<section class="panel"><h2>Redirect map</h2>'+
+      '<p>Two destination patterns, one row of values per studio. Use a 302 or 307, never a 301: browsers cache 301s forever, so if a board ID changes you cannot repoint links already sitting in someone\'s text thread.</p>'+
+      '<p class="pattern"><b>Booking</b><br><code>https://momence.com/The-Vital-Stretch-Twin-Cities/appointment-reservation/49534?boardId={board}&amp;serviceId=220303&amp;venueId={venue}&amp;staffId=-1</code></p>'+
+      '<p class="pattern"><b>Review</b><br><code>https://search.google.com/local/writereview?placeid={place id}</code></p>'+
+      '<table class="grid"><thead><tr><th>Studio</th><th>Prefix</th><th>Booking</th><th>Review</th><th>Board</th><th>Venue</th><th>Place ID</th></tr></thead><tbody>'+rows+'</tbody></table>'+
+      '<p>Host ID 49534, service ID 220303 and staff ID -1 are the same at all four. Hang UTMs off the destination, not the short link, so the short link stays 20 characters.</p>'+
+      '</section>'+
+
+      '<section class="panel"><h2>SMS rules</h2>'+
+      '<p><b>You are billed per segment, and one wrong character triples the bill.</b> A message is 160 characters if every character is in the GSM-7 alphabet. A single curly apostrophe, curly quote, em dash, ellipsis or emoji re-encodes the whole thing and drops the limit to 70.</p>'+
+      '<p>Type SMS copy in a plain text editor. Never Word, never Google Docs, both of which insert curly quotes automatically. Every text in this build is verified GSM-7 clean and one segment at worst case, meaning the longest studio name, either sender, and a twelve-character first name.</p>'+
+      '<p class="flag"><b>One Twilio number serves all four studios.</b> A carrier-level STOP blocks a phone number from a sender, so someone who opts out of Minnetonka becomes unreachable by St Louis Park too, silently, forever. Twilio returns error 21610 and nothing tells you. Per-studio numbers fix the blast radius and also solve the shared reply inbox.</p>'+
+      '<p><b>STOP also blocks appointment reminders</b>, not just marketing. That is carrier behavior and no setting changes it. The confirmation and 24-hour reminder are emails for exactly this reason, but front desk needs to know an opted-out client is email-only.</p>'+
+      '<p><b>Twilio catches STOP, UNSUBSCRIBE, END, QUIT, STOPALL, REVOKE, OPTOUT and CANCEL automatically.</b> It does not catch "OPT OUT" with a space, or "stop texting me," or "remove me." Those arrive as normal inbound messages and a human has to act: stop every running sequence for that person, set the Not Interested stage, and send nothing back.</p>'+
+      '</section>'+
+
+      '<section class="panel"><h2>Momence features this build uses</h2>'+
+      '<table class="grid"><tbody>'+
+      '<tr><td>Update lead stage</td><td>The action that chains everything. Each sequence ends by setting a stage and the next triggers on it. Visible on the Leads list, unlike a tag.</td></tr>'+
+      '<tr><td>Counter conditions</td><td>On nearly every sequence. Without them a lead who books on day one keeps getting chased through day twenty-one. A counter is an exit, not a step-level gate, and its all-time versus after-enrollment scope decides whether the sequence works at all.</td></tr>'+
+      '<tr><td>True/false conditions</td><td>Available choices include Customer has active membership plus lead, email and link-status checks. A condition forks the flow into True and False branches, each a timed step you can offset, with AND/OR stacking. Sequence 50 uses a terminal booking fork; sequence 70 merges its first pair of branches and checks membership status again before the second touch.</td></tr>'+
+      '<tr><td>Enrollment once</td><td>Yes everywhere except Pre-visit, which must fire on every appointment.</td></tr>'+
+      '<tr><td>Uptime window</td><td>One setting. Anything triggered outside it reschedules instead of texting someone at 2 AM.</td></tr>'+
+      '<tr><td>Staff Task by Role</td><td>Assign to Front Desk, never a named person, so it survives turnover. The email toggle on each task stays off except the day 0 new-lead call.</td></tr>'+
+      '<tr><td>On booking vs on check-in</td><td>On booking is the only setting that unlocks actions scheduled before the trigger, which is what makes pre-visit reminders possible at all.</td></tr>'+
+      '<tr><td>Visit number targeting</td><td>One Appointment visit trigger set to a specific visit number. Visit 1 drives 50, visit 2 drives 60, both enrolled On check-in.</td></tr>'+
+      '<tr><td>Lead source association</td><td>Ties each router to its studio so a lead never gets the wrong landmark and the wrong phone number.</td></tr>'+
+      '<tr><td>Win-back trigger</td><td>Confirmed present (search "win"). Based on the last class or appointment visit. Sequence 70 checks active membership at days 14 and 28, offers a complimentary sauna comeback, and exits on a new appointment booking or membership purchase.</td></tr>'+
+      '<tr><td>Subscription cancellation</td><td>Fires the save attempt the moment a cancellation processes.</td></tr>'+
+      '<tr><td>Restrict by tag</td><td>Tag anyone who buys the intro, then restrict the $29 offer to customers without it. That is how one-per-person becomes true instead of aspirational.</td></tr>'+
+      '<tr><td>Segmented list</td><td>Filter, then Contact customers. This is how a one-off blast goes out, not through a sequence, and it is where all five seasonal pushes live: filter to the Long Term stage, write one paragraph, send it on the actual date.</td></tr>'+
+      '<tr><td>Duplicate folder</td><td>Build Minnetonka once, duplicate three times, work the redirect map above.</td></tr>'+
+      '<tr><td>Stop running</td><td>Sequences, select, Customers, three dots. How front desk honors a plain-English opt-out without unsubscribing someone from all marketing.</td></tr>'+
+      '</tbody></table>'+
+      '<p><b>Not used:</b> the missed-call triggers. They only fire when calls run through Momence, and ours do not.</p>'+
+      '<p><b>Worth building later, drawn from the full trigger list:</b></p>'+
+      '<table class="grid"><tbody>'+
+      '<tr><td>Intro offer purchase / expiration</td><td>Only if the $29 is ever sold as a prepaid Intro Offer rather than a direct booking. Purchase would nudge a buyer who has not booked visit 1; expiration would rescue one who let it lapse unused. If the $29 is always a direct booking, 30 and 50 already cover them and there is nothing to add.</td></tr>'+
+      '<tr><td>Customer referred</td><td>A referral welcome and booking nudge for the person a member sends in. Fires on the referral link, not a dashboard-created referral.</td></tr>'+
+      '<tr><td>Birthday</td><td>Needs a customer custom field with "birthday" in the name before it can fire at anyone.</td></tr>'+
+      '<tr><td>Appointment visit, milestone number</td><td>A tenth or twenty-fifth session recognition, using the same Appointment visit trigger set to that number.</td></tr>'+
+      '<tr><td>Credits left in pack</td><td>Once Flex Packs are selling.</td></tr>'+
+      '</tbody></table>'+
+      '</section>'+
+
+      '<section class="panel"><h2>Brand check</h2>'+
+      '<p><b>Palette and type.</b> Deep Blue #013160, Light Blue #71BED2, Yellow #FBB514. Headers are Yeseva One and body is Futura Com Book. Both are licensed faces most email clients will not have, so build one branded Momence template with Georgia and Arial as the fallback and stop fighting it. In an inbox the brand lives in the words and the color.</p>'+
+      '<p><b>Language baked in.</b> Vital Stretch Practitioner (VSP), Strap In / Let Loose / Say Ahhh, Active Isolated Stretching, PNF, "looser, lighter and fully alive," the four benefit pillars, and the mandated signature closing every email.</p>'+
+      '</section>';
+  })();
+
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function escA(s){ return esc(s).replace(/"/g,'&quot;'); }
+  function q(s){ return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+
+  function meterHTML(chk){
+    return '<div class="meter"><div class="track"><div class="fill'+(chk.cost>160?' over':'')+'" style="width:'+
+      Math.min(100,Math.round(chk.cost/160*100))+'%"></div></div>'+
+      '<div class="mrow"><span>worst case, 12-char first name</span><span class="'+(chk.cost>160||chk.uni?'bad':'')+'">'+
+      '<b>'+chk.cost+'</b> / 160 &middot; '+(chk.uni?'UCS-2 NON-GSM':'GSM-7')+' &middot; '+chk.seg+' segment'+(chk.seg>1?'s':'')+'</span></div></div>';
+  }
+
+  var IMG_KEY = 'tvs-nurture-images-v1';
+  var imgUrls = (function(){ try { return JSON.parse(localStorage.getItem(IMG_KEY)) || {}; } catch(e){ return {}; } })();
+  function saveImgs(){ try { localStorage.setItem(IMG_KEY, JSON.stringify(imgUrls)); } catch(e){} }
+  Object.keys(IMAGES).forEach(function(id){
+    if (!Object.prototype.hasOwnProperty.call(imgUrls, id) && IMAGES[id].url) imgUrls[id] = IMAGES[id].url;
+  });
+  saveImgs();
+
+  function imageField(id, im){
+    var url = String(imgUrls[id]||'');
+    var displayWidth = im.width || 600;
+    return '<div class="field" data-imgfield="'+id+'">'+
+      '<div class="fieldrow"><span class="fieldlabel">Image needed &middot; '+esc(im.label)+'</span>'+
+        '<span class="imgstate none" data-imgstate>checking</span></div>'+
+      '<div class="photo">'+im.desc+'</div>'+
+      '<div class="urlrow"><input type="url" data-imgurl="'+id+'" spellcheck="false" autocomplete="off" '+
+        'placeholder="https://... the hosted image URL" value="'+escA(url)+'">'+
+        '<button type="button" class="copy" data-openimg>Open</button></div>'+
+      '<div class="imgprev" data-imgprev></div>'+
+      '<span class="imgnote">One URL per image, shared by every studio, saved in this browser. The pasted HTML already carries the image tag, sized to '+displayWidth+' px and holding the alt text "'+esc(im.alt)+'". Leave this blank and it pastes '+IMG_TOKEN+' instead, so you can swap it in Momence by hand.</span>'+ 
+      '<details class="brief"><summary>The full brief for the photographer</summary>'+
+        '<div class="briefbody">'+im.brief+'</div></details>'+
+      '</div>';
+  }
+
+  var imgTick = 0;
+  function paintImg(f){
+    var id = f.getAttribute('data-imgfield');
+    var url = String(imgUrls[id]||'').trim();
+    var prev = f.querySelector('[data-imgprev]');
+    var st = f.querySelector('[data-imgstate]');
+    var tick = ++imgTick;
+    f.setAttribute('data-tick', tick);
+    function stale(){ return !f.isConnected || String(f.getAttribute('data-tick'))!==String(tick); }
+    if (!url){
+      st.textContent = 'no URL yet'; st.className = 'imgstate none';
+      prev.innerHTML = '<span class="imgnote">Nothing to preview. Paste a URL and the image loads here at the exact width it will be in the email.</span>';
+      return;
+    }
+    st.textContent = 'loading'; st.className = 'imgstate none';
+    prev.innerHTML = '<span class="imgnote">Loading...</span>';
+    var probe = new Image();
+    probe.onload = function(){
+      if (stale()) return;
+      var w = probe.naturalWidth, h = probe.naturalHeight, notes = [];
+      if (w < 1200) notes.push('only '+w+' px wide, under the 1200 px minimum, so it will look soft on a phone');
+      if (h > w) notes.push('taller than it is wide, and this slot is a landscape banner across the top of the email');
+      if (/^http:\/\//i.test(url)) notes.push('served over plain http, which several email clients block outright');
+      st.textContent = notes.length ? 'loads, with notes' : 'loads fine';
+      st.className = 'imgstate'+(notes.length?' none':'');
+      prev.innerHTML = '<img src="'+escA(url)+'" alt="">'+
+        '<span class="imgnote'+(notes.length?' bad':'')+'">'+w+' x '+h+' px, shown at 600 px in the email.'+
+        (notes.length ? ' ' + esc(notes.join('. ')) + '.' : '')+'</span>';
+    };
+    probe.onerror = function(){
+      if (stale()) return;
+      st.textContent = 'will not load'; st.className = 'imgstate bad';
+      prev.innerHTML = '<span class="imgnote bad">Nothing loaded from that URL, so it will render as a broken box in every inbox. '+
+        'Google Drive, Dropbox and SharePoint share links do exactly this: they serve a viewer page rather than the file. '+
+        'It needs a direct link, usually ending in .jpg, .png or .webp.</span>';
+    };
+    probe.src = url;
+  }
+  function paintAllImgs(){ root.querySelectorAll('[data-imgfield]').forEach(paintImg); }
+
+  var ACTNAME = {sms:'Send an SMS', email:'Send an email', task:'Create a staff task', stage:'Update the lead stage', cond:'Add a true/false condition'};
+  var HOWTO = {
+    sms:   'Click <b>Add Step &gt; Add Action</b> where this step goes and give it the <b>Action name</b> above. Set <b>Timing</b> to match the <b>Timing</b> line above, then set <b>Action type</b> to <b>SMS</b>. Paste the message below into the text box. Type it as plain text, never from Word.',
+    email: 'Click <b>Add Step &gt; Add Action</b> and give it the <b>Action name</b> above. Set <b>Timing</b> to match the <b>Timing</b> line above, then set <b>Action type</b> to <b>E-mail</b>. Paste the subject into Subject. For the body, switch the editor to <b>Raw HTML</b> and use <b>Copy HTML</b>; that version carries its own inline styling, including the button. <b>Copy styled</b> is the fallback if you are pasting into Rich text instead.',
+    task:  'Click <b>Add Step &gt; Add Action</b> and give it the <b>Action name</b> above. Set <b>Timing</b> to match the <b>Timing</b> line above, then set <b>Action type</b> to <b>Staff task</b>. Paste the title and description below. Under <b>Staff assignment mode</b> choose <b>By staff role</b> and set <b>Staff role</b> to <b>Front desk</b>, never a named person. Then set the email toggle at the bottom of the dialog to whatever the last field on this card says.',
+    stage: 'Click <b>Add Step &gt; Add Action</b> and give it the <b>Action name</b> above. Set <b>Timing</b> to match the <b>Timing</b> line above, then set <b>Action type</b> to <b>Update lead stage</b> and pick the stage named below from the dropdown.',
+    cond:  'This one is a gate, not an action. Click <b>Add Step &gt; Add Condition</b>, not Add Action, and give it the <b>Action name</b> above. Set <b>Timing</b> to match the <b>Timing</b> line above, choose the condition below, and place the steps that follow on the correct true or false branch.'
+  };
+  function stripVars(t){
+    return (t||'').replace(/\{\{[^}]+\}\}/g,'').replace(/\{[A-Z]+\}/g,'')
+      .replace(/\s+/g,' ').replace(/,\s*([?.!])/g,'$1').replace(/\s+([?.!,])/g,'$1')
+      .replace(/[-\s,]+$/,'').trim();
+  }
+  function clip(t, max){ t = t||''; return t.length>max ? t.slice(0,max-1).replace(/[-\s,;:.]+$/,'')+'\u2026' : t; }
+  function actionName(it, n, s){
+    var word = it.t==='cond' ? 'Condition' : (it.t==='sms'?'SMS':(it.t==='email'?'Email':(it.t==='stage'?'Stage':'Task')));
+    var hint;
+    if (it.nm) hint = fill(it.nm, s);
+    else if (it.t==='email') hint = clip(stripVars(it.subj), 42);
+    else if (it.t==='task') hint = clip(stripVars(it.title), 42);
+    else if (it.t==='stage'){ var m=/set stage to:\s*(.+)/i.exec(it.text||''); hint = m ? clip(stripVars(m[1]).replace(/^[-\s]+/,''),42) : 'Update stage'; }
+    else hint = clip(stripVars(it.when), 42) || 'Text';
+    return n+'. '+word+' - '+hint;
+  }
+  function timing(it){
+    var w = it.when||'';
+    if (/^24 hours before$/i.test(w)) return 'Offset, 1 day before the visit (needs On booking)';
+    var mb = /^(\d+)\s*hours? before$/i.exec(w);
+    if (mb) return 'Offset, '+mb[1]+' hours before the visit (needs On booking)';
+    if (/^immediately on booking$/i.test(w)) return 'Immediately';
+    if (/^immediately$/i.test(w)) return 'Immediately';
+    var mm = /^Day\s*0,\s*\+(\d+)\s*minutes?$/i.exec(w);
+    if (mm) return 'Offset, '+mm[1]+' minutes after the trigger';
+    var mmh = /^Day\s*0,\s*\+(\d+)\s*hours?$/i.exec(w);
+    if (mmh) return 'Offset, '+mmh[1]+' hours after the trigger';
+    if (/^Day\s*0,\s*immediately$/i.test(w)) return 'Immediately';
+    var md = /^Day\s*(\d+)\b/i.exec(w);
+    if (md){ var d=+md[1]; return d===0 ? 'Immediately' : ('Offset, '+d+' day'+(d===1?'':'s')+' after the trigger'); }
+    var mh = /\+(\d+)\s*hours?/i.exec(w);
+    if (mh) return 'Offset, '+mh[1]+' hours after the trigger';
+    var mw = /^(\d+)\s*days since last visit$/i.exec(w);
+    if (mw) return 'Days-after-win-back field: '+mw[1]+' days';
+    return w;
+  }
+  var EM_P   = "margin:0 0 16px;font-family:Georgia,'Times New Roman',serif;font-size:16px;line-height:1.6;color:#013160;";
+  var EM_SIG = "margin:0 0 16px;font-family:Georgia,'Times New Roman',serif;font-size:15px;line-height:1.6;color:#5A7189;";
+  var EM_TAG = "margin:0 0 16px;font-family:Georgia,'Times New Roman',serif;font-size:15px;line-height:1.5;color:#013160;";
+  var EM_H4  = "margin:22px 0 6px;font-family:Arial,Helvetica,sans-serif;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:#013160;";
+  var EM_UL  = "margin:0 0 16px;padding-left:20px;font-family:Georgia,'Times New Roman',serif;font-size:16px;line-height:1.6;color:#013160;";
+
+  var IMG_TOKEN = 'REPLACE_WITH_IMAGE_URL';
+
+  var EMAIL_SOCIAL_ICONS = {
+    facebook:'<img src="https://img.icons8.com/ios-filled/48/013160/facebook-new.png" width="16" height="16" alt="" style="display:inline-block;width:16px;height:16px;border:0;vertical-align:middle;">',
+    instagram:'<img src="https://img.icons8.com/ios-filled/48/013160/instagram-new.png" width="16" height="16" alt="" style="display:inline-block;width:16px;height:16px;border:0;vertical-align:middle;">',
+    google:'<img src="https://img.icons8.com/ios-filled/48/013160/google-logo.png" width="16" height="16" alt="" style="display:inline-block;width:16px;height:16px;border:0;vertical-align:middle;">'
+  };
+
+  function emailSocialLinkHTML(platform, url, studioName){
+    var label = platform.charAt(0).toUpperCase()+platform.slice(1);
+    return '<td width="28" align="center" valign="middle" style="width:28px;padding:0 2px;">'+
+      '<a href="'+escA(url)+'" target="_blank" rel="noopener" title="'+escA(label)+'" aria-label="'+escA(studioName+' on '+label)+'" '+
+      'style="display:inline-block;width:24px;height:24px;line-height:24px;border:1px solid #D3DEE6;border-radius:50%;background:#ffffff;color:#013160;text-decoration:none;">'+
+      EMAIL_SOCIAL_ICONS[platform]+'</a></td>';
+  }
+
+  function emailSocialCardHTML(item){
+    var studio = STUDIOS[item.key];
+    var phoneHref = String(studio.phone||'').replace(/\D/g,'');
+    var socialLinks = ['facebook','instagram','google'].map(function(platform){
+      return emailSocialLinkHTML(platform, item[platform], studio.label);
+    }).join('');
+    return '<div style="display:inline-block;width:100%;max-width:280px;min-width:260px;vertical-align:middle;text-align:left;">'+
+      '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" '+
+      'style="width:100%;border-left:3px solid #71BED2;">'+
+      '<tr><td valign="middle" style="padding:4px 5px 4px 8px;">'+
+      '<div style="font-family:Georgia,Times New Roman,serif;font-size:12px;font-weight:bold;line-height:1.2;color:#013160;">'+esc(studio.label)+'</div>'+
+      '<div style="margin-top:2px;font-family:Arial,Helvetica,sans-serif;font-size:10px;line-height:1.25;color:#5A7189;">'+
+      esc(item.street||studio.addr)+' &middot; <a href="tel:+1'+phoneHref+'" style="color:#5A7189;text-decoration:none;white-space:nowrap;">'+esc(studio.phone)+'</a></div>'+
+      '</td><td width="84" align="right" valign="middle" style="width:84px;padding:4px 3px 4px 0;">'+
+      '<table role="presentation" align="right" cellpadding="0" cellspacing="0" border="0"><tr>'+socialLinks+'</tr></table>'+
+      '</td></tr></table></div>';
+  }
+
+  function emailSocialFooterHTML(){
+    var ribbons = STUDIO_SOCIAL.map(emailSocialCardHTML);
+    return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" '+
+      'style="width:100%;margin:18px 0 0;border-top:2px solid #FBB514;">'+
+      '<tr><td align="center" style="padding:11px 6px 6px;">'+
+      '<div style="font-family:Georgia,Times New Roman,serif;font-size:16px;font-weight:bold;line-height:1.15;color:#013160;">Connect With Your Studio</div>'+
+        '</td></tr><tr><td align="center" style="font-size:0;text-align:center;">'+ribbons.join('')+'</td></tr></table>';
+  }
+
+  // Momence strips stylesheets, so every rule the preview gets from CSS has to become an inline attribute here.
+  function emailSource(html, photo){
+    var imageWidth = photo ? (photo.width || 600) : 600;
+    var imageMargin = imageWidth < 600 ? '0 auto 24px' : '0 0 18px';
+    var img = photo ? '<img src="'+IMG_TOKEN+'" alt="'+photo.alt+'" width="'+imageWidth+'" '+
+      'style="display:block;width:100%;max-width:'+imageWidth+'px;height:auto;border:0;margin:'+imageMargin+';">' : '';
+    var b = html
+      .replace(/<p class="cta"><a href="([^"]+)">([^<]*)<\/a><\/p>/g, function(_, href, label){
+        return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 22px;">'+
+          '<tr><td align="center" bgcolor="#013160" style="border-radius:3px;">'+
+          '<a href="'+href+'" style="display:inline-block;padding:14px 26px;font-family:Arial,Helvetica,sans-serif;'+
+          'font-size:16px;font-weight:bold;color:#ffffff;text-decoration:none;border-radius:3px;">'+label+'</a>'+
+          '</td></tr></table>';
+      })
+      .replace(/<p class="sig">/g, '<p style="'+EM_SIG+'">')
+      .replace(/<p class="tagline">/g, '<p style="'+EM_TAG+'">')
+      .replace(/<p(?:\s+class="[^"]*")?>/g, '<p style="'+EM_P+'">')
+      .replace(/<h4(?:\s+class="[^"]*")?>/g, '<h4 style="'+EM_H4+'">')
+      .replace(/<ul(?:\s+class="[^"]*")?>/g, '<ul style="'+EM_UL+'">')
+      .replace(/<li(?:\s+class="[^"]*")?>/g, '<li style="margin:0 0 8px;">')
+      .replace(/\s+class="[^"]*"/g, '');
+    return '<div style="max-width:600px;margin:0 auto;font-family:Georgia,\'Times New Roman\',serif;'+
+      'font-size:16px;line-height:1.6;color:#013160;">'+img+b+emailSocialFooterHTML()+'</div>';
+  }
+
+  function field(label, btns, content){
+    var b = (btns||[]).map(function(x){
+      return '<button type="button" class="copy" data-mode="'+x.m+'">'+x.l+'</button>';
+    }).join('');
+    return '<div class="field"><div class="fieldrow"><span class="fieldlabel">'+label+'</span>'+b+'</div>'+content+'</div>';
+  }
+  var COPY = [{l:'Copy', m:'plain'}];
+  function cardHTML(it, s, n, sid){
+    var isDone = !!done[sid];
+    var im = it.photo ? IMAGES[it.photo] : null;
+    var chan = it.t==='sms'?'SMS':(it.t==='email'?'EMAIL':(it.t==='stage'?'STAGE':(it.t==='cond'?'GATE':'TASK')));
+    var head = '<header><button type="button" class="stepnum" data-step="'+sid+'" aria-pressed="'+isDone+'" '+
+      'title="Mark this step built">'+n+'</button><span class="chan '+it.t+'">'+chan+'</span>'+
+      '<span class="stepverb">'+ACTNAME[it.t]+'</span><span class="when">'+fill(it.when,s)+'</span>';
+    var mark = '<button type="button" class="mark" data-step="'+sid+'" aria-pressed="'+isDone+'">'+
+      (isDone ? 'Built' : 'Mark built')+'</button>';
+    var foot = '<footer class="cardfoot"><button type="button" class="stepnum foot" data-step="'+sid+'" '+
+      'aria-pressed="'+isDone+'" title="Mark this step built">'+n+'</button>'+
+      '<span class="footwhen">'+fill(it.when,s)+'</span>'+mark+'</footer>';
+    var how = field('Action name (type this in Momence)', COPY, '<div class="aname" data-content>'+esc(actionName(it,n,s))+'</div>')+
+      field('Timing', null, '<div class="atime">'+esc(timing(it))+'</div>')+
+      (it.enabled===false ? field('Action enabled', null, '<div class="atime"><b>Off.</b> Keep this action in the flow but leave its toggle disabled.</div>') : '')+
+      (it.late ? field('Trigger action even if lead is enrolled after the action', null, '<div class="atime">'+it.late+'</div>') : '')+
+      '<p class="howto">'+(it.how||HOWTO[it.t])+'</p>';
+    var body='';
+    if (it.t==='sms'){
+      var raw = fill(it.text, s), chk = gsmCheck(worst(raw));
+      head += '<span class="cost">'+chk.seg+' seg</span>'+mark+'</header>';
+      body = '<div class="body">'+how+
+        field('The message to paste', COPY,
+          '<div class="smstext" data-content>'+esc(raw)+'</div>'+meterHTML(chk))+
+        '</div>';
+    } else if (it.t==='email'){
+      head += mark+'</header>';
+      var filled = fill(it.html, s);
+      body = '<div class="body">'+how+
+        field('Subject line', COPY, '<div class="subj" data-content>'+fill(it.subj,s)+'</div>')+
+        (im ? imageField(it.photo, im) : '')+
+        field('Body', [{l:'Copy HTML', m:'html'},{l:'Copy styled', m:'rich'}],
+          '<div class="etext" data-content>'+filled+emailSocialFooterHTML()+'</div>'+
+          '<textarea class="rawsrc" data-html hidden>'+esc(emailSource(filled, im))+'</textarea>')+
+        '</div>';
+    } else if (it.t==='stage'){
+      head += mark+'</header>';
+      body = '<div class="body">'+how+
+        field('The stage to set', COPY, '<div class="tasktext" data-content>'+esc(fill(it.text,s))+'</div>')+
+        '</div>';
+    } else if (it.t==='cond'){
+      head += mark+'</header>';
+      body = '<div class="body">'+how+
+        field('The condition to set', COPY, '<div class="tasktext" data-content>'+esc(fill(it.text,s))+'</div>')+
+        '</div>';
+    } else {
+      head += mark+'</header>';
+      body = '<div class="body">'+how+
+        (it.title ? field('Task title', COPY, '<p class="tasktitle" data-content>'+esc(fill(it.title,s))+'</p>') : '')+
+        field('Task description', COPY, '<div class="tasktext" data-content>'+esc(fill(it.text,s))+'</div>')+
+        field('Send new task and reminder emails', null, '<div class="atime">'+(it.emails
+          ? '<b>On.</b> The only task in the build that gets emails, because this one is time-critical in minutes.'
+          : '<b>Off.</b> The task board carries it. On means an email the moment it is assigned, plus another 24 hours later if nobody has closed it.')+'</div>')+
+        '</div>';
+    }
+    return '<div class="card'+(isDone?' done':'')+'"'+(im?' data-img-id="'+it.photo+'"':'')+'>'+head+body+foot+'</div>'+(it.note?'<div class="note">'+fill(it.note,s)+'</div>':'');
+  }
+
+  var DONE_KEY = 'tvs-nurture-built-v1';
+  var done = (function(){ try { return JSON.parse(localStorage.getItem(DONE_KEY)) || {}; } catch(e){ return {}; } })();
+  function saveDone(){ try { localStorage.setItem(DONE_KEY, JSON.stringify(done)); } catch(e){} }
+
+  var curKey = 'mt', curList = [];
+
+  function seqId(g){ if (g.id) return g.id; var m = g.seq.match(/-(\d\d)/); return m ? m[1] : 'launch'; }
+  function stepId(g, n){ return curKey+'-'+seqId(g)+'-'+n; }
+
+  function indexHTML(){
+    var total=0, built=0;
+    var chips = curList.map(function(g){
+      var b=0, id=seqId(g);
+      for (var i=1;i<=g.items.length;i++) if (done[stepId(g,i)]) b++;
+      total += g.items.length; built += b;
+      var cls = b===0 ? '' : (b===g.items.length ? 'full' : 'part');
+      var t = fill(g.seq, allStudios()[curKey] || STUDIOS.mt).replace(/&middot;/g,'-').replace(/"/g,'');
+      return '<button type="button" class="'+cls+'" data-goto="'+id+'" title="'+t+' ('+b+' of '+g.items.length+' built)">'+
+             (id==='launch' ? 'OPEN' : id)+'</button>';
+    }).join('');
+    return '<div class="index"><div class="chips">'+chips+'</div>'+
+      '<span class="tally">'+built+' / '+total+' steps built</span>'+
+      '<button type="button" class="reset" title="Clear the built marks for this studio">Reset</button></div>';
+  }
+
+  function refreshIndex(){
+    var el = root.querySelector('.index');
+    if (!el) return;
+    var holder = document.createElement('div');
+    holder.innerHTML = indexHTML();
+    el.replaceWith(holder.firstChild);
+  }
+
+  var view = 'overview';
+
+  function render(key, v){
+    if (v) view = v;
+    var isShared = view==='shared';
+    var pool = allStudios();
+    if (!pool[key]) key = 'mt';
+    var s = pool[key];
+    var contentStudio = isShared ? SHARED : s;
+    root.setAttribute('data-studio', key);
+
+    var picker = Object.keys(pool).map(function(k){
+      return '<button data-k="'+k+'" aria-pressed="'+(k===key)+'">'+esc(pool[k].label)+'</button>';
+    }).join('');
+
+    var bar = '<div class="studiobar"><span><b>'+esc(s.staff)+'</b> is the sender</span><span>'+esc(s.phone)+'</span>'+
+      '<span>'+esc(s.addr)+'</span><span>'+esc(s.email||'no studio email set')+'</span><span>Prefix <code>'+esc(s.code)+'-</code></span>'+
+      '<span>Booking <code>'+esc(s.link)+'</code></span><span>Reviews <code>'+esc(s.rlink)+'</code></span></div>';
+
+    var list = isShared ? [UNASSIGNED, ABANDONED] : DATA.slice();
+    if (!isShared && s.launch) list.splice(1, 0, LAUNCH);
+    curKey = isShared ? 'shared' : key; curList = list;
+
+    var body = list.map(function(g){
+      var num = seqId(g);
+      var band = num==='launch' || num==='unassigned' || num==='abandoned' ? 'lead' : (num<='20' ? 'lead' : (num<='50' ? 'intro' : 'member'));
+      var n=0, built=0;
+      var steps = g.items.map(function(i){
+        n++;
+        var sid = stepId(g, n);
+        if (done[sid]) built++;
+        return cardHTML(i, contentStudio, n, sid);
+      }).join('');
+      var intro;
+      if (g.setup){
+        var u=g.setup;
+        intro = '<div class="setupcard">'+
+          '<div class="setuphd">Set up the sequence</div>'+
+          '<ol class="setuplist">'+
+          '<li><span class="fld">Name</span><span class="val">'+fill(u.name,contentStudio)+'</span></li>'+ 
+          '<li><span class="fld">Trigger</span><span class="val">'+fill(u.trigger,contentStudio)+'</span></li>'+ 
+          '<li><span class="fld">Association</span><span class="val">'+fill(u.source,contentStudio)+'</span></li>'+ 
+          '<li><span class="fld">Enrolled once</span><span class="val">'+fill(u.once,contentStudio)+'</span></li>'+ 
+          '<li><span class="fld">Counter conditions</span><span class="val">'+fill(u.counters,contentStudio)+'</span></li>'+ 
+          '</ol>'+
+          (u.notes ? '<p class="setupwhy">'+fill(u.notes,contentStudio)+'</p>' : '')+
+          '</div>';
+      } else {
+        intro = '<p class="meta">'+fill(g.meta,contentStudio)+'</p>';
+      }
+            return '<section class="seq band-'+band+'" data-seq="'+num+'"><div class="spine"><span class="spinelabel">'+(num==='launch'?'SWAP IN':(num==='unassigned'||num==='abandoned'?'SHARED FLOW':'SEQUENCE'))+'</span></div>'+ 
+              '<div class="seqbody"><h2>'+fill(g.seq,contentStudio)+'</h2>'+ 
+             intro +
+             '<p class="stepcount">Then add these '+g.items.length+' steps, in order:'+
+             '<span class="prog">'+built+' of '+g.items.length+' built</span></p>'+
+             '<div class="steps">'+steps+'</div></div></section>';
+    }).join('');
+
+    var tabs = '<div class="tabs"><button data-v="overview" aria-pressed="'+(view==='overview')+'">Overview</button>'+
+      '<button data-v="copy" aria-pressed="'+(view==='copy')+'">Twin Cities Copy</button>'+
+      '<button data-v="shared" aria-pressed="'+(view==='shared')+'">Shared Flows</button>'+ 
+      '<button data-v="studio" aria-pressed="'+(view==='studio')+'">Build a studio</button></div>';
+
+    var head = '<div class="stickytop"><div class="hd"><h1>Nurture console <span>/ The Vital Stretch</span></h1>'+
+      (view==='copy' ? '<div class="picker">'+picker+'</div>' : '')+'</div><div class="tabbar">'+tabs+'</div>'+
+      (view==='copy' || view==='shared' ? indexHTML() : '')+'</div>';
+
+    var hint = '<div class="hint"><b>Copying does not track progress.</b> When a step is actually built in Momence, '+
+      'click its numbered circle or the <b>Mark built</b> button on the right of that step. The counter in the bar above, '+
+      'the coloured chips and the per-sequence tally all follow from that. Progress is saved in this browser only, '+
+      'and separately for each studio, since each studio is a separate build.</div>';
+
+    if (view==='overview') root.innerHTML = head + '<div class="wrap">'+OVERVIEW+'</div>';
+    else if (view==='studio'){ root.innerHTML = head + '<div class="wrap">'+studioPanelHTML()+'</div>'; paintStudio(); }
+    else if (view==='shared'){ root.innerHTML = head + '<div class="wrap">'+hint+body+'</div>'; paintAllImgs(); }
+    else { root.innerHTML = head + bar + '<div class="wrap">'+hint+body+'</div>'; paintAllImgs(); }
+  }
+
+  function flash(btn, msg){ var o=btn.textContent; btn.textContent=msg; btn.classList.add('done');
+    setTimeout(function(){ btn.textContent=o; btn.classList.remove('done'); },1400); }
+  function selectFallback(el, btn){
+    var r=document.createRange(); r.selectNodeContents(el);
+    var sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+    var ok=false; try{ ok=document.execCommand('copy'); }catch(e){}
+    flash(btn, ok?'Copied':'Selected, press Ctrl+C');
+  }
+  function copyRich(el, html, btn){
+    if (navigator.clipboard && window.ClipboardItem){
+      navigator.clipboard.write([new ClipboardItem({
+        'text/html': new Blob([html],{type:'text/html'}),
+        'text/plain': new Blob([el.innerText],{type:'text/plain'})
+      })]).then(function(){ flash(btn,'Copied'); }, function(){ selectFallback(el,btn); });
+    } else selectFallback(el,btn);
+  }
+  function legacyText(str, btn){
+    var ta = document.createElement('textarea');
+    ta.value = str; ta.style.position='fixed'; ta.style.top='-9999px';
+    document.body.appendChild(ta); ta.select();
+    var ok=false; try{ ok=document.execCommand('copy'); }catch(e){}
+    document.body.removeChild(ta);
+    flash(btn, ok?'Copied':'Copy failed');
+  }
+  function copyText(str, btn){
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(str).then(function(){ flash(btn,'Copied'); }, function(){ legacyText(str,btn); });
+    } else legacyText(str, btn);
+  }
+  function copyPlain(el, btn){
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(el.innerText).then(function(){ flash(btn,'Copied'); }, function(){ selectFallback(el,btn); });
+    } else selectFallback(el,btn);
+  }
+
+  root.addEventListener('click', function(e){
+    var vb = e.target.closest('.tabs button');
+    if (vb){ render(root.getAttribute('data-studio'), vb.getAttribute('data-v')); window.scrollTo(0,0); return; }
+    var pb = e.target.closest('.picker button');
+    if (pb){ render(pb.getAttribute('data-k')); window.scrollTo(0,0); return; }
+    var pr = e.target.closest('[data-preset]');
+    if (pr){
+      var pk = pr.getAttribute('data-preset');
+      if (pk==='clear') custom = {};
+      else { custom = {}; Object.keys(STUDIOS[pk]).forEach(function(k){ custom[k] = STUDIOS[pk][k]; }); }
+      saveCustom(); render(root.getAttribute('data-studio'), 'studio'); window.scrollTo(0,0); return;
+    }
+    if (e.target.closest('[data-usecustom]')){
+      if (!customStudio()){ alert('A studio name and a sequence prefix are the two fields it cannot run without.'); return; }
+      render('cu', 'copy'); window.scrollTo(0,0); return;
+    }
+    var pg = e.target.closest('[data-ping]');
+    if (pg){ ping(pg.getAttribute('data-ping'), pg); return; }
+    var oi = e.target.closest('[data-openimg]');
+    if (oi){
+      var inp = oi.closest('.urlrow').querySelector('[data-imgurl]');
+      var u = inp.value.trim();
+      if (u) window.open(u, '_blank', 'noopener');
+      return;
+    }
+    var gb = e.target.closest('.index .chips button');
+    if (gb){
+      var target = root.querySelector('.seq[data-seq="'+gb.getAttribute('data-goto')+'"]');
+      if (target) target.scrollIntoView({block:'start'});
+      return;
+    }
+    var rb = e.target.closest('.index .reset');
+    if (rb){
+      if (!rb.classList.contains('arm')){
+        rb.classList.add('arm'); rb.textContent='Sure?';
+        setTimeout(function(){ if (rb.isConnected){ rb.classList.remove('arm'); rb.textContent='Reset'; } }, 3000);
+        return;
+      }
+      Object.keys(done).forEach(function(k){ if (k.indexOf(curKey+'-')===0) delete done[k]; });
+      saveDone(); render(curKey); return;
+    }
+    var nb = e.target.closest('.stepnum, .mark');
+    if (nb && nb.getAttribute('data-step')){
+      var id = nb.getAttribute('data-step');
+      if (done[id]) delete done[id]; else done[id] = 1;
+      saveDone();
+      var seq = nb.closest('.seq'), card = nb.closest('.card');
+      card.classList.toggle('done', !!done[id]);
+      card.querySelectorAll('[data-step]').forEach(function(b){ b.setAttribute('aria-pressed', !!done[id]); });
+      card.querySelectorAll('.mark').forEach(function(b){ b.textContent = done[id] ? 'Built' : 'Mark built'; });
+      var prog = seq.querySelector('.prog'), cards = seq.querySelectorAll('.card');
+      prog.textContent = seq.querySelectorAll('.card.done').length+' of '+cards.length+' built';
+      refreshIndex();
+      return;
+    }
+    var cb = e.target.closest('.copy');
+    if (!cb) return;
+    var f = cb.closest('.field');
+    if (!f) return;
+    var mode = cb.getAttribute('data-mode');
+    var src = f.querySelector('[data-html]');
+    var owner = cb.closest('.card'), iid = owner && owner.getAttribute('data-img-id');
+    function withImg(v){
+      var u = iid ? String(imgUrls[iid]||'').trim() : '';
+      return u ? v.split(IMG_TOKEN).join(u) : v;
+    }
+    if (mode==='html') copyText(withImg(src.value), cb);
+    else if (mode==='rich') copyRich(f.querySelector('[data-content]'), withImg(src.value), cb);
+    else copyPlain(f.querySelector('[data-content]'), cb);
+  });
+
+  var typeTimer;
+  function onEdit(t){
+    if (t.hasAttribute('data-imgurl')){
+      var id = t.getAttribute('data-imgurl');
+      imgUrls[id] = t.value.trim();
+      saveImgs();
+      clearTimeout(typeTimer);
+      typeTimer = setTimeout(function(){
+        root.querySelectorAll('[data-imgfield="'+id+'"]').forEach(paintImg);
+      }, 450);
+      return;
+    }
+    if (t.hasAttribute('data-fld')){
+      var k = t.getAttribute('data-fld');
+      custom[k] = (t.type==='checkbox') ? t.checked : t.value;
+      saveCustom();
+      clearTimeout(typeTimer);
+      typeTimer = setTimeout(paintStudio, 300);
+    }
+  }
+  root.addEventListener('input', function(e){ onEdit(e.target); });
+  root.addEventListener('change', function(e){ if (e.target.type==='checkbox') onEdit(e.target); });
+
+  render('mt','overview');
+})();
+</script>
